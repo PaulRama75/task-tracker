@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#0f1117;--surface:#1a1d27;--surface2:#242836;--border:#2e3347;--text:#e4e6f0;--text-dim:#8b8fa3;--accent:#6c63ff;--accent-hover:#5a52d5;--success:#2ecc71;--warning:#f39c12;--danger:#e74c3c;--info:#3498db}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:20px;font-weight:600}.header h1 span{color:var(--accent)}
+.tabs{display:flex;gap:4px;background:var(--surface);padding:0 24px;border-bottom:1px solid var(--border)}
+.tab-btn{padding:12px 20px;background:none;border:none;color:var(--text-dim);font-size:14px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
+.tab-btn:hover{color:var(--text)}.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.content{padding:24px;max-width:1600px;margin:0 auto}
+.tab-content{display:none}.tab-content.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:20px}
+.card-title{font-size:16px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.btn{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
+.btn-success{background:var(--success);color:#fff}.btn-danger{background:var(--danger);color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text-dim)}.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:4px 10px;font-size:12px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:12px}
+th{color:var(--text-dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;background:var(--surface);z-index:1}
+tr:hover{background:var(--surface2)}
+input,select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px;outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+.drop-zone{border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;color:var(--text-dim);cursor:pointer;transition:.2s}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(108,99,255,.05)}
+.drop-zone input[type="file"]{display:none}.drop-zone p{margin-top:6px;font-size:13px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media(max-width:1000px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px}
+.stat-card .label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px}
+.stat-card .value{font-size:26px;font-weight:700;margin-top:4px}
+.stat-card .sub{font-size:11px;color:var(--text-dim);margin-top:4px}
+.chart-container{position:relative;height:300px}
+.empty{text-align:center;padding:30px;color:var(--text-dim)}.empty p{font-size:14px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);padding:12px 20px;border-radius:8px;font-size:13px;z-index:1000;animation:slideIn .3s}
+.toast.success{border-color:var(--success)}.toast.error{border-color:var(--danger)}
+@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mb-12{margin-bottom:12px}.mt-12{margin-top:12px}.inline-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filters{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.progress{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width .3s}
+.badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.badge-done{background:rgba(46,204,113,.15);color:var(--success)}
+.badge-empty{background:rgba(139,143,163,.1);color:var(--text-dim)}
+.tracker-wrap{overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:8px;position:relative}
+.tracker-wrap table{border-collapse:separate;border-spacing:0}
+.tracker-wrap table th{background:var(--surface2);position:sticky;z-index:2}
+.tracker-wrap thead tr:first-child th{top:0;height:50px;padding:12px 10px;border-bottom:1px solid var(--border);font-size:12px}
+.tracker-wrap thead tr:nth-child(2) th{top:50px;height:50px;padding:12px 10px;border-bottom:2px solid var(--accent)}
+.tracker-wrap table th.frozen{position:sticky;z-index:3;background:var(--surface2)}
+.tracker-wrap table td.frozen{position:sticky;z-index:1;background:var(--surface);border-right:2px solid var(--border)}
+.tracker-wrap td.task-done{background:rgba(46,204,113,.08)}
+.tracker-wrap td.task-empty{background:transparent}
+.cell-edit{display:flex;gap:4px;align-items:center}
+.cell-edit input{width:80px;padding:3px 6px;font-size:11px}
+.cell-edit select{width:60px;padding:3px 4px;font-size:11px}
+.page-nav{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px;font-size:13px}
+.weight-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:6px}
+.weight-bar-fill{height:100%;border-radius:3px;transition:width .3s}
+.mapping-ok{color:var(--success)}.mapping-miss{color:var(--danger)}
+.form-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);transition:background .15s}
+.form-row:hover{background:var(--surface2)}
+.form-row:last-child{border-bottom:none}
+.form-row .task-label{min-width:220px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px}
+.form-row .task-weight{min-width:60px;font-size:11px;color:var(--text-dim)}
+.form-row .task-mins{min-width:50px;font-size:11px;color:var(--text-dim)}
+.form-row .form-fields{display:flex;gap:10px;align-items:center;flex:1}
+.form-row .form-fields input{padding:8px 12px;font-size:13px;width:130px}
+.form-row .form-fields select{padding:8px 12px;font-size:13px;width:100px}
+.form-row .status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.form-row .status-dot.done{background:var(--success)}.form-row .status-dot.empty{background:var(--border)}
+.editor-info-item{font-size:12px}.editor-info-item .info-label{color:var(--text-dim);margin-bottom:2px}.editor-info-item .info-val{font-weight:600;font-size:14px}
+.dropdown-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;transition:background .1s}
+.dropdown-item:hover{background:var(--surface2)}.dropdown-item.dd-selected{background:rgba(108,99,255,.1);border-left:3px solid var(--accent)}
+.dropdown-item .dd-main{font-weight:500}.dropdown-item .dd-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
+/* Login Screen */
+.login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:380px;max-width:90vw}
+.login-box h2{font-size:24px;margin-bottom:8px;text-align:center}.login-box h2 span{color:var(--accent)}
+.login-box .login-sub{text-align:center;color:var(--text-dim);font-size:13px;margin-bottom:28px}
+.login-box label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;margin-top:14px}
+.login-box input{width:100%;padding:10px 14px;font-size:14px}
+.login-box .login-btn{width:100%;padding:12px;font-size:15px;margin-top:20px;border-radius:8px}
+.login-box .login-error{color:var(--danger);font-size:12px;margin-top:10px;text-align:center;min-height:18px}
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:5000;display:flex;align-items:center;justify-content:center}
+.modal-overlay.hidden{display:none}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:520px;max-width:90vw;max-height:80vh;overflow-y:auto}
+.modal h3{font-size:18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.modal h3 .close-btn{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px 8px}
+.modal h3 .close-btn:hover{color:var(--text)}
+.user-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.user-row:last-child{border-bottom:none}
+.user-row .user-info{display:flex;align-items:center;gap:10px}
+.user-row .role-badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;text-transform:uppercase}
+.role-badge.admin{background:rgba(108,99,255,.15);color:var(--accent)}
+.role-badge.user{background:rgba(46,204,113,.15);color:var(--success)}
+.user-actions{display:flex;gap:6px}
+.add-user-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.add-user-form input,.add-user-form select{padding:8px 12px;font-size:13px}
+/* Header user info */
+.header-user{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim)}
+.header-user strong{color:var(--text)}
+/* Section Bar */
+.section-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface);padding:8px 24px;border-bottom:1px solid var(--border)}
+.section-bar #sectionPills{display:flex;gap:6px;flex-wrap:wrap}
+.section-pill{padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:13px;font-weight:500;cursor:pointer;transition:.2s;position:relative}
+.section-pill:hover{border-color:var(--accent);color:var(--text)}
+.section-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.section-pill .pill-delete{display:none;position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:10px;line-height:16px;text-align:center;cursor:pointer}
+.section-pill:hover .pill-delete{display:block}
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-box">
+    <h2><span>Task</span> Tracker</h2>
+    <div class="login-sub">Sign in to continue</div>
+    <label>Username</label>
+    <input type="text" id="loginUser" placeholder="Enter username" autofocus onkeydown="if(event.key==='Enter')doLogin()">
+    <label>Password</label>
+    <input type="password" id="loginPass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- USER MANAGEMENT MODAL -->
+<div id="userModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Manage Users <button class="close-btn" onclick="closeUserModal()">&times;</button></h3>
+    <div id="userList"></div>
+    <div class="add-user-form">
+      <input id="newUsername" placeholder="Username" style="width:120px">
+      <input id="newPassword" type="password" placeholder="Password" style="width:120px">
+      <select id="newRole" style="width:100px"><option value="user">User</option><option value="admin">Admin</option></select>
+      <button class="btn btn-primary btn-sm" onclick="createUser()">Add User</button>
+    </div>
+    <div class="add-user-form" style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <span style="font-size:12px;color:var(--text-dim)">Change password:</span>
+      <select id="cpUser" style="width:120px"></select>
+      <input id="cpPass" type="password" placeholder="New password" style="width:120px">
+      <button class="btn btn-outline btn-sm" onclick="changePassword()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP (hidden until login) -->
+<div id="appContainer" style="display:none">
+<div class="header">
+  <h1><span>Task</span> Tracker</h1>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="saveIndicator" style="font-size:11px;color:var(--text-dim);margin-right:8px">Loading...</span>
+    <button class="btn btn-outline btn-sm" onclick="exportBackupJSON()">Backup JSON</button>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('importJSON').click()">Restore JSON</button>
+    <input type="file" id="importJSON" accept=".json" style="display:none" onchange="importBackupJSON(event)">
+    <button class="btn btn-outline btn-sm" id="btnManageUsers" style="display:none" onclick="openUserModal()">Manage Users</button>
+    <div class="header-user">
+      <strong id="headerUsername"></strong>
+      <span class="role-badge" id="headerRole"></span>
+      <button class="btn btn-outline btn-sm" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+</div>
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('setup')">Setup</button>
+  <button class="tab-btn" onclick="switchTab('tracker')">Tracker</button>
+  <button class="tab-btn" onclick="switchTab('reports')">Reports & KPI</button>
+  <button class="tab-btn" onclick="switchTab('editor')">Editor</button>
+  <button class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
+</div>
+<div class="section-bar" id="sectionBar">
+  <div id="sectionPills"></div>
+  <div id="sectionActions" style="display:none">
+    <button class="btn btn-outline btn-sm" onclick="duplicateSection()">Duplicate</button>
+    <button class="btn btn-primary btn-sm" onclick="promptAddSection()">+ Add Section</button>
+  </div>
+</div>
+<div class="content">
+
+<!-- ============ SETUP TAB ============ -->
+<div id="tab-setup" class="tab-content active">
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title flex-between"><span id="weightCardTitle">Weight Table</span>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('weightFile').click()">Upload</button>
+          <button class="btn btn-danger btn-sm" onclick="clearWeights()">Clear</button>
+        </div>
+      </div>
+      <div class="drop-zone" id="weightDZ" onclick="document.getElementById('weightFile').click()">
+        <strong>Import WEIGHT.xlsx</strong>
+        <p>task, tracker_dimension_column, weight, Minutes</p>
+        <input type="file" id="weightFile" accept=".csv,.xlsx,.xls" onchange="uploadWeight(event)">
+      </div>
+      <div id="weightStatus" class="mt-12" style="font-size:12px;color:var(--text-dim)"></div>
+      <div style="overflow:auto;max-height:300px" class="mt-12">
+        <table><thead><tr><th>Task</th><th>Tracker Col</th><th>Weight%</th><th>Min</th><th></th></tr></thead>
+        <tbody id="weightBody"></tbody></table>
+      </div>
+      <div id="weightEmpty" class="empty"><p>No weight table loaded</p></div>
+    </div>
+    <div class="card">
+      <div class="card-title flex-between">Initials
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('initialFile').click()">Upload</button>
+          <button class="btn btn-danger btn-sm" onclick="clearInitials()">Clear</button>
+        </div>
+      </div>
+      <div class="drop-zone" id="initialDZ" onclick="document.getElementById('initialFile').click()">
+        <strong>Import INTIAL.xlsx</strong>
+        <p>initial, Name</p>
+        <input type="file" id="initialFile" accept=".csv,.xlsx,.xls" onchange="uploadInitials(event)">
+      </div>
+      <div class="inline-form mt-12">
+        <input id="addInit" placeholder="Initials" style="width:60px" maxlength="5">
+        <input id="addName" placeholder="Full Name" style="flex:1">
+        <button class="btn btn-primary btn-sm" onclick="addInitial()">Add</button>
+      </div>
+      <div style="overflow:auto;max-height:300px" class="mt-12">
+        <table><thead><tr><th>Initials</th><th>Name</th><th></th></tr></thead>
+        <tbody id="initialBody"></tbody></table>
+      </div>
+      <div id="initialEmpty" class="empty"><p>No initials loaded</p></div>
+    </div>
+    <div class="card">
+      <div class="card-title flex-between"><span id="trackerCardTitle">Tracker Data</span>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('trackerFile').click()">Upload</button>
+          <button class="btn btn-danger btn-sm" onclick="clearTracker()">Clear</button>
+        </div>
+      </div>
+      <div class="drop-zone" id="trackerDZ" onclick="document.getElementById('trackerFile').click()">
+        <strong>Import TACKER.xlsx</strong>
+        <p>Auto-detects header row & DATE/INITIAL pairs</p>
+        <input type="file" id="trackerFile" accept=".csv,.xlsx,.xls" onchange="uploadTracker(event)">
+      </div>
+      <div id="trackerStatus" class="mt-12" style="font-size:12px"></div>
+      <div id="mappingStatus" class="mt-12" style="font-size:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TRACKER TAB ============ -->
+<div id="tab-tracker" class="tab-content">
+  <div class="card">
+    <div class="card-title flex-between">
+      Tracker
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-success btn-sm" id="btnExportExcel" onclick="exportFile('/api/export/' + encodeURIComponent(state.activeSection) + '/tracker.xlsx','tracker-export.xlsx')">Export Excel</button>
+        <button class="btn btn-outline btn-sm" id="btnExportCSV" onclick="exportFile('/api/export/' + encodeURIComponent(state.activeSection) + '/tracker.csv','tracker-export.csv')">Export CSV</button>
+      </div>
+    </div>
+    <div class="filters">
+      <input id="searchCircuit" placeholder="Search circuit/asset..." style="width:200px" oninput="renderTracker()">
+      <select id="filterPerson" onchange="renderTracker()"><option value="">All People</option></select>
+      <select id="filterTask" onchange="renderTracker()"><option value="">All Tasks</option></select>
+      <select id="filterStatus" onchange="renderTracker()">
+        <option value="">All Status</option><option value="done">Completed</option><option value="empty">Not Done</option>
+      </select>
+      <span id="trackerCount" style="font-size:12px;color:var(--text-dim)"></span>
+    </div>
+    <div class="tracker-wrap" id="trackerWrap">
+      <table id="trackerTable"><thead id="trackerHead"></thead><tbody id="trackerBody"></tbody></table>
+    </div>
+    <div class="page-nav">
+      <button class="btn btn-outline btn-sm" onclick="changePage(-1)">Prev</button>
+      <span id="pageInfo">Page 1</span>
+      <button class="btn btn-outline btn-sm" onclick="changePage(1)">Next</button>
+      <select id="pageSizeSelect" onchange="state.pageSize=+this.value;state.page=0;renderTracker()" style="width:70px">
+        <option value="50">50</option><option value="100" selected>100</option><option value="250">250</option><option value="500">500</option>
+      </select>
+      <span style="font-size:11px;color:var(--text-dim)">rows/page</span>
+    </div>
+    <div id="trackerEmpty" class="empty"><p>Import tracker data in Setup tab first</p></div>
+  </div>
+</div>
+
+<!-- ============ REPORTS & KPI TAB ============ -->
+<div id="tab-reports" class="tab-content">
+  <div class="card">
+    <div class="card-title">Report Filters</div>
+    <div class="filters">
+      <label style="font-size:12px;color:var(--text-dim)">Section:</label>
+      <select id="rptSection" onchange="generateReport()" style="width:160px"><option value="">All Sections</option></select>
+      <label style="font-size:12px;color:var(--text-dim)">From:</label><input type="date" id="rptFrom">
+      <label style="font-size:12px;color:var(--text-dim)">To:</label><input type="date" id="rptTo">
+      <button class="btn btn-primary btn-sm" onclick="generateReport()">Generate</button>
+      <button class="btn btn-outline btn-sm" onclick="setWeek(0)">This Week</button>
+      <button class="btn btn-outline btn-sm" onclick="setWeek(-1)">Last Week</button>
+      <button class="btn btn-outline btn-sm" onclick="clearDates()">All Time</button>
+      <button class="btn btn-success btn-sm" onclick="exportFile('/api/export/kpi.csv','kpi-report.csv')">Export KPI CSV</button>
+    </div>
+  </div>
+  <div class="grid-4" id="kpiCards">
+    <div class="stat-card"><div class="label">Total Circuits</div><div class="value" id="kTotal">0</div></div>
+    <div class="stat-card"><div class="label">Overall Completion</div><div class="value" id="kComp">0%</div><div class="sub">tasks filled / total possible</div></div>
+    <div class="stat-card"><div class="label">Weighted Completion</div><div class="value" id="kWComp">0%</div><div class="sub">by weight %, not count</div></div>
+    <div class="stat-card"><div class="label">Total Hours Allocated</div><div class="value" id="kMins">0</div><div class="sub">from weight table</div></div>
+  </div>
+  <div class="card mt-12">
+    <div class="card-title">Person KPI</div>
+    <div style="overflow:auto"><table>
+      <thead><tr><th>Initials</th><th>Name</th><th>Tasks Done</th><th>Weighted Score</th><th>Hours</th><th>Circuits Touched</th><th>Completion %</th><th>Efficiency</th></tr></thead>
+      <tbody id="personKpiBody"></tbody>
+    </table></div>
+  </div>
+  <div class="grid-2 mt-12">
+    <div class="card"><div class="card-title">Completion by Task</div><div class="chart-container"><canvas id="chartTask"></canvas></div></div>
+    <div class="card"><div class="card-title">Person Productivity</div><div class="chart-container"><canvas id="chartPerson"></canvas></div></div>
+  </div>
+  <div class="grid-2 mt-12">
+    <div class="card"><div class="card-title">Task Distribution (Who Does What)</div><div class="chart-container"><canvas id="chartDist"></canvas></div></div>
+    <div class="card"><div class="card-title">Completion Over Time</div><div class="chart-container"><canvas id="chartTime"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ============ EDITOR TAB ============ -->
+<div id="tab-editor" class="tab-content">
+  <div class="card">
+    <div class="card-title">Asset Editor</div>
+    <div class="filters">
+      <div style="position:relative;flex:1;max-width:600px">
+        <input id="editorSearch" placeholder="Type to search or click to browse all assets..." style="width:100%;padding:10px 40px 10px 14px;font-size:14px" oninput="editorSearchRows()" onfocus="editorShowDropdown()" autocomplete="off">
+        <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;font-size:12px">&#9660;</span>
+        <div id="editorDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:400px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:0 0 8px 8px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
+      </div>
+      <select id="editorAssetSelect" style="display:none"><option value=""></option></select>
+      <button class="btn btn-outline btn-sm" onclick="editorPrev()">Prev</button>
+      <button class="btn btn-outline btn-sm" onclick="editorNext()">Next</button>
+      <span id="editorNav" style="font-size:12px;color:var(--text-dim)"></span>
+    </div>
+  </div>
+  <div class="card" id="editorQuickBar" style="display:none">
+    <div class="flex-between">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:13px;font-weight:500">Quick Assign:</span>
+        <select id="editorGlobalInitial" style="padding:8px 12px;font-size:13px;width:200px">
+          <option value="">-- Select Person --</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="editorApplyToEmpty()">Apply to Empty Tasks</button>
+        <button class="btn btn-outline btn-sm" onclick="editorApplyToAll()">Apply to All Tasks</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn btn-success btn-sm" onclick="editorFillAllToday()">Set All Empty Dates to Today</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" id="editorInfoCard" style="display:none">
+    <div class="flex-between mb-12">
+      <div class="card-title" style="margin:0" id="editorAssetTitle">Asset Details</div>
+      <div style="display:flex;gap:8px">
+        <span class="badge badge-done" id="editorBadge"></span>
+      </div>
+    </div>
+    <div class="grid-4 mb-12" id="editorInfoGrid"></div>
+  </div>
+  <div class="card" id="editorFormCard" style="display:none">
+    <div class="card-title flex-between">
+      Task Completion Form
+      <button class="btn btn-success btn-sm" onclick="editorSaveAll()">Save All Changes</button>
+    </div>
+    <div id="editorFormBody"></div>
+  </div>
+  <div id="editorEmpty" class="card"><div class="empty"><p>Search or select an asset above to edit its task completions</p></div></div>
+</div>
+
+<!-- ============ ANALYTICS TAB ============ -->
+<div id="tab-analytics" class="tab-content">
+  <div class="card">
+    <div class="card-title flex-between">Task-Level Breakdown
+      <div class="filters" style="margin:0">
+        <label style="font-size:12px;color:var(--text-dim)">Section:</label>
+        <select id="analyticsSection" onchange="renderAnalytics()" style="width:160px"><option value="">All Sections</option></select>
+      </div>
+    </div>
+    <div style="overflow:auto"><table>
+      <thead><tr><th>Task</th><th>Weight %</th><th>Minutes</th><th>Completed</th><th>Remaining</th><th>% Done</th><th>Progress</th></tr></thead>
+      <tbody id="taskBreakBody"></tbody>
+    </table></div>
+  </div>
+  <div class="grid-2 mt-12">
+    <div class="card"><div class="card-title">Bottlenecks (Lowest Completion)</div><div class="chart-container"><canvas id="chartBottle"></canvas></div></div>
+    <div class="card"><div class="card-title">Workload Balance</div><div class="chart-container"><canvas id="chartWorkload"></canvas></div></div>
+  </div>
+</div>
+
+</div>
+</div><!-- /appContainer -->
+
+<script>
+// ========== AUTH STATE ==========
+let authToken = sessionStorage.getItem('authToken') || '';
+let currentUser = null; // { username, role }
+
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + authToken };
+}
+
+async function authFetch(url, opts = {}) {
+  opts.headers = { ...opts.headers, ...authHeaders() };
+  const res = await fetch(url, opts);
+  if (res.status === 401) { doLogout(); throw new Error('Session expired'); }
+  return res;
+}
+
+async function doLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  if (!username || !password) { errEl.textContent = 'Enter username and password'; return; }
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      authToken = data.token;
+      sessionStorage.setItem('authToken', authToken);
+      currentUser = { username: data.username, role: data.role };
+      showApp();
+    } else {
+      errEl.textContent = data.error || 'Login failed';
+    }
+  } catch (e) { errEl.textContent = 'Connection error'; }
+}
+
+function doLogout() {
+  fetch('/api/logout', { method: 'POST', headers: authHeaders() }).catch(() => {});
+  authToken = '';
+  currentUser = null;
+  sessionStorage.removeItem('authToken');
+  document.getElementById('appContainer').style.display = 'none';
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').textContent = '';
+}
+
+async function checkSession() {
+  if (!authToken) { document.getElementById('loginOverlay').style.display = 'flex'; return; }
+  try {
+    const res = await fetch('/api/me', { headers: authHeaders() });
+    if (res.ok) {
+      currentUser = await res.json();
+      showApp();
+    } else {
+      document.getElementById('loginOverlay').style.display = 'flex';
+    }
+  } catch (e) {
+    document.getElementById('loginOverlay').style.display = 'flex';
+  }
+}
+
+function showApp() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appContainer').style.display = '';
+  // Update header
+  document.getElementById('headerUsername').textContent = currentUser.username;
+  const roleBadge = document.getElementById('headerRole');
+  roleBadge.textContent = currentUser.role;
+  roleBadge.className = 'role-badge ' + currentUser.role;
+  // Role-based visibility
+  const isAdmin = currentUser.role === 'admin';
+  document.getElementById('btnManageUsers').style.display = isAdmin ? '' : 'none';
+  // Setup tab visibility
+  const setupBtn = document.querySelector('.tab-btn[onclick="switchTab(\'setup\')"]');
+  if (setupBtn) setupBtn.style.display = isAdmin ? '' : 'none';
+  // If non-admin is on setup tab, switch to tracker
+  if (!isAdmin) {
+    const setupTab = document.getElementById('tab-setup');
+    if (setupTab && setupTab.classList.contains('active')) switchTab('tracker');
+  }
+  loadState();
+}
+
+// ========== USER MANAGEMENT ==========
+async function openUserModal() {
+  document.getElementById('userModal').classList.remove('hidden');
+  await refreshUserList();
+}
+
+function closeUserModal() {
+  document.getElementById('userModal').classList.add('hidden');
+}
+
+async function refreshUserList() {
+  try {
+    const res = await authFetch('/api/users');
+    const users = await res.json();
+    const list = document.getElementById('userList');
+    list.innerHTML = users.map(u => `<div class="user-row">
+      <div class="user-info">
+        <strong>${esc(u.username)}</strong>
+        <span class="role-badge ${u.role}">${u.role}</span>
+      </div>
+      <div class="user-actions">
+        ${u.username !== currentUser.username ? `
+          <select onchange="changeRole('${esc(u.username)}',this.value)" style="padding:4px 8px;font-size:11px">
+            <option value="user"${u.role === 'user' ? ' selected' : ''}>User</option>
+            <option value="admin"${u.role === 'admin' ? ' selected' : ''}>Admin</option>
+          </select>
+          <button class="btn btn-danger btn-sm" onclick="deleteUser('${esc(u.username)}')">Delete</button>
+        ` : '<span style="font-size:11px;color:var(--text-dim)">(you)</span>'}
+      </div>
+    </div>`).join('');
+    // Populate change-password dropdown
+    const cpSel = document.getElementById('cpUser');
+    cpSel.innerHTML = users.map(u => `<option value="${esc(u.username)}">${esc(u.username)}</option>`).join('');
+  } catch (e) { toast('Failed to load users', 'error'); }
+}
+
+async function createUser() {
+  const username = document.getElementById('newUsername').value.trim();
+  const password = document.getElementById('newPassword').value;
+  const role = document.getElementById('newRole').value;
+  if (!username || !password) return toast('Username and password required', 'error');
+  try {
+    const res = await authFetch('/api/users', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, role })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('newUsername').value = '';
+      document.getElementById('newPassword').value = '';
+      toast('User created', 'success');
+      refreshUserList();
+    } else toast(data.error, 'error');
+  } catch (e) { toast('Failed to create user', 'error'); }
+}
+
+async function deleteUser(username) {
+  if (!confirm('Delete user "' + username + '"?')) return;
+  try {
+    const res = await authFetch('/api/users/' + encodeURIComponent(username), { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) { toast('User deleted', 'success'); refreshUserList(); }
+    else toast(data.error, 'error');
+  } catch (e) { toast('Failed to delete user', 'error'); }
+}
+
+async function changeRole(username, role) {
+  try {
+    const res = await authFetch('/api/users/' + encodeURIComponent(username) + '/role', {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role })
+    });
+    const data = await res.json();
+    if (data.ok) { toast('Role updated', 'success'); refreshUserList(); }
+    else toast(data.error, 'error');
+  } catch (e) { toast('Failed to update role', 'error'); }
+}
+
+async function changePassword() {
+  const username = document.getElementById('cpUser').value;
+  const password = document.getElementById('cpPass').value;
+  if (!password) return toast('Enter a new password', 'error');
+  try {
+    const res = await authFetch('/api/users/' + encodeURIComponent(username) + '/password', {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (data.ok) { document.getElementById('cpPass').value = ''; toast('Password updated', 'success'); }
+    else toast(data.error, 'error');
+  } catch (e) { toast('Failed to update password', 'error'); }
+}
+
+// ========== STATE ==========
+let state = {
+  sections: {
+    'Default': {
+      weights: [],
+      infoCols: [],
+      taskCols: [],
+      rows: [],
+      originalHeaders: []
+    }
+  },
+  activeSection: 'Default',
+  initials: [],
+  page: 0,
+  pageSize: 100
+};
+
+function sec() { return state.sections[state.activeSection] || {}; }
+
+let _saveTimer = null;
+
+// ========== API HELPERS ==========
+async function loadState() {
+  try {
+    const res = await authFetch('/api/state');
+    if (res.ok) {
+      const loaded = await res.json();
+      // Migration: if old flat format, wrap into sections
+      if (loaded.rows !== undefined && !loaded.sections) {
+        state = {
+          sections: {
+            'Default': {
+              weights: loaded.weights || [],
+              infoCols: loaded.infoCols || [],
+              taskCols: loaded.taskCols || [],
+              rows: loaded.rows || [],
+              originalHeaders: loaded.originalHeaders || []
+            }
+          },
+          activeSection: 'Default',
+          initials: loaded.initials || [],
+          page: loaded.page || 0,
+          pageSize: loaded.pageSize || 100
+        };
+      } else {
+        state = loaded;
+      }
+      // Ensure sections exists
+      if (!state.sections) state.sections = { 'Default': { weights: [], infoCols: [], taskCols: [], rows: [], originalHeaders: [] } };
+      if (!state.activeSection || !state.sections[state.activeSection]) {
+        state.activeSection = Object.keys(state.sections)[0] || 'Default';
+      }
+      if (!state.initials) state.initials = [];
+      if (!state.page) state.page = 0;
+      if (!state.pageSize) state.pageSize = 100;
+      document.getElementById('pageSizeSelect').value = state.pageSize || 100;
+      renderAfterLoad();
+      updateSaveIndicator('Loaded from server');
+    }
+  } catch (e) {
+    console.error('Failed to load state:', e);
+    renderAfterLoad();
+  }
+}
+
+function saveState() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => _doSave(), 300);
+}
+
+async function _doSave() {
+  try {
+    const res = await authFetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    });
+    if (res.ok) updateSaveIndicator('Saved');
+    else updateSaveIndicator('Save FAILED!', 'error');
+  } catch (e) {
+    updateSaveIndicator('Save FAILED!', 'error');
+  }
+}
+
+function renderAfterLoad() {
+  renderSectionBar();
+  updateSetupCardTitles();
+  renderWeight(); renderInitials();
+  if (sec().rows && sec().rows.length) { showTrackerStatus(); showMappingStatus(); }
+}
+
+function updateSetupCardTitles() {
+  const wt = document.getElementById('weightCardTitle');
+  const tt = document.getElementById('trackerCardTitle');
+  if (wt) wt.textContent = 'Weight Table (' + state.activeSection + ')';
+  if (tt) tt.textContent = 'Tracker Data (' + state.activeSection + ')';
+}
+
+function updateSaveIndicator(msg, type) {
+  const el = document.getElementById('saveIndicator');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)';
+  if (type !== 'error') setTimeout(() => { el.textContent = 'Auto-saved'; el.style.color = 'var(--text-dim)'; }, 2000);
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function toast(m, t = '') { const e = document.createElement('div'); e.className = 'toast ' + t; e.textContent = m; document.body.appendChild(e); setTimeout(() => e.remove(), 3000); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// ========== SECTION MANAGEMENT ==========
+function renderSectionBar() {
+  const pills = document.getElementById('sectionPills');
+  if (!pills) return;
+  const names = Object.keys(state.sections);
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  pills.innerHTML = names.map(name => {
+    const active = name === state.activeSection;
+    return `<button class="section-pill${active ? ' active' : ''}" onclick="switchSection('${esc(name)}')">
+      ${esc(name)}
+      ${isAdmin && !active ? `<span class="pill-delete" onclick="event.stopPropagation();deleteSection('${esc(name)}')">&times;</span>` : ''}
+    </button>`;
+  }).join('');
+  document.getElementById('sectionActions').style.display = isAdmin ? '' : 'none';
+}
+
+function switchSection(name) {
+  if (!state.sections[name]) return;
+  state.activeSection = name;
+  state.page = 0;
+  renderSectionBar();
+  updateSetupCardTitles();
+  // Refresh current tab
+  const activeTab = document.querySelector('.tab-btn.active');
+  if (activeTab) {
+    const tabName = activeTab.textContent.toLowerCase().replace(/[&\s]/g, '');
+    switchTab(tabName);
+  }
+  saveState();
+}
+
+async function promptAddSection() {
+  const name = prompt('Enter new section name:');
+  if (!name || !name.trim()) return;
+  try {
+    const res = await authFetch('/api/sections', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() })
+    });
+    const data = await res.json();
+    if (data.ok) { await loadState(); switchSection(data.name); toast('Section created', 'success'); }
+    else toast(data.error, 'error');
+  } catch (e) {
+    // Fallback: create locally if no server endpoint
+    const trimmed = name.trim();
+    if (state.sections[trimmed]) { toast('Section already exists', 'error'); return; }
+    state.sections[trimmed] = { weights: [], infoCols: [], taskCols: [], rows: [], originalHeaders: [] };
+    saveState();
+    switchSection(trimmed);
+    toast('Section created', 'success');
+  }
+}
+
+async function deleteSection(name) {
+  if (!confirm('Delete section "' + name + '" and all its data?')) return;
+  try {
+    const res = await authFetch('/api/sections/' + encodeURIComponent(name), { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) { await loadState(); toast('Section deleted', 'success'); }
+    else toast(data.error, 'error');
+  } catch (e) {
+    // Fallback: delete locally
+    if (Object.keys(state.sections).length <= 1) { toast('Cannot delete the last section', 'error'); return; }
+    delete state.sections[name];
+    if (state.activeSection === name) {
+      state.activeSection = Object.keys(state.sections)[0];
+    }
+    saveState();
+    renderAfterLoad();
+    toast('Section deleted', 'success');
+  }
+}
+
+async function duplicateSection() {
+  const newName = prompt('Duplicate "' + state.activeSection + '" setup to new section name:');
+  if (!newName || !newName.trim()) return;
+  try {
+    const res = await authFetch('/api/sections/' + encodeURIComponent(state.activeSection) + '/duplicate', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newName: newName.trim() })
+    });
+    const data = await res.json();
+    if (data.ok) { await loadState(); switchSection(data.name); toast('Section duplicated (empty rows)', 'success'); }
+    else toast(data.error, 'error');
+  } catch (e) {
+    // Fallback: duplicate locally
+    const trimmed = newName.trim();
+    if (state.sections[trimmed]) { toast('Section already exists', 'error'); return; }
+    const src = sec();
+    state.sections[trimmed] = {
+      weights: JSON.parse(JSON.stringify(src.weights || [])),
+      infoCols: JSON.parse(JSON.stringify(src.infoCols || [])),
+      taskCols: JSON.parse(JSON.stringify(src.taskCols || [])),
+      rows: [],
+      originalHeaders: JSON.parse(JSON.stringify(src.originalHeaders || []))
+    };
+    saveState();
+    switchSection(trimmed);
+    toast('Section duplicated (empty rows)', 'success');
+  }
+}
+
+// ========== TABS ==========
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().replace(/[&\s]/g, '') === name.replace(/[&\s]/g, '')));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'tracker') { populateFilters(); renderTracker(); }
+  if (name === 'editor') { editorPopulateSelect(); if (editorIdx >= 0) editorLoadAsset(editorIdx); }
+  if (name === 'reports') { populateReportSectionFilter(); generateReport(); }
+  if (name === 'analytics') { populateAnalyticsSectionFilter(); renderAnalytics(); }
+  if (name === 'setup') { updateSetupCardTitles(); renderWeight(); showTrackerStatus(); showMappingStatus(); }
+}
+
+function populateReportSectionFilter() {
+  const sel = document.getElementById('rptSection');
+  const cv = sel.value;
+  sel.innerHTML = '<option value="">All Sections</option>' +
+    Object.keys(state.sections).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value = cv;
+}
+
+function populateAnalyticsSectionFilter() {
+  const sel = document.getElementById('analyticsSection');
+  const cv = sel.value;
+  sel.innerHTML = '<option value="">All Sections</option>' +
+    Object.keys(state.sections).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value = cv;
+}
+
+// ========== UPLOAD: WEIGHT ==========
+async function uploadWeight(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const res = await authFetch('/api/upload/' + encodeURIComponent(state.activeSection) + '/weight', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      sec().weights = data.weights;
+      renderWeight();
+      toast('Loaded ' + data.count + ' tasks', 'success');
+    } else toast(data.error, 'error');
+  } catch (err) { toast('Upload failed', 'error'); }
+  e.target.value = '';
+}
+
+function clearWeights() { sec().weights = []; saveState(); renderWeight(); toast('Cleared', 'success'); }
+
+function renderWeight() {
+  const b = document.getElementById('weightBody'), em = document.getElementById('weightEmpty');
+  const st = document.getElementById('weightStatus');
+  const w = sec().weights || [];
+  if (!w.length) { b.innerHTML = ''; em.style.display = ''; st.innerHTML = ''; return; }
+  em.style.display = 'none';
+  const tw = w.reduce((s, wi) => s + wi.weight, 0);
+  const tm = w.reduce((s, wi) => s + wi.minutes, 0);
+  st.innerHTML = `<strong>${w.length}</strong> tasks | Total weight: <strong>${tw.toFixed(1)}%</strong> | Total minutes: <strong>${tm.toFixed(2)}</strong>`;
+  b.innerHTML = w.map((wi, i) => `<tr>
+    <td>${esc(wi.task)}</td><td style="font-size:10px;color:var(--text-dim)">${esc(wi.trackerCol)}</td>
+    <td>${wi.weight}%</td><td>${wi.minutes}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="sec().weights.splice(${i},1);saveState();renderWeight()">X</button></td>
+  </tr>`).join('');
+}
+
+// ========== UPLOAD: INITIALS ==========
+async function uploadInitials(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const res = await authFetch('/api/upload/initials', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      state.initials = data.initials;
+      renderInitials();
+      toast('Loaded ' + data.count + ' people', 'success');
+    } else toast(data.error, 'error');
+  } catch (err) { toast('Upload failed', 'error'); }
+  e.target.value = '';
+}
+
+function clearInitials() { state.initials = []; saveState(); renderInitials(); toast('Cleared', 'success'); }
+
+function addInitial() {
+  const ini = document.getElementById('addInit').value.trim().toUpperCase();
+  const name = document.getElementById('addName').value.trim();
+  if (!ini) return toast('Initials required', 'error');
+  state.initials.push({ initial: ini, name: name || ini });
+  document.getElementById('addInit').value = ''; document.getElementById('addName').value = '';
+  saveState(); renderInitials();
+}
+
+function renderInitials() {
+  const b = document.getElementById('initialBody'), em = document.getElementById('initialEmpty');
+  if (!state.initials.length) { b.innerHTML = ''; em.style.display = ''; return; }
+  em.style.display = 'none';
+  b.innerHTML = state.initials.map((p, i) => `<tr>
+    <td><strong>${esc(p.initial)}</strong></td><td>${esc(p.name)}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="state.initials.splice(${i},1);saveState();renderInitials()">X</button></td>
+  </tr>`).join('');
+}
+
+// ========== UPLOAD: TRACKER ==========
+async function uploadTracker(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const res = await authFetch('/api/upload/' + encodeURIComponent(state.activeSection) + '/tracker', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      // Reload full state to get parsed data
+      await loadState();
+      showTrackerStatus(); showMappingStatus();
+      toast('Imported ' + data.rows + ' rows, ' + data.taskCols + ' task columns', 'success');
+    } else toast(data.error, 'error');
+  } catch (err) { toast('Upload failed', 'error'); }
+  e.target.value = '';
+}
+
+function clearTracker() { sec().rows = []; sec().taskCols = []; sec().infoCols = []; saveState(); showTrackerStatus(); toast('Cleared', 'success'); }
+
+function showTrackerStatus() {
+  const el = document.getElementById('trackerStatus');
+  const s = sec();
+  if (s.rows && s.rows.length) {
+    el.innerHTML = `<span style="color:var(--success)">Loaded: <strong>${s.rows.length}</strong> rows, <strong>${(s.taskCols || []).length}</strong> task columns, <strong>${(s.infoCols || []).length}</strong> info columns</span>`;
+  } else el.innerHTML = '';
+}
+
+function showMappingStatus() {
+  const el = document.getElementById('mappingStatus');
+  const s = sec();
+  if (!(s.weights || []).length || !(s.taskCols || []).length) { el.innerHTML = ''; return; }
+  const mapped = [], unmapped = [];
+  s.weights.forEach(w => {
+    const found = s.taskCols.find(tc => w.trackerCol.replace(/-DATE$/i, '') === tc.task || w.trackerCol === tc.dateHeader);
+    if (found) mapped.push(w.task); else unmapped.push(w.task);
+  });
+  el.innerHTML = `<span class="mapping-ok">Mapped: ${mapped.length}/${s.weights.length}</span>` +
+    (unmapped.length ? ` | <span class="mapping-miss">Unmapped: ${unmapped.join(', ')}</span>` : '');
+}
+
+// ========== TRACKER TAB ==========
+function populateFilters() {
+  const fp = document.getElementById('filterPerson');
+  const ft = document.getElementById('filterTask');
+  const cv = fp.value, tv = ft.value;
+  fp.innerHTML = '<option value="">All People</option>' + state.initials.map(p => `<option value="${esc(p.initial)}">${esc(p.initial)}</option>`).join('');
+  ft.innerHTML = '<option value="">All Tasks</option>' + (sec().taskCols || []).map(t => `<option value="${esc(t.task)}">${esc(t.task)}</option>`).join('');
+  fp.value = cv; ft.value = tv;
+}
+
+function renderTracker() {
+  const body = document.getElementById('trackerBody');
+  const head = document.getElementById('trackerHead');
+  const empty = document.getElementById('trackerEmpty');
+  const wrap = document.getElementById('trackerWrap');
+  const rows = sec().rows || [];
+  const taskCols = sec().taskCols || [];
+  const infoCols = sec().infoCols || [];
+
+  if (!rows.length) { body.innerHTML = ''; head.innerHTML = ''; empty.style.display = ''; wrap.style.display = 'none'; return; }
+  empty.style.display = 'none'; wrap.style.display = '';
+
+  const search = (document.getElementById('searchCircuit').value || '').toLowerCase();
+  const fPerson = document.getElementById('filterPerson').value;
+  const fTask = document.getElementById('filterTask').value;
+  const fStatus = document.getElementById('filterStatus').value;
+
+  let filtered = rows.filter(r => {
+    if (search) { const infoVals = Object.values(r._info).join(' ').toLowerCase(); if (!infoVals.includes(search)) return false; }
+    if (fPerson) { const hasP = Object.values(r._tasks).some(t => t.initial.toUpperCase() === fPerson.toUpperCase()); if (!hasP) return false; }
+    if (fTask) {
+      const t = r._tasks[fTask];
+      if (fStatus === 'done' && (!t || !t.date)) return false;
+      if (fStatus === 'empty' && t && t.date) return false;
+      if (!fStatus && !t) return false;
+    }
+    if (fStatus && !fTask) {
+      if (fStatus === 'done') { if (!Object.values(r._tasks).some(t => t.date)) return false; }
+      if (fStatus === 'empty') { if (!Object.values(r._tasks).some(t => !t.date)) return false; }
+    }
+    return true;
+  });
+
+  document.getElementById('trackerCount').textContent = filtered.length + ' of ' + rows.length + ' rows';
+  const totalPages = Math.ceil(filtered.length / state.pageSize) || 1;
+  if (state.page >= totalPages) state.page = totalPages - 1;
+  if (state.page < 0) state.page = 0;
+  const start = state.page * state.pageSize;
+  const pageRows = filtered.slice(start, start + state.pageSize);
+  document.getElementById('pageInfo').textContent = `Page ${state.page + 1} of ${totalPages}`;
+
+  const displayInfo = infoCols.slice(0, 8);
+  const frozenCount = Math.min(2, displayInfo.length);
+  const colW1 = 160, colW2 = 140;
+  const frozenLefts = [0, colW1];
+
+  head.innerHTML = `<tr>${displayInfo.map((c, i) => {
+    const frozen = i < frozenCount;
+    return `<th${frozen ? ` class="frozen" style="left:${frozenLefts[i]}px;min-width:${i === 0 ? colW1 : colW2}px${i === frozenCount - 1 ? ';border-right:2px solid var(--accent)' : ''}"` : ` style="min-width:100px"`}>${esc(c.name.replace(/\r?\n/g, ' ').substring(0, 25))}</th>`;
+  }).join('')}${taskCols.map(tc => `<th style="min-width:140px;text-align:center" colspan="2">${esc(tc.task)}</th>`).join('')}</tr>
+  <tr>${displayInfo.map((c, i) => {
+    const frozen = i < frozenCount;
+    return `<th${frozen ? ` class="frozen" style="left:${frozenLefts[i]}px;min-width:${i === 0 ? colW1 : colW2}px${i === frozenCount - 1 ? ';border-right:2px solid var(--accent)' : ''}"` : ''}></th>`;
+  }).join('')}${taskCols.map(() => '<th style="font-size:10px;text-align:center;min-width:80px">Date</th><th style="font-size:10px;text-align:center;min-width:60px">Init</th>').join('')}</tr>`;
+
+  body.innerHTML = pageRows.map(r => {
+    const rowIdx = rows.indexOf(r);
+    let html = displayInfo.map((c, i) => {
+      const frozen = i < frozenCount;
+      return `<td${frozen ? ` class="frozen" style="left:${frozenLefts[i]}px;min-width:${i === 0 ? colW1 : colW2}px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis${i === frozenCount - 1 ? ';border-right:2px solid var(--border)' : ''}"` : ' style="font-size:11px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis"'} title="${esc(r._info[c.name])}">${esc(r._info[c.name])}</td>`;
+    }).join('');
+    taskCols.forEach(tc => {
+      const t = r._tasks[tc.task] || { date: '', initial: '' };
+      const done = !!t.date;
+      const cls = done ? 'task-done' : 'task-empty';
+      html += `<td class="${cls}"><input type="text" value="${esc(t.date)}" style="width:75px;padding:2px 4px;font-size:10px" onchange="updateCell(${rowIdx},'${tc.task}','date',this.value)"></td>`;
+      html += `<td class="${cls}"><select style="width:55px;padding:2px;font-size:10px" onchange="updateCell(${rowIdx},'${tc.task}','initial',this.value)"><option value="">--</option>${state.initials.map(p => `<option value="${esc(p.initial)}"${t.initial.toUpperCase() === p.initial.toUpperCase() ? ' selected' : ''}>${esc(p.initial)}</option>`).join('')}</select></td>`;
+    });
+    return `<tr>${html}</tr>`;
+  }).join('');
+}
+
+function updateCell(rowIdx, taskName, field, value) {
+  const rows = sec().rows || [];
+  if (!rows[rowIdx]) return;
+  if (!rows[rowIdx]._tasks[taskName]) rows[rowIdx]._tasks[taskName] = { date: '', initial: '' };
+  rows[rowIdx]._tasks[taskName][field] = value;
+  saveState();
+}
+
+function changePage(d) { state.page += d; renderTracker(); }
+
+// ========== REPORTS & KPI ==========
+let charts = {};
+
+function setWeek(offset) {
+  const now = new Date(); const d = now.getDay();
+  const mon = new Date(now); mon.setDate(now.getDate() - (d === 0 ? 6 : d - 1) + offset * 7);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  document.getElementById('rptFrom').value = fmt(mon);
+  document.getElementById('rptTo').value = fmt(sun);
+  generateReport();
+}
+function clearDates() { document.getElementById('rptFrom').value = ''; document.getElementById('rptTo').value = ''; generateReport(); }
+function fmt(d) { return d.toISOString().split('T')[0]; }
+
+function parseDate(s) {
+  if (!s) return null;
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d;
+  const parts = s.split('/');
+  if (parts.length === 3) {
+    let y = parseInt(parts[2]); if (y < 100) y += 2000;
+    return new Date(y, parseInt(parts[0]) - 1, parseInt(parts[1]));
+  }
+  return null;
+}
+
+function getWeightFor(taskName, weights) {
+  const w = weights || sec().weights || [];
+  const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return w.find(wi => {
+    const base = wi.trackerCol.replace(/-DATE$/i, '').trim();
+    return base === taskName || wi.task === taskName || norm(base) === norm(taskName) || norm(wi.task) === norm(taskName);
+  });
+}
+
+function generateReport() {
+  const from = document.getElementById('rptFrom').value;
+  const to = document.getElementById('rptTo').value;
+  const fromD = from ? new Date(from + 'T00:00:00') : null;
+  const toD = to ? new Date(to + 'T23:59:59') : null;
+  const sectionFilter = document.getElementById('rptSection') ? document.getElementById('rptSection').value : '';
+
+  const personStats = {};
+  const taskStats = {};
+  const dateBuckets = {};
+
+  state.initials.forEach(p => { personStats[p.initial] = { tasks: 0, weightedScore: 0, minutes: 0, circuits: new Set(), totalAssignable: 0 }; });
+  let totalPossible = 0, totalDone = 0, totalWeightedPossible = 0, totalWeightedDone = 0, totalMinsDone = 0;
+  let totalRows = 0;
+
+  // Determine which sections to include
+  const sectionsToProcess = sectionFilter ? { [sectionFilter]: state.sections[sectionFilter] } : state.sections;
+  const multiSection = !sectionFilter && Object.keys(state.sections).length > 1;
+
+  Object.entries(sectionsToProcess).forEach(([secName, secData]) => {
+    if (!secData) return;
+    const sTaskCols = secData.taskCols || [];
+    const sRows = secData.rows || [];
+    const sWeights = secData.weights || [];
+    totalRows += sRows.length;
+
+    sTaskCols.forEach(tc => {
+      const displayName = multiSection ? secName + ': ' + tc.task : tc.task;
+      const w = getWeightFor(tc.task, sWeights);
+      if (!taskStats[displayName]) taskStats[displayName] = { done: 0, total: 0, weight: w ? w.weight : 0, minutes: w ? w.minutes : 0 };
+    });
+
+    sRows.forEach(r => {
+      sTaskCols.forEach(tc => {
+        const displayName = multiSection ? secName + ': ' + tc.task : tc.task;
+        const t = r._tasks[tc.task];
+        const w = getWeightFor(tc.task, sWeights);
+        const wt = w ? w.weight : 0;
+        const mins = w ? w.minutes : 0;
+        taskStats[displayName].total++;
+        totalPossible++;
+        totalWeightedPossible += wt;
+
+        if (t && t.date) {
+          const d = parseDate(t.date);
+          if (fromD && d && d < fromD) return;
+          if (toD && d && d > toD) return;
+
+          taskStats[displayName].done++;
+          totalDone++;
+          totalWeightedDone += wt;
+          totalMinsDone += mins;
+
+          const ini = (t.initial || '').toUpperCase();
+          if (ini && personStats[ini]) {
+            personStats[ini].tasks++;
+            personStats[ini].weightedScore += wt;
+            personStats[ini].minutes += mins;
+            personStats[ini].circuits.add(secName + '|' + Object.values(r._info).join('|'));
+          }
+
+          if (d) {
+            const wk = getWeekKey(d);
+            dateBuckets[wk] = (dateBuckets[wk] || 0) + 1;
+          }
+        }
+      });
+    });
+  });
+
+  document.getElementById('kTotal').textContent = totalRows;
+  document.getElementById('kComp').textContent = totalPossible ? Math.round(totalDone / totalPossible * 100) + '%' : '0%';
+  document.getElementById('kWComp').textContent = totalWeightedPossible ? Math.round(totalWeightedDone / totalWeightedPossible * 100) + '%' : '0%';
+  document.getElementById('kMins').textContent = (totalMinsDone / 60).toFixed(2);
+
+  const pb = document.getElementById('personKpiBody');
+  const pEntries = Object.entries(personStats).filter(([k, v]) => v.tasks > 0).sort((a, b) => b[1].weightedScore - a[1].weightedScore);
+  const totalTaskSlots = totalPossible;
+  pb.innerHTML = pEntries.map(([ini, s]) => {
+    const p = state.initials.find(x => x.initial === ini);
+    const compPct = totalTaskSlots ? Math.round(s.tasks / totalTaskSlots * 100 * 100) / 100 : 0;
+    return `<tr>
+      <td><strong>${esc(ini)}</strong></td><td>${esc(p ? p.name : '')}</td>
+      <td>${s.tasks}</td><td>${s.weightedScore.toFixed(1)}</td><td>${(s.minutes / 60).toFixed(2)}</td>
+      <td>${s.circuits.size}</td><td>${compPct}%</td>
+      <td>${s.minutes > 0 ? (s.weightedScore / s.minutes * 100).toFixed(0) + '%' : '-'}</td>
+    </tr>`;
+  }).join('');
+
+  const taskNames = Object.keys(taskStats);
+  const taskDone = taskNames.map(t => taskStats[t].done);
+  const taskRemain = taskNames.map(t => taskStats[t].total - taskStats[t].done);
+  renderChart('chartTask', 'bar', {
+    labels: taskNames.map(t => t.length > 18 ? t.substring(0, 18) + '...' : t),
+    datasets: [
+      { label: 'Done', data: taskDone, backgroundColor: 'rgba(46,204,113,.7)' },
+      { label: 'Remaining', data: taskRemain, backgroundColor: 'rgba(231,76,60,.3)' }
+    ]
+  }, { indexAxis: 'y', scales: { x: { stacked: true, ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } }, y: { stacked: true, ticks: { color: '#8b8fa3', font: { size: 10 } }, grid: { color: '#2e3347' } } } });
+
+  const topPeople = pEntries.slice(0, 15);
+  renderChart('chartPerson', 'bar', {
+    labels: topPeople.map(([ini]) => ini),
+    datasets: [
+      { label: 'Tasks', data: topPeople.map(([, s]) => s.tasks), backgroundColor: 'rgba(108,99,255,.7)' },
+      { label: 'Weighted', data: topPeople.map(([, s]) => +s.weightedScore.toFixed(1)), backgroundColor: 'rgba(243,156,18,.7)' }
+    ]
+  });
+
+  const distLabels = taskNames.map(t => t.length > 15 ? t.substring(0, 15) + '...' : t);
+  const distPeople = pEntries.slice(0, 8).map(([ini]) => ini);
+  const distColors = ['rgba(108,99,255,.7)', 'rgba(46,204,113,.7)', 'rgba(243,156,18,.7)', 'rgba(231,76,60,.7)', 'rgba(52,152,219,.7)', 'rgba(155,89,182,.7)', 'rgba(26,188,156,.7)', 'rgba(241,196,15,.7)'];
+  const distDatasets = distPeople.map((ini, pi) => {
+    const d = taskNames.map(tn => {
+      let c = 0;
+      Object.entries(sectionsToProcess).forEach(([secName, secData]) => {
+        if (!secData) return;
+        const actualTask = multiSection ? tn.replace(secName + ': ', '') : tn;
+        const matchesSection = !multiSection || tn.startsWith(secName + ': ');
+        if (!matchesSection) return;
+        (secData.rows || []).forEach(r => { const t = r._tasks[actualTask]; if (t && t.initial && t.initial.toUpperCase() === ini) c++; });
+      });
+      return c;
+    });
+    return { label: ini, data: d, backgroundColor: distColors[pi % distColors.length] };
+  });
+  renderChart('chartDist', 'bar', { labels: distLabels, datasets: distDatasets }, {
+    scales: { x: { stacked: true, ticks: { color: '#8b8fa3', font: { size: 10 } }, grid: { color: '#2e3347' } }, y: { stacked: true, ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } } }
+  });
+
+  const weeks = Object.keys(dateBuckets).sort();
+  renderChart('chartTime', 'line', {
+    labels: weeks,
+    datasets: [{ label: 'Tasks Completed', data: weeks.map(w => dateBuckets[w]), borderColor: 'rgba(108,99,255,1)', backgroundColor: 'rgba(108,99,255,.2)', fill: true, tension: .3 }]
+  });
+}
+
+function getWeekKey(d) {
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  const wk = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+  return d.getFullYear() + '-W' + String(wk).padStart(2, '0');
+}
+
+function renderChart(id, type, data, extra = {}) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#e4e6f0', font: { size: 11 } } } }, ...extra };
+  if (!extra.scales && type !== 'doughnut' && type !== 'pie') {
+    opts.scales = { y: { ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } }, x: { ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } } };
+  }
+  charts[id] = new Chart(ctx, { type, data, options: opts });
+}
+
+// ========== ANALYTICS ==========
+function renderAnalytics() {
+  const tb = document.getElementById('taskBreakBody');
+  const sectionFilter = document.getElementById('analyticsSection') ? document.getElementById('analyticsSection').value : '';
+  const sectionsToProcess = sectionFilter ? { [sectionFilter]: state.sections[sectionFilter] } : state.sections;
+  const multiSection = !sectionFilter && Object.keys(state.sections).length > 1;
+
+  const taskData = [];
+  Object.entries(sectionsToProcess).forEach(([secName, secData]) => {
+    if (!secData) return;
+    const sTaskCols = secData.taskCols || [];
+    const sRows = secData.rows || [];
+    const sWeights = secData.weights || [];
+    sTaskCols.forEach(tc => {
+      const displayName = multiSection ? secName + ': ' + tc.task : tc.task;
+      const w = getWeightFor(tc.task, sWeights);
+      let done = 0, total = 0;
+      sRows.forEach(r => { total++; const t = r._tasks[tc.task]; if (t && t.date) done++; });
+      taskData.push({ task: displayName, weight: w ? w.weight : 0, minutes: w ? w.minutes : 0, done, remaining: total - done, total, pct: total ? Math.round(done / total * 100) : 0 });
+    });
+  });
+
+  taskData.sort((a, b) => a.pct - b.pct);
+  tb.innerHTML = taskData.map(t => `<tr>
+    <td>${esc(t.task)}</td><td>${t.weight}%</td><td>${t.minutes}</td>
+    <td>${t.done}</td><td>${t.remaining}</td><td>${t.pct}%</td>
+    <td><div class="progress" style="width:120px"><div class="progress-fill" style="width:${t.pct}%;background:${t.pct === 100 ? 'var(--success)' : t.pct > 50 ? 'var(--accent)' : 'var(--danger)'}"></div></div></td>
+  </tr>`).join('');
+
+  const bottom = taskData.slice(0, 10);
+  renderChart('chartBottle', 'bar', {
+    labels: bottom.map(t => t.task.length > 18 ? t.task.substring(0, 18) + '...' : t.task),
+    datasets: [{ label: '% Complete', data: bottom.map(t => t.pct), backgroundColor: bottom.map(t => t.pct < 25 ? 'rgba(231,76,60,.7)' : t.pct < 50 ? 'rgba(243,156,18,.7)' : 'rgba(46,204,113,.7)') }]
+  }, { indexAxis: 'y', scales: { x: { max: 100, ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } }, y: { ticks: { color: '#8b8fa3', font: { size: 10 } }, grid: { color: '#2e3347' } } } });
+
+  const personWork = {};
+  state.initials.forEach(p => { personWork[p.initial] = 0; });
+  Object.entries(sectionsToProcess).forEach(([secName, secData]) => {
+    if (!secData) return;
+    (secData.rows || []).forEach(r => {
+      (secData.taskCols || []).forEach(tc => {
+        const t = r._tasks[tc.task];
+        if (t && t.initial && t.date) {
+          const ini = t.initial.toUpperCase();
+          if (personWork[ini] !== undefined) personWork[ini]++;
+        }
+      });
+    });
+  });
+  const wEntries = Object.entries(personWork).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  renderChart('chartWorkload', 'bar', {
+    labels: wEntries.map(([k]) => k),
+    datasets: [{ label: 'Tasks Completed', data: wEntries.map(([, v]) => v), backgroundColor: 'rgba(108,99,255,.7)' }]
+  });
+}
+
+// ========== EDITOR ==========
+let editorIdx = -1;
+
+function editorPopulateSelect() {
+  const sel = document.getElementById('editorAssetSelect');
+  const cv = sel.value;
+  const rows = sec().rows || [];
+  sel.innerHTML = '<option value="">-- Select Asset --</option>' +
+    rows.map((r, i) => {
+      const label = Object.values(r._info).filter(Boolean).slice(0, 3).join(' | ');
+      return `<option value="${i}">${label || 'Row ' + (i + 1)}</option>`;
+    }).join('');
+  sel.value = cv;
+}
+
+function editorShowDropdown() { editorSearchRows(); }
+
+function editorSearchRows() {
+  const q = (document.getElementById('editorSearch').value || '').toLowerCase().trim();
+  const dd = document.getElementById('editorDropdown');
+  dd.style.display = 'block';
+  const rows = sec().rows || [];
+  const taskCols = sec().taskCols || [];
+  const matches = [];
+  rows.forEach((r, i) => {
+    if (!q) { matches.push(i); return; }
+    const infoStr = Object.values(r._info).join(' ').toLowerCase();
+    if (infoStr.includes(q)) matches.push(i);
+  });
+  if (matches.length === 0) { dd.innerHTML = '<div style="padding:14px;color:var(--text-dim);font-size:13px">No assets found</div>'; return; }
+  const limit = q ? 50 : 100;
+  dd.innerHTML = (q ? '' : `<div style="padding:8px 14px;font-size:11px;color:var(--text-dim);border-bottom:1px solid var(--border)">${matches.length} assets total${matches.length > limit ? ' (showing first ' + limit + ')' : ''}</div>`) +
+    matches.slice(0, limit).map(i => {
+      const r = rows[i];
+      const vals = Object.entries(r._info).filter(([, v]) => v);
+      const main = vals.slice(0, 2).map(([, v]) => v).join(' - ');
+      const sub = vals.slice(2, 5).map(([k, v]) => k.substring(0, 15) + ': ' + v).join(' | ');
+      const doneCnt = taskCols.filter(tc => r._tasks[tc.task] && r._tasks[tc.task].date).length;
+      const pct = taskCols.length > 0 ? Math.round(doneCnt / taskCols.length * 100) : 0;
+      const selected = i === editorIdx;
+      return `<div class="dropdown-item${selected ? ' dd-selected' : ''}" onclick="editorSelectFromDropdown(${i})">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="dd-main">${esc(main)}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="progress" style="width:60px;height:4px"><div class="progress-fill" style="width:${pct}%;background:${pct === 100 ? 'var(--success)' : 'var(--accent)'}"></div></div>
+            <span style="font-size:10px;color:${pct === 100 ? 'var(--success)' : 'var(--text-dim)'}">${pct}%</span>
+          </div>
+        </div>
+        <div class="dd-sub">${esc(sub)}${sub ? ' &bull; ' : ''}${doneCnt}/${taskCols.length} tasks</div>
+      </div>`;
+    }).join('') +
+    (matches.length > limit ? `<div style="padding:8px 14px;color:var(--text-dim);font-size:11px">${matches.length - limit} more... type to narrow</div>` : '');
+}
+
+function editorSelectFromDropdown(idx) {
+  document.getElementById('editorDropdown').style.display = 'none';
+  const rows = sec().rows || [];
+  const r = rows[idx];
+  const label = Object.values(r._info).filter(Boolean).slice(0, 2).join(' - ');
+  document.getElementById('editorSearch').value = label;
+  editorLoadAsset(idx);
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#editorSearch') && !e.target.closest('#editorDropdown')) {
+    document.getElementById('editorDropdown').style.display = 'none';
+  }
+});
+
+function editorLoadAsset(idx) {
+  idx = parseInt(idx);
+  const rows = sec().rows || [];
+  const taskCols = sec().taskCols || [];
+  if (isNaN(idx) || idx < 0 || idx >= rows.length) {
+    document.getElementById('editorQuickBar').style.display = 'none';
+    document.getElementById('editorInfoCard').style.display = 'none';
+    document.getElementById('editorFormCard').style.display = 'none';
+    document.getElementById('editorEmpty').style.display = '';
+    return;
+  }
+  editorIdx = idx;
+  document.getElementById('editorEmpty').style.display = 'none';
+  document.getElementById('editorQuickBar').style.display = '';
+  document.getElementById('editorInfoCard').style.display = '';
+  document.getElementById('editorFormCard').style.display = '';
+  const gSel = document.getElementById('editorGlobalInitial');
+  const gVal = gSel.value;
+  gSel.innerHTML = '<option value="">-- Select Person --</option>' +
+    state.initials.map(p => `<option value="${esc(p.initial)}">${esc(p.initial)} - ${esc(p.name)}</option>`).join('');
+  gSel.value = gVal;
+  document.getElementById('editorAssetSelect').value = idx;
+  document.getElementById('editorNav').textContent = (idx + 1) + ' of ' + rows.length;
+
+  const r = rows[idx];
+  document.getElementById('editorInfoGrid').innerHTML = Object.entries(r._info).filter(([, v]) => v).map(([k, v]) =>
+    `<div class="editor-info-item"><div class="info-label">${esc(k.replace(/\r?\n/g, ' ').substring(0, 30))}</div><div class="info-val">${esc(v)}</div></div>`
+  ).join('');
+
+  const mainInfo = Object.values(r._info).filter(Boolean).slice(0, 2).join(' - ');
+  document.getElementById('editorAssetTitle').textContent = mainInfo || 'Asset ' + (idx + 1);
+
+  const doneCnt = taskCols.filter(tc => r._tasks[tc.task] && r._tasks[tc.task].date).length;
+  const badge = document.getElementById('editorBadge');
+  badge.textContent = doneCnt + '/' + taskCols.length + ' tasks';
+  badge.className = 'badge ' + (doneCnt === taskCols.length ? 'badge-done' : 'badge-empty');
+
+  const form = document.getElementById('editorFormBody');
+  form.innerHTML = taskCols.map((tc, ti) => {
+    const t = r._tasks[tc.task] || { date: '', initial: '' };
+    const w = getWeightFor(tc.task);
+    const done = !!t.date;
+    const initOpts = state.initials.map(p =>
+      `<option value="${esc(p.initial)}"${t.initial.toUpperCase() === p.initial.toUpperCase() ? ' selected' : ''}>${esc(p.initial)} - ${esc(p.name)}</option>`
+    ).join('');
+    return `<div class="form-row" id="erow-${ti}">
+      <div class="status-dot ${done ? 'done' : 'empty'}"></div>
+      <div class="task-label">${esc(tc.task)}</div>
+      <div class="task-weight">${w ? w.weight + '%' : '-'}</div>
+      <div class="task-mins">${w ? w.minutes + 'm' : '-'}</div>
+      <div class="form-fields">
+        <input type="text" id="edate-${ti}" value="${esc(t.date)}" placeholder="Date (e.g. 3/26/26)" onchange="editorFieldChanged(${ti})">
+        <select id="einit-${ti}" onchange="editorFieldChanged(${ti})">
+          <option value="">-- Select --</option>
+          ${initOpts}
+        </select>
+        ${done ? '<button class="btn btn-outline btn-sm" onclick="editorClearTask(' + ti + ')">Clear</button>' : '<button class="btn btn-primary btn-sm" onclick="editorSetToday(' + ti + ')">Today</button>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function editorFieldChanged(taskIdx) {
+  const taskCols = sec().taskCols || [];
+  const rows = sec().rows || [];
+  const tc = taskCols[taskIdx];
+  if (!tc || editorIdx < 0) return;
+  const dateVal = document.getElementById('edate-' + taskIdx).value;
+  const initVal = document.getElementById('einit-' + taskIdx).value;
+  rows[editorIdx]._tasks[tc.task] = { date: dateVal, initial: initVal };
+  const dot = document.querySelector('#erow-' + taskIdx + ' .status-dot');
+  if (dot) dot.className = 'status-dot ' + (dateVal ? 'done' : 'empty');
+  saveState();
+}
+
+function editorSetToday(taskIdx) {
+  const now = new Date();
+  const dateStr = (now.getMonth() + 1) + '/' + now.getDate() + '/' + String(now.getFullYear()).slice(-2);
+  document.getElementById('edate-' + taskIdx).value = dateStr;
+  editorFieldChanged(taskIdx);
+  editorLoadAsset(editorIdx);
+}
+
+function editorClearTask(taskIdx) {
+  document.getElementById('edate-' + taskIdx).value = '';
+  document.getElementById('einit-' + taskIdx).value = '';
+  editorFieldChanged(taskIdx);
+  editorLoadAsset(editorIdx);
+}
+
+function editorSaveAll() {
+  const taskCols = sec().taskCols || [];
+  const rows = sec().rows || [];
+  taskCols.forEach((tc, ti) => {
+    const dateVal = document.getElementById('edate-' + ti)?.value || '';
+    const initVal = document.getElementById('einit-' + ti)?.value || '';
+    rows[editorIdx]._tasks[tc.task] = { date: dateVal, initial: initVal };
+  });
+  saveState();
+  toast('All changes saved', 'success');
+  editorLoadAsset(editorIdx);
+}
+
+function editorApplyToEmpty() {
+  const ini = document.getElementById('editorGlobalInitial').value;
+  if (!ini) return toast('Select a person first', 'error');
+  if (editorIdx < 0) return;
+  const taskCols = sec().taskCols || [];
+  const rows = sec().rows || [];
+  let count = 0;
+  taskCols.forEach(tc => {
+    const t = rows[editorIdx]._tasks[tc.task];
+    if (!t || !t.initial) { rows[editorIdx]._tasks[tc.task] = { date: t?.date || '', initial: ini }; count++; }
+  });
+  saveState(); editorLoadAsset(editorIdx);
+  toast(`Assigned ${ini} to ${count} empty tasks`, 'success');
+}
+
+function editorApplyToAll() {
+  const ini = document.getElementById('editorGlobalInitial').value;
+  if (!ini) return toast('Select a person first', 'error');
+  if (editorIdx < 0) return;
+  const taskCols = sec().taskCols || [];
+  const rows = sec().rows || [];
+  taskCols.forEach(tc => {
+    if (!rows[editorIdx]._tasks[tc.task]) rows[editorIdx]._tasks[tc.task] = { date: '', initial: '' };
+    rows[editorIdx]._tasks[tc.task].initial = ini;
+  });
+  saveState(); editorLoadAsset(editorIdx);
+  toast(`Assigned ${ini} to all ${taskCols.length} tasks`, 'success');
+}
+
+function editorFillAllToday() {
+  if (editorIdx < 0) return;
+  const taskCols = sec().taskCols || [];
+  const rows = sec().rows || [];
+  const now = new Date();
+  const dateStr = (now.getMonth() + 1) + '/' + now.getDate() + '/' + String(now.getFullYear()).slice(-2);
+  let count = 0;
+  taskCols.forEach(tc => {
+    const t = rows[editorIdx]._tasks[tc.task];
+    if (!t || !t.date) {
+      if (!rows[editorIdx]._tasks[tc.task]) rows[editorIdx]._tasks[tc.task] = { date: '', initial: '' };
+      rows[editorIdx]._tasks[tc.task].date = dateStr;
+      count++;
+    }
+  });
+  saveState(); editorLoadAsset(editorIdx);
+  toast(`Set today's date on ${count} empty tasks`, 'success');
+}
+
+function editorPrev() { if (editorIdx > 0) editorLoadAsset(editorIdx - 1); }
+function editorNext() { const rows = sec().rows || []; if (editorIdx < rows.length - 1) editorLoadAsset(editorIdx + 1); }
+
+// ========== EXPORT HELPER (with auth) ==========
+async function exportFile(url, filename) {
+  try {
+    const res = await authFetch(url);
+    if (!res.ok) { toast('Export failed', 'error'); return; }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Exported ' + filename, 'success');
+  } catch (e) { toast('Export failed', 'error'); }
+}
+
+// ========== BACKUP/RESTORE ==========
+function exportBackupJSON() {
+  exportFile('/api/export/backup.json', 'tracker-backup.json');
+}
+
+async function importBackupJSON(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const res = await authFetch('/api/import/backup', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      await loadState();
+      toast('Restored', 'success');
+    } else toast(data.error || 'Invalid file', 'error');
+  } catch (err) { toast('Restore failed', 'error'); }
+  e.target.value = '';
+}
+
+// ========== DRAG & DROP ==========
+[['weightDZ', 'weightFile'], ['initialDZ', 'initialFile'], ['trackerDZ', 'trackerFile']].forEach(([zid, fid]) => {
+  const z = document.getElementById(zid);
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('drag-over'); });
+  z.addEventListener('dragleave', () => z.classList.remove('drag-over'));
+  z.addEventListener('drop', e => {
+    e.preventDefault(); z.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0]; if (!file) return;
+    const inp = document.getElementById(fid);
+    const dt = new DataTransfer(); dt.items.add(file); inp.files = dt.files;
+    inp.dispatchEvent(new Event('change'));
+  });
+});
+
+// ========== INIT ==========
+checkSession();
+</script>
+</body>
+</html>
