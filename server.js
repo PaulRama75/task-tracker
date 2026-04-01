@@ -51,9 +51,18 @@ function initUsers() {
   let users = loadUsers();
   if (!users || !users.length) {
     const { hash, salt } = hashPassword('admin123');
-    users = [{ username: 'admin', passwordHash: hash, salt, role: 'admin' }];
+    users = [{ username: 'admin', passwordHash: hash, salt, role: 'superadmin', allowedSites: [] }];
     saveUsers(users);
-    console.log('Created default admin account (admin / admin123)');
+    console.log('Created default super admin account (admin / admin123)');
+  } else {
+    // Migrate: upgrade old 'admin' role users to 'superadmin' if no superadmin exists
+    const hasSuperAdmin = users.some(u => u.role === 'superadmin');
+    if (!hasSuperAdmin) {
+      const firstAdmin = users.find(u => u.role === 'admin');
+      if (firstAdmin) { firstAdmin.role = 'superadmin'; firstAdmin.allowedSites = []; saveUsers(users); console.log('Migrated ' + firstAdmin.username + ' to superadmin'); }
+    }
+    // Ensure all users have allowedSites array
+    users.forEach(u => { if (!u.allowedSites) u.allowedSites = []; });
   }
   return users;
 }
@@ -72,7 +81,26 @@ function authRequired(req, res, next) {
 }
 
 function adminRequired(req, res, next) {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') return res.status(403).json({ error: 'Admin access required' });
+  next();
+}
+
+function superAdminRequired(req, res, next) {
+  if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Super Admin access required' });
+  next();
+}
+
+// Check if user has access to the currently active site
+function siteAccessRequired(req, res, next) {
+  if (req.user.role === 'superadmin') return next(); // superadmin has all access
+  const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
+  if (!userRecord) return res.status(403).json({ error: 'User not found' });
+  if (req.user.role === 'admin') {
+    // Admin can only access their allowed sites
+    if (userRecord.allowedSites && userRecord.allowedSites.length > 0 && !userRecord.allowedSites.includes(activeSiteId)) {
+      return res.status(403).json({ error: 'No access to this site' });
+    }
+  }
   next();
 }
 
@@ -84,7 +112,7 @@ app.post('/api/login', (req, res) => {
   if (!user || !verifyPassword(password, user.passwordHash, user.salt)) return res.status(401).json({ error: 'Invalid username or password' });
   const token = generateToken();
   sessions[token] = { username: user.username, role: user.role, created: Date.now() };
-  res.json({ ok: true, token, username: user.username, role: user.role });
+  res.json({ ok: true, token, username: user.username, role: user.role, allowedSites: user.allowedSites || [] });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -94,26 +122,30 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.get('/api/me', authRequired, (req, res) => {
-  res.json({ username: req.user.username, role: req.user.role });
+  const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
+  res.json({ username: req.user.username, role: req.user.role, allowedSites: userRecord ? userRecord.allowedSites || [] : [] });
 });
 
 // User management
 app.get('/api/users', authRequired, adminRequired, (req, res) => {
-  res.json(users.map(u => ({ username: u.username, role: u.role })));
+  res.json(users.map(u => ({ username: u.username, role: u.role, allowedSites: u.allowedSites || [] })));
 });
 
 app.post('/api/users', authRequired, adminRequired, (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, role, allowedSites } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-  if (!['admin', 'user'].includes(role)) return res.status(400).json({ error: 'Role must be admin or user' });
+  const validRoles = ['superadmin', 'admin', 'user'];
+  if (!validRoles.includes(role)) return res.status(400).json({ error: 'Role must be superadmin, admin, or user' });
+  // Only superadmin can create superadmin or admin users
+  if ((role === 'superadmin' || role === 'admin') && req.user.role !== 'superadmin') return res.status(403).json({ error: 'Only Super Admin can create admin/superadmin users' });
   if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) return res.status(400).json({ error: 'Username already exists' });
   const { hash, salt } = hashPassword(password);
-  users.push({ username, passwordHash: hash, salt, role });
+  users.push({ username, passwordHash: hash, salt, role, allowedSites: allowedSites || [] });
   saveUsers(users);
   res.json({ ok: true });
 });
 
-app.delete('/api/users/:username', authRequired, adminRequired, (req, res) => {
+app.delete('/api/users/:username', authRequired, superAdminRequired, (req, res) => {
   const target = req.params.username;
   if (target.toLowerCase() === req.user.username.toLowerCase()) return res.status(400).json({ error: 'Cannot delete your own account' });
   const idx = users.findIndex(u => u.username.toLowerCase() === target.toLowerCase());
@@ -141,13 +173,28 @@ app.put('/api/users/:username/password', authRequired, (req, res) => {
 app.put('/api/users/:username/role', authRequired, adminRequired, (req, res) => {
   const target = req.params.username;
   if (target.toLowerCase() === req.user.username.toLowerCase()) return res.status(400).json({ error: 'Cannot change your own role' });
-  const { role } = req.body;
-  if (!['admin', 'user'].includes(role)) return res.status(400).json({ error: 'Role must be admin or user' });
+  const { role, allowedSites } = req.body;
+  const validRoles = ['superadmin', 'admin', 'user'];
+  if (!validRoles.includes(role)) return res.status(400).json({ error: 'Role must be superadmin, admin, or user' });
+  // Only superadmin can assign superadmin role
+  if (role === 'superadmin' && req.user.role !== 'superadmin') return res.status(403).json({ error: 'Only Super Admin can assign superadmin role' });
   const user = users.find(u => u.username.toLowerCase() === target.toLowerCase());
   if (!user) return res.status(404).json({ error: 'User not found' });
   user.role = role;
+  if (allowedSites !== undefined) user.allowedSites = allowedSites;
   saveUsers(users);
   Object.values(sessions).forEach(s => { if (s.username.toLowerCase() === target.toLowerCase()) s.role = role; });
+  res.json({ ok: true });
+});
+
+// Update user's allowed sites
+app.put('/api/users/:username/sites', authRequired, superAdminRequired, (req, res) => {
+  const target = req.params.username;
+  const { allowedSites } = req.body;
+  const user = users.find(u => u.username.toLowerCase() === target.toLowerCase());
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  user.allowedSites = allowedSites || [];
+  saveUsers(users);
   res.json({ ok: true });
 });
 
@@ -167,6 +214,7 @@ function getDefaultState() {
       PSV: emptySection('PSV')
     },
     activeSection: 'PIPE',
+    billing: { po: 0, rate: 0, timesheet: [] },
     page: 0,
     pageSize: 100
   };
@@ -244,10 +292,20 @@ function loadState() {
 
 // ========== SITE CRUD ROUTES ==========
 app.get('/api/sites', authRequired, (req, res) => {
-  res.json({ sites, activeSiteId });
+  const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
+  let visibleSites = sites;
+  // Admin users can only see their allowed sites
+  if (req.user.role === 'admin' && userRecord && userRecord.allowedSites && userRecord.allowedSites.length > 0) {
+    visibleSites = sites.filter(s => userRecord.allowedSites.includes(s.id));
+  }
+  // Users see same sites as their access allows (or all if no restriction)
+  if (req.user.role === 'user' && userRecord && userRecord.allowedSites && userRecord.allowedSites.length > 0) {
+    visibleSites = sites.filter(s => userRecord.allowedSites.includes(s.id));
+  }
+  res.json({ sites: visibleSites, activeSiteId });
 });
 
-app.post('/api/sites', authRequired, adminRequired, (req, res) => {
+app.post('/api/sites', authRequired, superAdminRequired, (req, res) => {
   const { name } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Site name required' });
   const trimmed = name.trim();
@@ -261,7 +319,7 @@ app.post('/api/sites', authRequired, adminRequired, (req, res) => {
   res.json({ ok: true, site: newSite });
 });
 
-app.delete('/api/sites/:id', authRequired, adminRequired, (req, res) => {
+app.delete('/api/sites/:id', authRequired, superAdminRequired, (req, res) => {
   const id = req.params.id;
   if (sites.length <= 1) return res.status(400).json({ error: 'Cannot delete the last site' });
   const idx = sites.findIndex(s => s.id === id);
@@ -288,7 +346,7 @@ app.post('/api/sites/:id/switch', authRequired, (req, res) => {
   res.json({ ok: true, state });
 });
 
-app.put('/api/sites/:id', authRequired, adminRequired, (req, res) => {
+app.put('/api/sites/:id', authRequired, superAdminRequired, (req, res) => {
   const id = req.params.id;
   const { name } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Site name required' });
@@ -311,19 +369,60 @@ function parseWeightWorkbook(wb) {
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
   const weights = [];
-  rows.forEach(r => {
-    const vals = Object.values(r);
-    let task = null, tCol = null, w = null, m = null;
-    for (let i = 0; i < vals.length; i++) {
-      const v = vals[i];
-      if (v && typeof v === 'string' && !task && i >= 2) { task = v; continue; }
-      if (v && typeof v === 'string' && task && !tCol) { tCol = v; continue; }
-      if (task && tCol && w === null && (typeof v === 'number' || !isNaN(parseFloat(v)))) { w = parseFloat(v) || 0; continue; }
-      if (task && tCol && w !== null && m === null && (typeof v === 'number' || !isNaN(parseFloat(v)))) { m = parseFloat(v) || 0; break; }
+  const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  // Find header row and column indices dynamically
+  let headerRowIdx = -1, taskIdx = -1, tColIdx = -1, weightIdx = -1, minsIdx = -1;
+  const taskLabels = ['task', 'taskname', 'task_name', 'activity'];
+  const tColLabels = ['tracker_dimension_column', 'trackerdimensioncolumn', 'trackercolumn', 'tracker_column', 'trackercol', 'column', 'dimension'];
+  const weightLabels = ['weight', 'weight%', 'weightpercentage', 'weightpercent', 'wt', 'wt%'];
+  const minsLabels = ['minutes', 'mins', 'hours', 'hrs', 'time', 'totalminutes', 'totalhours'];
+
+  for (let ri = 0; ri < Math.min(15, rows.length); ri++) {
+    const vals = rows[ri] || [];
+    for (let ci = 0; ci < vals.length; ci++) {
+      const n = norm(String(vals[ci]));
+      if (!n) continue;
+      if (taskLabels.includes(n) && taskIdx === -1) { taskIdx = ci; headerRowIdx = ri; }
+      if (tColLabels.includes(n) && tColIdx === -1) { tColIdx = ci; headerRowIdx = ri; }
+      if (weightLabels.includes(n) && weightIdx === -1) { weightIdx = ci; headerRowIdx = ri; }
+      if (minsLabels.includes(n) && minsIdx === -1) { minsIdx = ci; headerRowIdx = ri; }
     }
-    if (task && tCol && task.toLowerCase() !== 'task' && tCol.toLowerCase() !== 'tracker_dimension_column')
-      weights.push({ task, trackerCol: tCol, weight: w || 0, minutes: m || 0 });
-  });
+    if (taskIdx !== -1 && tColIdx !== -1) break;
+  }
+
+  // If header detection found columns, use index-based parsing
+  if (headerRowIdx >= 0 && taskIdx >= 0 && tColIdx >= 0) {
+    console.log(`Weight parse: header at row ${headerRowIdx}, task=${taskIdx}, tCol=${tColIdx}, weight=${weightIdx}, mins=${minsIdx}`);
+    for (let ri = headerRowIdx + 1; ri < rows.length; ri++) {
+      const vals = rows[ri] || [];
+      const task = String(vals[taskIdx] || '').trim();
+      const tCol = String(vals[tColIdx] || '').trim();
+      if (!task || !tCol) continue;
+      if (task.toLowerCase() === 'task' || tCol.toLowerCase() === 'tracker_dimension_column') continue;
+      const w = weightIdx >= 0 ? parseFloat(vals[weightIdx]) || 0 : 0;
+      const m = minsIdx >= 0 ? parseFloat(vals[minsIdx]) || 0 : 0;
+      weights.push({ task, trackerCol: tCol, weight: w, minutes: m });
+    }
+  } else {
+    // Fallback: positional parsing (scan each row for string+string+number+number pattern)
+    console.log('Weight parse: no header detected, using fallback positional parsing');
+    rows.forEach(r => {
+      const vals = Object.values(r);
+      let task = null, tCol = null, w = null, m = null;
+      for (let i = 0; i < vals.length; i++) {
+        const v = vals[i];
+        if (v && typeof v === 'string' && v.trim() && !task) { task = v.trim(); continue; }
+        if (v && typeof v === 'string' && v.trim() && task && !tCol) { tCol = v.trim(); continue; }
+        if (task && tCol && w === null && (typeof v === 'number' || !isNaN(parseFloat(v)))) { w = parseFloat(v) || 0; continue; }
+        if (task && tCol && w !== null && m === null && (typeof v === 'number' || !isNaN(parseFloat(v)))) { m = parseFloat(v) || 0; break; }
+      }
+      if (task && tCol && task.toLowerCase() !== 'task' && tCol.toLowerCase() !== 'tracker_dimension_column')
+        weights.push({ task, trackerCol: tCol, weight: w || 0, minutes: m || 0 });
+    });
+  }
+  console.log(`Weight parse: found ${weights.length} entries`);
+  if (weights.length > 0) console.log('Weight parse sample:', JSON.stringify(weights[0]));
   return weights;
 }
 
@@ -572,9 +671,14 @@ app.get('/api/export/kpi.csv', authRequired, (req, res) => {
 
   function getWeightFor(taskName, sec) {
     const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const tn = norm(taskName);
     return sec.weights.find(w => {
       const base = w.trackerCol.replace(/-DATE$/i, '').trim();
-      return base === taskName || w.task === taskName || norm(base) === norm(taskName) || norm(w.task) === norm(taskName);
+      const nb = norm(base);
+      const nt = norm(w.task);
+      return base === taskName || w.task === taskName || nb === tn || nt === tn
+        || tn.includes(nb) || nb.includes(tn)
+        || tn.includes(nt) || nt.includes(tn);
     });
   }
 

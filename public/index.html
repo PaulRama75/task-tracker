@@ -105,6 +105,7 @@ input:focus,select:focus{border-color:var(--accent)}
 .user-row:last-child{border-bottom:none}
 .user-row .user-info{display:flex;align-items:center;gap:10px}
 .user-row .role-badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;text-transform:uppercase}
+.role-badge.superadmin{background:rgba(255,193,7,.2);color:#ffc107}
 .role-badge.admin{background:rgba(33,150,243,.15);color:var(--accent)}
 .role-badge.user{background:rgba(46,204,113,.15);color:var(--success)}
 .user-actions{display:flex;gap:6px}
@@ -173,8 +174,12 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="add-user-form">
       <input id="newUsername" placeholder="Username" style="width:120px">
       <input id="newPassword" type="password" placeholder="Password" style="width:120px">
-      <select id="newRole" style="width:100px"><option value="user">User</option><option value="admin">Admin</option></select>
+      <select id="newRole" style="width:120px" onchange="toggleNewUserSites()"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin">Super Admin</option></select>
       <button class="btn btn-primary btn-sm" onclick="createUser()">Add User</button>
+    </div>
+    <div id="newUserSitesWrap" class="add-user-form" style="display:none;border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+      <span style="font-size:11px;color:var(--text-dim)">Allowed Sites (leave empty = all):</span>
+      <div id="newUserSiteChecks" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
     </div>
     <div class="add-user-form" style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
       <span style="font-size:12px;color:var(--text-dim)">Change password:</span>
@@ -211,6 +216,7 @@ input:focus,select:focus{border-color:var(--accent)}
   <button class="tab-btn" onclick="switchTab('reports')">Reports & KPI</button>
   <button class="tab-btn" onclick="switchTab('editor')">Editor</button>
   <button class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
+  <button class="tab-btn" onclick="switchTab('billing')">Billing</button>
 </div>
 <div class="site-bar" id="siteBar">
   <span class="site-label">Site:</span>
@@ -241,7 +247,7 @@ input:focus,select:focus{border-color:var(--accent)}
       </div>
       <div class="drop-zone" id="weightDZ" onclick="document.getElementById('weightFile').click()">
         <strong>Import WEIGHT.xlsx</strong>
-        <p>task, tracker_dimension_column, weight, Minutes</p>
+        <p>task, tracker_dimension_column, weight, Hours</p>
         <input type="file" id="weightFile" accept=".csv,.xlsx,.xls" onchange="uploadWeight(event)">
       </div>
       <div id="weightStatus" class="mt-12" style="font-size:12px;color:var(--text-dim)"></div>
@@ -356,7 +362,7 @@ input:focus,select:focus{border-color:var(--accent)}
   <div class="card mt-12">
     <div class="card-title">Person KPI</div>
     <div style="overflow:auto"><table>
-      <thead><tr><th>Initials</th><th>Name</th><th>Tasks Done</th><th>Weighted Score</th><th>Hours</th><th>Circuits Touched</th><th>Completion %</th><th>Efficiency</th></tr></thead>
+      <thead><tr><th>Initials</th><th>Name</th><th>Tasks Done</th><th>KPI Score<br><span style="font-size:9px;font-weight:400">(Weight% × Hours)</span></th><th>Hours</th><th>Circuits Touched</th><th>Contribution %</th><th>KPI/Hr</th></tr></thead>
       <tbody id="personKpiBody"></tbody>
     </table></div>
   </div>
@@ -430,13 +436,99 @@ input:focus,select:focus{border-color:var(--accent)}
       </div>
     </div>
     <div style="overflow:auto"><table>
-      <thead><tr><th>Task</th><th>Weight %</th><th>Minutes</th><th>Completed</th><th>Remaining</th><th>% Done</th><th>Progress</th></tr></thead>
+      <thead><tr><th>Task</th><th>Weight %</th><th>Hours</th><th>Completed</th><th>Remaining</th><th>% Done</th><th>Progress</th></tr></thead>
       <tbody id="taskBreakBody"></tbody>
     </table></div>
   </div>
   <div class="grid-2 mt-12">
     <div class="card"><div class="card-title">Bottlenecks (Lowest Completion)</div><div class="chart-container"><canvas id="chartBottle"></canvas></div></div>
     <div class="card"><div class="card-title">Workload Balance</div><div class="chart-container"><canvas id="chartWorkload"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ============ BILLING TAB ============ -->
+<div id="tab-billing" class="tab-content">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title flex-between">Weekly Timesheet
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-success btn-sm" onclick="document.getElementById('billingFile').click()">Import Excel</button>
+          <input type="file" id="billingFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importBillingFile(event)">
+          <button class="btn btn-outline btn-sm" onclick="addBillingRow()">+ Add Row</button>
+        </div>
+      </div>
+      <div style="overflow:auto;max-height:400px"><table>
+        <thead><tr><th>Week Ending</th><th>ST Hours</th><th>OT Hours</th><th>Total Hours</th><th>Equip ($)</th><th>Total Cost ($)</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="billingTableBody"></tbody>
+        <tfoot>
+          <tr style="font-weight:700;background:var(--surface)">
+            <td>TOTALS</td><td id="bTotalST">0</td><td id="bTotalOT">0</td><td id="bTotalHrs">0</td><td id="bTotalEquip">$0</td><td id="bTotalCost">$0</td><td></td><td></td>
+          </tr>
+        </tfoot>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">PO & Billing Info</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <label style="font-size:12px;color:var(--text-dim);width:140px">Original PO Value ($):</label>
+          <input type="number" id="billedPO" placeholder="0" step="0.01" style="width:180px" oninput="updateBillingComparison()">
+        </div>
+        <div style="display:flex;gap:12px;align-items:center">
+          <label style="font-size:12px;color:var(--text-dim);width:140px">Total Billed ($):</label>
+          <span id="billedRate" style="font-size:16px;font-weight:700;color:var(--accent)">$0.00</span>
+          <span style="font-size:10px;color:var(--text-dim)">(from timesheet total cost)</span>
+        </div>
+        <button class="btn btn-primary btn-sm" style="width:100px" onclick="saveBillingData()">Save</button>
+      </div>
+    </div>
+  </div>
+  <div class="grid-4 mt-12">
+    <div class="stat-card">
+      <div class="label">Total Hours Charged</div>
+      <div class="value" id="bBilledHrs">0</div>
+      <div class="sub">from timesheet</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Hours Gained (Tasks)</div>
+      <div class="value" id="bActualHrs">0</div>
+      <div class="sub" id="bActualHrsSub">completed tasks × weight hours</div>
+    </div>
+    <div class="stat-card">
+      <div class="label" id="bVarianceLabel">Variance (Hours)</div>
+      <div class="value" id="bVariance" style="color:var(--success)">0</div>
+      <div class="sub" id="bVarianceSub">charged - gained</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Efficiency</div>
+      <div class="value" id="bEfficiency">-</div>
+      <div class="sub">gained / charged × 100</div>
+    </div>
+  </div>
+  <div class="grid-4 mt-12">
+    <div class="stat-card">
+      <div class="label">Total PO Amount ($)</div>
+      <div class="value" id="bPOAmt">$0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Billed Amount ($)</div>
+      <div class="value" id="bBilledAmt">$0</div>
+      <div class="sub">from timesheet total cost</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">PO Balance ($)</div>
+      <div class="value" id="bPOBalance" style="color:var(--success)">$0</div>
+      <div class="sub">PO - billed</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Cost per Circuit ($)</div>
+      <div class="value" id="bCostPerCircuit">$0</div>
+      <div class="sub">billed / total circuits</div>
+    </div>
+  </div>
+  <div class="grid-2 mt-12">
+    <div class="card"><div class="card-title">Hours: Charged vs Gained</div><div class="chart-container"><canvas id="chartBillingHours"></canvas></div></div>
+    <div class="card"><div class="card-title">PO: Billed vs Balance</div><div class="chart-container"><canvas id="chartBillingCost"></canvas></div></div>
   </div>
 </div>
 
@@ -476,7 +568,7 @@ async function doLogin() {
     if (data.ok) {
       authToken = data.token;
       sessionStorage.setItem('authToken', authToken);
-      currentUser = { username: data.username, role: data.role };
+      currentUser = { username: data.username, role: data.role, allowedSites: data.allowedSites || [] };
       showApp();
     } else {
       errEl.textContent = data.error || 'Login failed';
@@ -516,19 +608,48 @@ function showApp() {
   // Update header
   document.getElementById('headerUsername').textContent = currentUser.username;
   const roleBadge = document.getElementById('headerRole');
-  roleBadge.textContent = currentUser.role;
+  const roleLabel = currentUser.role === 'superadmin' ? 'Super Admin' : currentUser.role === 'admin' ? 'Admin' : 'User';
+  roleBadge.textContent = roleLabel;
   roleBadge.className = 'role-badge ' + currentUser.role;
-  // Role-based visibility
-  const isAdmin = currentUser.role === 'admin';
-  document.getElementById('btnManageUsers').style.display = isAdmin ? '' : 'none';
-  // Setup tab visibility
+
+  // Role-based tab visibility
+  const isSuperAdmin = currentUser.role === 'superadmin';
+  const isAdmin = currentUser.role === 'admin' || isSuperAdmin;
+  const isUser = currentUser.role === 'user';
+
+  // Manage Users button: only superadmin
+  document.getElementById('btnManageUsers').style.display = isSuperAdmin ? '' : 'none';
+
+  // Setup tab: superadmin + admin only
   const setupBtn = document.querySelector('.tab-btn[onclick="switchTab(\'setup\')"]');
   if (setupBtn) setupBtn.style.display = isAdmin ? '' : 'none';
-  // If non-admin is on setup tab, switch to tracker
-  if (!isAdmin) {
-    const setupTab = document.getElementById('tab-setup');
-    if (setupTab && setupTab.classList.contains('active')) switchTab('tracker');
+
+  // Tracker tab: superadmin + admin only
+  const trackerBtn = document.querySelector('.tab-btn[onclick="switchTab(\'tracker\')"]');
+  if (trackerBtn) trackerBtn.style.display = isAdmin ? '' : 'none';
+
+  // Billing tab: superadmin + admin only
+  const billingBtn = document.querySelector('.tab-btn[onclick="switchTab(\'billing\')"]');
+  if (billingBtn) billingBtn.style.display = isAdmin ? '' : 'none';
+
+  // Editor, Reports, Analytics: visible to all
+  // (already visible by default)
+
+  // If user role is on a hidden tab, switch to editor
+  if (isUser) {
+    const activeTab = document.querySelector('.tab-content.active');
+    if (activeTab) {
+      const id = activeTab.id.replace('tab-', '');
+      if (id === 'setup' || id === 'tracker' || id === 'billing') switchTab('editor');
+    } else {
+      switchTab('editor');
+    }
   }
+
+  // Site add/delete buttons: only superadmin
+  const siteActions = document.getElementById('siteActions');
+  if (siteActions) siteActions.style.display = isSuperAdmin ? '' : 'none';
+
   loadSites();
   loadState();
 }
@@ -546,26 +667,39 @@ function closeUserModal() {
 async function refreshUserList() {
   try {
     const res = await authFetch('/api/users');
-    const users = await res.json();
+    const usersList = await res.json();
     const list = document.getElementById('userList');
-    list.innerHTML = users.map(u => `<div class="user-row">
-      <div class="user-info">
-        <strong>${esc(u.username)}</strong>
-        <span class="role-badge ${u.role}">${u.role}</span>
-      </div>
-      <div class="user-actions">
-        ${u.username !== currentUser.username ? `
-          <select onchange="changeRole('${esc(u.username)}',this.value)" style="padding:4px 8px;font-size:11px">
-            <option value="user"${u.role === 'user' ? ' selected' : ''}>User</option>
-            <option value="admin"${u.role === 'admin' ? ' selected' : ''}>Admin</option>
-          </select>
-          <button class="btn btn-danger btn-sm" onclick="deleteUser('${esc(u.username)}')">Delete</button>
-        ` : '<span style="font-size:11px;color:var(--text-dim)">(you)</span>'}
-      </div>
-    </div>`).join('');
+    const isSuperAdmin = currentUser.role === 'superadmin';
+    list.innerHTML = usersList.map(u => {
+      const roleLabel = u.role === 'superadmin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'User';
+      const sitesLabel = (u.allowedSites && u.allowedSites.length > 0)
+        ? u.allowedSites.map(sid => { const s = sitesList.find(ss => ss.id === sid); return s ? s.name : sid; }).join(', ')
+        : 'All Sites';
+      const isMe = u.username === currentUser.username;
+      return `<div class="user-row">
+        <div class="user-info" style="flex:1">
+          <strong>${esc(u.username)}</strong>
+          <span class="role-badge ${u.role}">${esc(roleLabel)}</span>
+          ${u.role !== 'superadmin' ? `<span style="font-size:10px;color:var(--text-dim);margin-left:4px">📍 ${esc(sitesLabel)}</span>` : ''}
+        </div>
+        <div class="user-actions">
+          ${!isMe && isSuperAdmin ? `
+            <select onchange="changeRole('${esc(u.username)}',this.value)" style="padding:4px 8px;font-size:11px">
+              <option value="user"${u.role === 'user' ? ' selected' : ''}>User</option>
+              <option value="admin"${u.role === 'admin' ? ' selected' : ''}>Admin</option>
+              <option value="superadmin"${u.role === 'superadmin' ? ' selected' : ''}>Super Admin</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="openSiteAccessModal('${esc(u.username)}')">Sites</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteUser('${esc(u.username)}')">Delete</button>
+          ` : isMe ? '<span style="font-size:11px;color:var(--text-dim)">(you)</span>' : ''}
+        </div>
+      </div>`;
+    }).join('');
     // Populate change-password dropdown
     const cpSel = document.getElementById('cpUser');
-    cpSel.innerHTML = users.map(u => `<option value="${esc(u.username)}">${esc(u.username)}</option>`).join('');
+    cpSel.innerHTML = usersList.map(u => `<option value="${esc(u.username)}">${esc(u.username)}</option>`).join('');
+    // Store for site access modal
+    window._usersList = usersList;
   } catch (e) { toast('Failed to load users', 'error'); }
 }
 
@@ -574,11 +708,14 @@ async function createUser() {
   const password = document.getElementById('newPassword').value;
   const role = document.getElementById('newRole').value;
   if (!username || !password) return toast('Username and password required', 'error');
+  // Gather allowed sites from checkboxes
+  const allowedSites = [];
+  document.querySelectorAll('#newUserSiteChecks input[type=checkbox]:checked').forEach(cb => allowedSites.push(cb.value));
   try {
     const res = await authFetch('/api/users', {
       method: 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, role })
+      body: JSON.stringify({ username, password, role, allowedSites })
     });
     const data = await res.json();
     if (data.ok) {
@@ -588,6 +725,64 @@ async function createUser() {
       refreshUserList();
     } else toast(data.error, 'error');
   } catch (e) { toast('Failed to create user', 'error'); }
+}
+
+function toggleNewUserSites() {
+  const role = document.getElementById('newRole').value;
+  const wrap = document.getElementById('newUserSitesWrap');
+  if (role === 'admin' || role === 'user') {
+    wrap.style.display = '';
+    const checks = document.getElementById('newUserSiteChecks');
+    checks.innerHTML = sitesList.map(s =>
+      `<label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" value="${esc(s.id)}">${esc(s.name)}
+      </label>`
+    ).join('');
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function openSiteAccessModal(username) {
+  const user = (window._usersList || []).find(u => u.username === username);
+  if (!user) return;
+  const currentSites = user.allowedSites || [];
+  const html = sitesList.map(s => {
+    const checked = currentSites.includes(s.id) ? ' checked' : '';
+    return `<label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0">
+      <input type="checkbox" value="${esc(s.id)}" class="site-access-cb"${checked}>${esc(s.name)}
+    </label>`;
+  }).join('');
+  const dialog = document.createElement('div');
+  dialog.className = 'modal-overlay';
+  dialog.innerHTML = `<div class="modal" style="max-width:350px">
+    <h3>Site Access: ${esc(username)} <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button></h3>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:12px">Leave all unchecked for access to all sites</p>
+    <div style="max-height:250px;overflow-y:auto">${html}</div>
+    <div style="margin-top:12px;text-align:right">
+      <button class="btn btn-primary btn-sm" onclick="saveSiteAccess('${esc(username)}',this)">Save</button>
+    </div>
+  </div>`;
+  document.body.appendChild(dialog);
+}
+
+async function saveSiteAccess(username, btn) {
+  const dialog = btn.closest('.modal-overlay');
+  const allowedSites = [];
+  dialog.querySelectorAll('.site-access-cb:checked').forEach(cb => allowedSites.push(cb.value));
+  try {
+    const res = await authFetch('/api/users/' + encodeURIComponent(username) + '/sites', {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ allowedSites })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast('Site access updated for ' + username, 'success');
+      dialog.remove();
+      refreshUserList();
+    } else toast(data.error, 'error');
+  } catch (e) { toast('Failed to update site access', 'error'); }
 }
 
 async function deleteUser(username) {
@@ -648,16 +843,16 @@ async function loadSites() {
 function renderSiteBar() {
   const pills = document.getElementById('sitePills');
   if (!pills) return;
-  const isAdmin = currentUser && currentUser.role === 'admin';
+  const isSuperAdmin = currentUser && currentUser.role === 'superadmin';
   pills.innerHTML = sitesList.map(s => {
     const active = s.id === activeSiteId;
     return `<button class="site-pill${active ? ' active' : ''}" onclick="switchSite('${esc(s.id)}')">
       ${esc(s.name)}
-      ${isAdmin && !active ? `<span class="pill-delete" onclick="event.stopPropagation();deleteSite('${esc(s.id)}')">&times;</span>` : ''}
+      ${isSuperAdmin && !active ? `<span class="pill-delete" onclick="event.stopPropagation();deleteSite('${esc(s.id)}')">&times;</span>` : ''}
     </button>`;
   }).join('');
   const actions = document.getElementById('siteActions');
-  if (actions) actions.style.display = isAdmin ? '' : 'none';
+  if (actions) actions.style.display = isSuperAdmin ? '' : 'none';
 }
 
 async function switchSite(siteId) {
@@ -673,11 +868,17 @@ async function switchSite(siteId) {
         state.activeSection = Object.keys(state.sections)[0] || 'Default';
       }
       if (!state.initials) state.initials = [];
+      if (!state.billing) state.billing = {};
       if (!state.page) state.page = 0;
       if (!state.pageSize) state.pageSize = 100;
+      editorIdx = -1;
       document.getElementById('pageSizeSelect').value = state.pageSize || 100;
       renderSiteBar();
-      renderAfterLoad();
+      renderSectionBar();
+      updateSetupCardTitles();
+      renderWeight(); renderInitials();
+      if (sec().rows && sec().rows.length) { showTrackerStatus(); showMappingStatus(); }
+      refreshActiveTab();
       toast('Switched to ' + (sitesList.find(s => s.id === siteId) || {}).name, 'success');
     }
   } catch (e) { toast('Failed to switch site', 'error'); }
@@ -808,6 +1009,20 @@ function renderAfterLoad() {
   updateSetupCardTitles();
   renderWeight(); renderInitials();
   if (sec().rows && sec().rows.length) { showTrackerStatus(); showMappingStatus(); }
+  // Refresh the currently active tab with new site/section data
+  refreshActiveTab();
+}
+
+function refreshActiveTab() {
+  const activeTab = document.querySelector('.tab-content.active');
+  if (!activeTab) return;
+  const id = activeTab.id.replace('tab-', '');
+  if (id === 'tracker') { populateFilters(); renderTracker(); }
+  if (id === 'editor') { editorPopulateSelect(); }
+  if (id === 'reports') { populateReportSectionFilter(); generateReport(); }
+  if (id === 'analytics') { populateAnalyticsSectionFilter(); renderAnalytics(); }
+  if (id === 'billing') { loadBillingData(); updateBillingComparison(); }
+  if (id === 'setup') { updateSetupCardTitles(); renderWeight(); renderInitials(); showTrackerStatus(); showMappingStatus(); }
 }
 
 function updateSetupCardTitles() {
@@ -834,7 +1049,7 @@ function renderSectionBar() {
   const pills = document.getElementById('sectionPills');
   if (!pills) return;
   const names = Object.keys(state.sections);
-  const isAdmin = currentUser && currentUser.role === 'admin';
+  const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin');
   pills.innerHTML = names.map(name => {
     const active = name === state.activeSection;
     return `<button class="section-pill${active ? ' active' : ''}" onclick="switchSection('${esc(name)}')">
@@ -946,6 +1161,7 @@ function switchTab(name) {
   if (name === 'editor') { editorPopulateSelect(); if (editorIdx >= 0) editorLoadAsset(editorIdx); }
   if (name === 'reports') { populateReportSectionFilter(); generateReport(); }
   if (name === 'analytics') { populateAnalyticsSectionFilter(); renderAnalytics(); }
+  if (name === 'billing') { loadBillingData(); updateBillingComparison(); }
   if (name === 'setup') { updateSetupCardTitles(); renderWeight(); showTrackerStatus(); showMappingStatus(); }
 }
 
@@ -991,7 +1207,7 @@ function renderWeight() {
   em.style.display = 'none';
   const tw = w.reduce((s, wi) => s + wi.weight, 0);
   const tm = w.reduce((s, wi) => s + wi.minutes, 0);
-  st.innerHTML = `<strong>${w.length}</strong> tasks | Total weight: <strong>${tw.toFixed(1)}%</strong> | Total minutes: <strong>${tm.toFixed(2)}</strong>`;
+  st.innerHTML = `<strong>${w.length}</strong> tasks | Total weight: <strong>${tw.toFixed(1)}%</strong> | Total hours: <strong>${tm.toFixed(2)}</strong>`;
   b.innerHTML = w.map((wi, i) => `<tr>
     <td>${esc(wi.task)}</td><td style="font-size:10px;color:var(--text-dim)">${esc(wi.trackerCol)}</td>
     <td>${wi.weight}%</td><td>${wi.minutes}</td>
@@ -1197,9 +1413,14 @@ function parseDate(s) {
 function getWeightFor(taskName, weights) {
   const w = weights || sec().weights || [];
   const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const tn = norm(taskName);
   return w.find(wi => {
     const base = wi.trackerCol.replace(/-DATE$/i, '').trim();
-    return base === taskName || wi.task === taskName || norm(base) === norm(taskName) || norm(wi.task) === norm(taskName);
+    const nb = norm(base);
+    const nt = norm(wi.task);
+    return base === taskName || wi.task === taskName || nb === tn || nt === tn
+      || tn.includes(nb) || nb.includes(tn)
+      || tn.includes(nt) || nt.includes(tn);
   });
 }
 
@@ -1259,7 +1480,7 @@ function generateReport() {
           const ini = (t.initial || '').toUpperCase();
           if (ini && personStats[ini]) {
             personStats[ini].tasks++;
-            personStats[ini].weightedScore += wt;
+            personStats[ini].weightedScore += wt * mins;
             personStats[ini].minutes += mins;
             personStats[ini].circuits.add(secName + '|' + Object.values(r._info).join('|'));
           }
@@ -1276,22 +1497,28 @@ function generateReport() {
   document.getElementById('kTotal').textContent = totalRows;
   document.getElementById('kComp').textContent = totalPossible ? Math.round(totalDone / totalPossible * 100) + '%' : '0%';
   document.getElementById('kWComp').textContent = totalWeightedPossible ? Math.round(totalWeightedDone / totalWeightedPossible * 100) + '%' : '0%';
-  document.getElementById('kMins').textContent = (totalMinsDone / 60).toFixed(2);
+  document.getElementById('kMins').textContent = totalMinsDone.toFixed(2);
 
   const pb = document.getElementById('personKpiBody');
   const skipNamesKpi = ['initial', 'initials', 'name', 'id'];
   const pEntries = Object.entries(personStats).filter(([k]) => !skipNamesKpi.includes(k.toLowerCase())).sort((a, b) => b[1].weightedScore - a[1].weightedScore);
-  const totalTaskSlots = totalPossible;
+  const totalPersonTasks = pEntries.reduce((s, [, v]) => s + v.tasks, 0);
   pb.innerHTML = pEntries.map(([ini, s]) => {
     const p = state.initials.find(x => x.initial === ini);
-    const compPct = totalWeightedDone > 0 ? Math.round(s.weightedScore / totalWeightedDone * 100 * 100) / 100 : 0;
-    const hours = s.minutes / 60;
-    const efficiency = hours > 0 ? (s.tasks / hours).toFixed(1) : '-';
+    // Contribution %: what % of all person-assigned tasks did this person do
+    const contribPct = totalPersonTasks > 0 ? Math.round(s.tasks / totalPersonTasks * 100 * 100) / 100 : 0;
+    const hours = s.minutes;
+    // KPI per hour: KPI score / hours worked
+    const efficiency = hours > 0 ? (s.weightedScore / hours).toFixed(2) : '-';
+    const hasData = s.tasks > 0;
     return `<tr>
       <td><strong>${esc(ini)}</strong></td><td>${esc(p ? p.name : '')}</td>
-      <td>${s.tasks}</td><td>${s.weightedScore.toFixed(1)}</td><td>${hours.toFixed(2)}</td>
-      <td>${s.circuits.size}</td><td>${compPct}%</td>
-      <td>${efficiency !== '-' ? efficiency + ' tasks/hr' : '-'}</td>
+      <td${hasData ? ' class="kpi-has-data"' : ''}>${hasData ? s.tasks : ''}</td>
+      <td${hasData ? ' class="kpi-has-data"' : ''}>${hasData ? s.weightedScore.toFixed(2) : ''}</td>
+      <td${hasData ? ' class="kpi-has-data"' : ''}>${hasData ? hours.toFixed(2) : ''}</td>
+      <td${hasData ? ' class="kpi-has-data"' : ''}>${hasData ? s.circuits.size : ''}</td>
+      <td${hasData ? ' class="kpi-has-data"' : ''}>${hasData ? contribPct + '%' : ''}</td>
+      <td${hasData ? ' class="kpi-has-data"' : ''}>${hasData ? (efficiency !== '-' ? efficiency + ' wt/hr' : '-') : ''}</td>
     </tr>`;
   }).join('');
 
@@ -1419,7 +1646,7 @@ function renderWeeklyKpi(sectionsToProcess, multiSection, fromD, toD) {
     const isHigh = tc.weight >= 10;
     html += '<th class="' + (isHigh ? 'kpi-weight-high' : '') + '">' + pct + '</th>';
   });
-  html += '<th></th></tr>';
+  html += '<th class="kpi-has-data">' + totalWeight.toFixed(2) + '%</th></tr>';
   // Column header row
   html += '<tr class="kpi-header-row"><th class="kpi-col-name">Name</th>';
   taskColList.forEach(tc => {
@@ -1657,15 +1884,33 @@ function editorLoadAsset(idx) {
 
   const form = document.getElementById('editorFormBody');
   const loggedInInit = getLoggedInUserInitial();
+  const isUserRole = currentUser && currentUser.role === 'user';
   form.innerHTML = taskCols.map((tc, ti) => {
     const t = r._tasks[tc.task] || { date: '', initial: '' };
     const w = getWeightFor(tc.task);
     const done = !!t.date;
+    // Users cannot edit tasks that already have saved data
+    const locked = isUserRole && done;
     // If no initial assigned, default to logged-in user's initial
     const currentInit = t.initial || loggedInInit;
     const initOpts = state.initials.map(p =>
       `<option value="${esc(p.initial)}"${currentInit.toUpperCase() === p.initial.toUpperCase() ? ' selected' : ''}>${esc(p.initial)} - ${esc(p.name)}</option>`
     ).join('');
+    if (locked) {
+      return `<div class="form-row" id="erow-${ti}" style="opacity:0.7">
+        <div class="status-dot done"></div>
+        <div class="task-label">${esc(tc.task)}</div>
+        <div class="task-weight" style="display:none">${w ? w.weight + '%' : '-'}</div>
+        <div class="task-mins" style="display:none">${w ? w.minutes + 'm' : '-'}</div>
+        <div class="form-fields">
+          <input type="text" id="edate-${ti}" value="${esc(t.date)}" disabled style="background:var(--surface2);cursor:not-allowed">
+          <select id="einit-${ti}" disabled style="background:var(--surface2);cursor:not-allowed">
+            <option value="${esc(t.initial)}">${esc(t.initial)}</option>
+          </select>
+          <span style="font-size:10px;color:var(--text-dim)">🔒 Saved</span>
+        </div>
+      </div>`;
+    }
     return `<div class="form-row" id="erow-${ti}">
       <div class="status-dot ${done ? 'done' : 'empty'}"></div>
       <div class="task-label">${esc(tc.task)}</div>
@@ -1702,6 +1947,15 @@ function editorFieldChanged(taskIdx) {
   const rows = sec().rows || [];
   const tc = taskCols[taskIdx];
   if (!tc || editorIdx < 0) return;
+  // Prevent users from editing saved tasks
+  if (currentUser && currentUser.role === 'user') {
+    const prevTask = rows[editorIdx]._tasks[tc.task] || {};
+    if (prevTask.date) {
+      toast('Cannot edit saved task data', 'error');
+      editorLoadAsset(editorIdx);
+      return;
+    }
+  }
   const dateVal = document.getElementById('edate-' + taskIdx).value;
   let initVal = document.getElementById('einit-' + taskIdx).value;
 
@@ -1748,6 +2002,9 @@ function editorSetToday(taskIdx) {
 }
 
 function editorClearTask(taskIdx) {
+  if (currentUser && currentUser.role === 'user') {
+    return toast('Users cannot clear saved tasks', 'error');
+  }
   document.getElementById('edate-' + taskIdx).value = '';
   document.getElementById('einit-' + taskIdx).value = '';
   editorFieldChanged(taskIdx);
@@ -1870,6 +2127,217 @@ async function importBackupJSON(e) {
     inp.dispatchEvent(new Event('change'));
   });
 });
+
+// ========== BILLING ==========
+function getActualManhours() {
+  let totalHrs = 0;
+  const perSection = {};
+  Object.entries(state.sections).forEach(([secName, secData]) => {
+    if (!secData) return;
+    perSection[secName] = 0;
+    (secData.rows || []).forEach(r => {
+      (secData.taskCols || []).forEach(tc => {
+        const t = r._tasks[tc.task];
+        if (t && t.date) {
+          const w = getWeightFor(tc.task, secData.weights || []);
+          const hrs = w ? w.minutes : 0;
+          totalHrs += hrs;
+          perSection[secName] += hrs;
+        }
+      });
+    });
+  });
+  return { total: totalHrs, perSection };
+}
+
+function getTotalCircuits() {
+  let total = 0;
+  Object.values(state.sections).forEach(secData => {
+    if (secData && secData.rows) total += secData.rows.length;
+  });
+  return total;
+}
+
+function loadBillingData() {
+  const billing = state.billing || {};
+  document.getElementById('billedPO').value = billing.po || '';
+  document.getElementById('billedRate').value = billing.rate || '';
+  renderBillingTable();
+}
+
+function saveBillingData() {
+  if (!state.billing) state.billing = {};
+  state.billing.po = parseFloat(document.getElementById('billedPO').value) || 0;
+  saveState();
+  updateBillingComparison();
+  toast('Billing data saved', 'success');
+}
+
+function importBillingFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const wb = XLSX.read(ev.target.result, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+    if (!state.billing) state.billing = {};
+    state.billing.timesheet = [];
+    // Find header row
+    let headerIdx = 0;
+    for (let i = 0; i < Math.min(10, rows.length); i++) {
+      const r = rows[i].map(c => String(c).toLowerCase());
+      if (r.some(c => c.includes('week') || c.includes('st') || c.includes('total'))) { headerIdx = i; break; }
+    }
+    // Parse data rows
+    for (let i = headerIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r.length) continue;
+      const week = String(r[0] || '').trim();
+      const st = parseFloat(r[1]) || 0;
+      const ot = parseFloat(r[2]) || 0;
+      const totalHrs = parseFloat(r[3]) || 0;
+      const equip = parseFloat(String(r[4] || '').replace(/[$,]/g, '')) || 0;
+      const totalCost = parseFloat(String(r[5] || '').replace(/[$,]/g, '')) || 0;
+      const notes = String(r[6] || '').trim();
+      if (week && (st || ot || totalHrs || totalCost)) {
+        state.billing.timesheet.push({ week, st, ot, totalHrs, equip, totalCost, notes });
+      }
+      // Check for PO info rows
+      if (String(r[0] || '').toLowerCase().includes('original po')) {
+        state.billing.po = parseFloat(String(r[0] || r[1] || '').replace(/[$,]/g, '')) || state.billing.po || 0;
+        if (r[1]) state.billing.po = parseFloat(String(r[1]).replace(/[$,]/g, '')) || state.billing.po;
+      }
+    }
+    // Also check for PO value in lower rows
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r) continue;
+      const cell0 = String(r[0] || '').toLowerCase();
+      if (cell0.includes('original po')) {
+        const poVal = parseFloat(String(r[0]).replace(/[^0-9.]/g, '')) || parseFloat(String(r[1] || '').replace(/[$,]/g, ''));
+        if (poVal) { state.billing.po = poVal; document.getElementById('billedPO').value = poVal; }
+      }
+    }
+    saveState();
+    renderBillingTable();
+    updateBillingComparison();
+    toast('Imported ' + state.billing.timesheet.length + ' billing rows', 'success');
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+function renderBillingTable() {
+  const tbody = document.getElementById('billingTableBody');
+  if (!tbody) return;
+  const rows = (state.billing && state.billing.timesheet) || [];
+  tbody.innerHTML = rows.map((r, i) => `<tr>
+    <td><input type="text" value="${esc(r.week)}" onchange="updateBillingRow(${i},'week',this.value)" style="width:110px;font-size:11px"></td>
+    <td><input type="number" value="${r.st}" onchange="updateBillingRow(${i},'st',this.value)" style="width:70px;font-size:11px" step="0.01"></td>
+    <td><input type="number" value="${r.ot}" onchange="updateBillingRow(${i},'ot',this.value)" style="width:70px;font-size:11px" step="0.01"></td>
+    <td><input type="number" value="${r.totalHrs}" onchange="updateBillingRow(${i},'totalHrs',this.value)" style="width:70px;font-size:11px" step="0.01"></td>
+    <td><input type="number" value="${r.equip}" onchange="updateBillingRow(${i},'equip',this.value)" style="width:80px;font-size:11px" step="0.01"></td>
+    <td><input type="number" value="${r.totalCost}" onchange="updateBillingRow(${i},'totalCost',this.value)" style="width:100px;font-size:11px" step="0.01"></td>
+    <td><input type="text" value="${esc(r.notes || '')}" onchange="updateBillingRow(${i},'notes',this.value)" style="width:80px;font-size:11px"></td>
+    <td><button class="btn btn-danger btn-sm" onclick="deleteBillingRow(${i})" style="padding:2px 6px;font-size:10px">X</button></td>
+  </tr>`).join('');
+  // Totals
+  const totST = rows.reduce((s, r) => s + r.st, 0);
+  const totOT = rows.reduce((s, r) => s + r.ot, 0);
+  const totHrs = rows.reduce((s, r) => s + r.totalHrs, 0);
+  const totEquip = rows.reduce((s, r) => s + r.equip, 0);
+  const totCost = rows.reduce((s, r) => s + r.totalCost, 0);
+  document.getElementById('bTotalST').textContent = totST.toFixed(2);
+  document.getElementById('bTotalOT').textContent = totOT.toFixed(2);
+  document.getElementById('bTotalHrs').textContent = totHrs.toFixed(2);
+  document.getElementById('bTotalEquip').textContent = '$' + totEquip.toLocaleString('en-US', {minimumFractionDigits: 2});
+  document.getElementById('bTotalCost').textContent = '$' + totCost.toLocaleString('en-US', {minimumFractionDigits: 2});
+}
+
+function updateBillingRow(idx, field, val) {
+  if (!state.billing || !state.billing.timesheet) return;
+  if (field === 'week' || field === 'notes') state.billing.timesheet[idx][field] = val;
+  else state.billing.timesheet[idx][field] = parseFloat(val) || 0;
+  saveState();
+  renderBillingTable();
+  updateBillingComparison();
+}
+
+function addBillingRow() {
+  if (!state.billing) state.billing = {};
+  if (!state.billing.timesheet) state.billing.timesheet = [];
+  state.billing.timesheet.push({ week: '', st: 0, ot: 0, totalHrs: 0, equip: 0, totalCost: 0, notes: '' });
+  saveState();
+  renderBillingTable();
+}
+
+function deleteBillingRow(idx) {
+  if (!state.billing || !state.billing.timesheet) return;
+  state.billing.timesheet.splice(idx, 1);
+  saveState();
+  renderBillingTable();
+  updateBillingComparison();
+}
+
+function fmtMoney(v) {
+  return '$' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function updateBillingComparison() {
+  const billing = state.billing || {};
+  const rows = billing.timesheet || [];
+  const poAmt = parseFloat(document.getElementById('billedPO')?.value) || 0;
+
+  // Total hours charged (from timesheet)
+  const chargedHrs = rows.reduce((s, r) => s + r.totalHrs, 0);
+  // Total billed amount (from timesheet total cost)
+  const billedAmt = rows.reduce((s, r) => s + r.totalCost, 0);
+  document.getElementById('billedRate').textContent = fmtMoney(billedAmt);
+  // Hours gained from tasks
+  const manhours = getActualManhours();
+  const gainedHrs = manhours.total;
+  const totalCircuits = getTotalCircuits();
+
+  // Hours comparison
+  const variance = chargedHrs - gainedHrs;
+  const effPct = chargedHrs > 0 ? (gainedHrs / chargedHrs * 100).toFixed(1) : '-';
+
+  document.getElementById('bBilledHrs').textContent = chargedHrs.toFixed(2);
+  document.getElementById('bActualHrs').textContent = gainedHrs.toFixed(2);
+  const secBreakdown = Object.entries(manhours.perSection).filter(([,v]) => v > 0).map(([k,v]) => k + ': ' + v.toFixed(2)).join(' | ');
+  document.getElementById('bActualHrsSub').textContent = secBreakdown || 'no task hours yet';
+
+  const varEl = document.getElementById('bVariance');
+  varEl.textContent = (variance >= 0 ? '+' : '') + variance.toFixed(2);
+  varEl.style.color = variance >= 0 ? 'var(--danger)' : 'var(--success)';
+  document.getElementById('bVarianceSub').textContent = variance > 0 ? 'more charged than gained' : variance < 0 ? 'more gained than charged' : 'balanced';
+
+  document.getElementById('bEfficiency').textContent = effPct !== '-' ? effPct + '%' : '-';
+
+  // PO & Cost
+  const poBalance = poAmt - billedAmt;
+  const costPerCircuit = totalCircuits > 0 ? billedAmt / totalCircuits : 0;
+
+  document.getElementById('bPOAmt').textContent = fmtMoney(poAmt);
+  document.getElementById('bBilledAmt').textContent = fmtMoney(billedAmt);
+
+  const balEl = document.getElementById('bPOBalance');
+  balEl.textContent = fmtMoney(poBalance);
+  balEl.style.color = poBalance >= 0 ? 'var(--success)' : 'var(--danger)';
+
+  document.getElementById('bCostPerCircuit').textContent = fmtMoney(costPerCircuit);
+
+  // Charts
+  renderChart('chartBillingHours', 'bar', {
+    labels: ['Hours Charged', 'Hours Gained (Tasks)'],
+    datasets: [{ label: 'Hours', data: [chargedHrs, gainedHrs], backgroundColor: ['rgba(231,76,60,.7)', 'rgba(46,204,113,.7)'] }]
+  });
+  renderChart('chartBillingCost', 'bar', {
+    labels: ['PO Amount', 'Amount Billed', 'PO Balance'],
+    datasets: [{ label: 'Amount ($)', data: [poAmt, billedAmt, poBalance], backgroundColor: ['rgba(33,150,243,.7)', 'rgba(243,156,18,.7)', poBalance >= 0 ? 'rgba(46,204,113,.7)' : 'rgba(231,76,60,.7)'] }]
+  });
+}
 
 // ========== INIT ==========
 checkSession();
