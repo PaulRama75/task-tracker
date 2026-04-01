@@ -151,7 +151,9 @@ app.put('/api/users/:username/role', authRequired, adminRequired, (req, res) => 
   res.json({ ok: true });
 });
 
-// ========== STATE MANAGEMENT (Multi-Section) ==========
+// ========== MULTI-SITE STATE MANAGEMENT ==========
+const SITES_FILE = path.join(DATA_DIR, 'sites.json');
+
 function emptySection(label) {
   return { label, weights: [], infoCols: [], taskCols: [], rows: [], originalHeaders: [] };
 }
@@ -170,39 +172,132 @@ function getDefaultState() {
   };
 }
 
-function loadState() {
+function loadSites() {
   try {
-    if (fs.existsSync(STATE_FILE)) {
-      let s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-      // Migrate old single-dataset format to multi-section
+    if (fs.existsSync(SITES_FILE)) return JSON.parse(fs.readFileSync(SITES_FILE, 'utf8'));
+  } catch (e) { console.error('Error loading sites:', e.message); }
+  return null;
+}
+
+function saveSites(sites) {
+  fs.writeFileSync(SITES_FILE, JSON.stringify(sites, null, 2), 'utf8');
+}
+
+function getSiteStateFile(siteId) {
+  return path.join(DATA_DIR, 'state-' + siteId + '.json');
+}
+
+function loadSiteState(siteId) {
+  const file = getSiteStateFile(siteId);
+  try {
+    if (fs.existsSync(file)) {
+      let s = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (s.rows && !s.sections) {
-        console.log('Migrating old state to multi-section format...');
         const migrated = getDefaultState();
         migrated.initials = s.initials || [];
         migrated.sections.PIPE = {
-          label: 'PIPE',
-          weights: s.weights || [],
-          infoCols: s.infoCols || [],
-          taskCols: s.taskCols || [],
-          rows: s.rows || [],
-          originalHeaders: s.originalHeaders || []
+          label: 'PIPE', weights: s.weights || [], infoCols: s.infoCols || [],
+          taskCols: s.taskCols || [], rows: s.rows || [], originalHeaders: s.originalHeaders || []
         };
-        migrated.page = s.page || 0;
-        migrated.pageSize = s.pageSize || 100;
-        console.log(`  Migrated ${migrated.sections.PIPE.rows.length} rows to PIPE section`);
         return migrated;
       }
       return s;
     }
-  } catch (e) { console.error('Error loading state:', e.message); }
+  } catch (e) { console.error('Error loading site state:', siteId, e.message); }
   return getDefaultState();
 }
 
-function saveStateToDisk(st) {
-  fs.writeFileSync(STATE_FILE, JSON.stringify(st), 'utf8');
+function saveSiteState(siteId, st) {
+  fs.writeFileSync(getSiteStateFile(siteId), JSON.stringify(st), 'utf8');
 }
 
-let state = loadState();
+// Initialize sites - migrate existing state.json to first site if needed
+function initSites() {
+  let sites = loadSites();
+  if (!sites) {
+    // First run or migration: create default site from existing state.json
+    const defaultId = 'default';
+    sites = [{ id: defaultId, name: 'Default Site' }];
+    if (fs.existsSync(STATE_FILE)) {
+      // Migrate existing state.json to site-specific file
+      const existingData = fs.readFileSync(STATE_FILE, 'utf8');
+      fs.writeFileSync(getSiteStateFile(defaultId), existingData, 'utf8');
+      console.log('Migrated existing state.json to site: Default Site');
+    }
+    saveSites(sites);
+  }
+  return sites;
+}
+
+let sites = initSites();
+let activeSiteId = sites[0].id;
+let state = loadSiteState(activeSiteId);
+
+// Legacy compat wrapper
+function saveStateToDisk(st) {
+  saveSiteState(activeSiteId, st);
+}
+
+function loadState() {
+  return loadSiteState(activeSiteId);
+}
+
+// ========== SITE CRUD ROUTES ==========
+app.get('/api/sites', authRequired, (req, res) => {
+  res.json({ sites, activeSiteId });
+});
+
+app.post('/api/sites', authRequired, adminRequired, (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Site name required' });
+  const trimmed = name.trim();
+  if (sites.find(s => s.name.toLowerCase() === trimmed.toLowerCase())) return res.status(400).json({ error: 'Site already exists' });
+  const id = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('site-' + Date.now());
+  const newSite = { id, name: trimmed };
+  sites.push(newSite);
+  saveSites(sites);
+  // Create empty state for new site
+  saveSiteState(id, getDefaultState());
+  res.json({ ok: true, site: newSite });
+});
+
+app.delete('/api/sites/:id', authRequired, adminRequired, (req, res) => {
+  const id = req.params.id;
+  if (sites.length <= 1) return res.status(400).json({ error: 'Cannot delete the last site' });
+  const idx = sites.findIndex(s => s.id === id);
+  if (idx === -1) return res.status(404).json({ error: 'Site not found' });
+  sites.splice(idx, 1);
+  saveSites(sites);
+  // Remove state file
+  const file = getSiteStateFile(id);
+  if (fs.existsSync(file)) fs.unlinkSync(file);
+  // Switch active site if needed
+  if (activeSiteId === id) {
+    activeSiteId = sites[0].id;
+    state = loadSiteState(activeSiteId);
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/sites/:id/switch', authRequired, (req, res) => {
+  const id = req.params.id;
+  const site = sites.find(s => s.id === id);
+  if (!site) return res.status(404).json({ error: 'Site not found' });
+  activeSiteId = id;
+  state = loadSiteState(id);
+  res.json({ ok: true, state });
+});
+
+app.put('/api/sites/:id', authRequired, adminRequired, (req, res) => {
+  const id = req.params.id;
+  const { name } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Site name required' });
+  const site = sites.find(s => s.id === id);
+  if (!site) return res.status(404).json({ error: 'Site not found' });
+  site.name = name.trim();
+  saveSites(sites);
+  res.json({ ok: true, site });
+});
 
 // Helper to get a section or 404
 function getSection(name) {

@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
-:root{--bg:#0f1117;--surface:#1a1d27;--surface2:#242836;--border:#2e3347;--text:#e4e6f0;--text-dim:#8b8fa3;--accent:#6c63ff;--accent-hover:#5a52d5;--success:#2ecc71;--warning:#f39c12;--danger:#e74c3c;--info:#3498db}
+:root{--bg:#000000;--surface:#111111;--surface2:#1a1a1a;--border:#333333;--text:#ffffff;--text-dim:#cccccc;--accent:#2196F3;--accent-hover:#1976D2;--success:#2ecc71;--warning:#f39c12;--danger:#e74c3c;--info:#3498db}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
@@ -31,7 +31,7 @@ tr:hover{background:var(--surface2)}
 input,select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px;outline:none}
 input:focus,select:focus{border-color:var(--accent)}
 .drop-zone{border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;color:var(--text-dim);cursor:pointer;transition:.2s}
-.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(108,99,255,.05)}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(33,150,243,.05)}
 .drop-zone input[type="file"]{display:none}.drop-zone p{margin-top:6px;font-size:13px}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
@@ -83,7 +83,7 @@ input:focus,select:focus{border-color:var(--accent)}
 .form-row .status-dot.done{background:var(--success)}.form-row .status-dot.empty{background:var(--border)}
 .editor-info-item{font-size:12px}.editor-info-item .info-label{color:var(--text-dim);margin-bottom:2px}.editor-info-item .info-val{font-weight:600;font-size:14px}
 .dropdown-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;transition:background .1s}
-.dropdown-item:hover{background:var(--surface2)}.dropdown-item.dd-selected{background:rgba(108,99,255,.1);border-left:3px solid var(--accent)}
+.dropdown-item:hover{background:var(--surface2)}.dropdown-item.dd-selected{background:rgba(33,150,243,.1);border-left:3px solid var(--accent)}
 .dropdown-item .dd-main{font-weight:500}.dropdown-item .dd-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
 /* Login Screen */
 .login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
@@ -105,7 +105,7 @@ input:focus,select:focus{border-color:var(--accent)}
 .user-row:last-child{border-bottom:none}
 .user-row .user-info{display:flex;align-items:center;gap:10px}
 .user-row .role-badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;text-transform:uppercase}
-.role-badge.admin{background:rgba(108,99,255,.15);color:var(--accent)}
+.role-badge.admin{background:rgba(33,150,243,.15);color:var(--accent)}
 .role-badge.user{background:rgba(46,204,113,.15);color:var(--success)}
 .user-actions{display:flex;gap:6px}
 .add-user-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
@@ -121,6 +121,31 @@ input:focus,select:focus{border-color:var(--accent)}
 .section-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .section-pill .pill-delete{display:none;position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:10px;line-height:16px;text-align:center;cursor:pointer}
 .section-pill:hover .pill-delete{display:block}
+/* Weekly KPI Table */
+.kpi-table{border-collapse:collapse;width:100%;font-size:11px;table-layout:fixed}
+.kpi-table th,.kpi-table td{border:1px solid #1a5c2a;padding:4px 5px;text-align:center;word-wrap:break-word;overflow-wrap:break-word}
+.kpi-table thead th{background:var(--surface);font-weight:600;color:var(--text)}
+.kpi-table .kpi-weight-row th{background:rgba(33,150,243,.15);color:var(--accent);font-size:11px;font-weight:700;border:1px solid #1a5c2a}
+.kpi-table .kpi-header-row th{background:rgba(33,150,243,.08);color:var(--text);font-size:10px;font-weight:600;text-transform:uppercase;line-height:1.3}
+.kpi-table tbody tr:nth-child(even){background:rgba(255,255,255,.03)}
+.kpi-table tbody tr:hover{background:rgba(33,150,243,.08)}
+.kpi-table .kpi-initials{color:var(--accent);font-weight:700;text-align:left;white-space:nowrap}
+.kpi-table .kpi-name{text-align:left;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.kpi-table .kpi-totals td{font-weight:700;background:var(--surface);border-top:2px solid var(--success)}
+.kpi-table .kpi-weight-high{color:var(--danger)}
+.kpi-table .kpi-title{text-align:center;font-size:16px;font-weight:700;padding:10px;background:var(--surface);color:var(--text)}
+.kpi-table .kpi-subtitle{font-size:11px;font-weight:400;color:var(--text-dim)}
+.kpi-table .kpi-col-id{width:35px}.kpi-table .kpi-col-name{width:180px}.kpi-table .kpi-col-task{width:auto}.kpi-table .kpi-col-summary{width:55px}.kpi-table .kpi-col-comments{width:65px}
+.kpi-table .kpi-has-data{background:rgba(46,204,113,.15);color:#2ecc71;font-weight:700;font-size:13px}
+/* Site Bar */
+.site-bar{display:flex;align-items:center;gap:10px;background:var(--bg);padding:8px 24px;border-bottom:2px solid var(--accent)}
+.site-bar .site-label{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px}
+.site-pill{padding:6px 18px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:13px;font-weight:500;cursor:pointer;transition:.2s;position:relative}
+.site-pill:hover{border-color:var(--accent);color:var(--text)}
+.site-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.site-pill .pill-delete{display:none;position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:10px;line-height:16px;text-align:center;cursor:pointer}
+.site-pill:hover .pill-delete{display:block}
+.site-actions{margin-left:auto;display:flex;gap:6px}
 </style>
 </head>
 <body>
@@ -128,6 +153,7 @@ input:focus,select:focus{border-color:var(--accent)}
 <!-- LOGIN OVERLAY -->
 <div id="loginOverlay" class="login-overlay">
   <div class="login-box">
+    <div style="text-align:center;margin-bottom:16px"><img src="/logo.png" alt="RAMI Scope" style="height:60px"></div>
     <h2><span>Task</span> Tracker</h2>
     <div class="login-sub">Sign in to continue</div>
     <label>Username</label>
@@ -162,11 +188,14 @@ input:focus,select:focus{border-color:var(--accent)}
 <!-- APP (hidden until login) -->
 <div id="appContainer" style="display:none">
 <div class="header">
-  <h1><span>Task</span> Tracker</h1>
+  <div style="display:flex;align-items:center;gap:12px">
+    <img src="/logo.png" alt="RAMI Scope" style="height:40px">
+    <h1><span>Task</span> Tracker</h1>
+  </div>
   <div style="display:flex;gap:8px;align-items:center">
     <span id="saveIndicator" style="font-size:11px;color:var(--text-dim);margin-right:8px">Loading...</span>
-    <button class="btn btn-outline btn-sm" onclick="exportBackupJSON()">Backup JSON</button>
-    <button class="btn btn-outline btn-sm" onclick="document.getElementById('importJSON').click()">Restore JSON</button>
+    <button class="btn btn-outline btn-sm" onclick="exportBackupJSON()" style="display:none">Backup JSON</button>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('importJSON').click()" style="display:none">Restore JSON</button>
     <input type="file" id="importJSON" accept=".json" style="display:none" onchange="importBackupJSON(event)">
     <button class="btn btn-outline btn-sm" id="btnManageUsers" style="display:none" onclick="openUserModal()">Manage Users</button>
     <div class="header-user">
@@ -183,10 +212,18 @@ input:focus,select:focus{border-color:var(--accent)}
   <button class="tab-btn" onclick="switchTab('editor')">Editor</button>
   <button class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
 </div>
+<div class="site-bar" id="siteBar">
+  <span class="site-label">Site:</span>
+  <div id="sitePills" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  <div class="site-actions" id="siteActions" style="display:none">
+    <button class="btn btn-primary btn-sm" onclick="promptAddSite()">+ Add Site</button>
+  </div>
+</div>
 <div class="section-bar" id="sectionBar">
   <div id="sectionPills"></div>
   <div id="sectionActions" style="display:none">
     <button class="btn btn-outline btn-sm" onclick="duplicateSection()">Duplicate</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteActiveSection()">Delete Section</button>
     <button class="btn btn-primary btn-sm" onclick="promptAddSection()">+ Add Section</button>
   </div>
 </div>
@@ -311,6 +348,10 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="stat-card"><div class="label">Overall Completion</div><div class="value" id="kComp">0%</div><div class="sub">tasks filled / total possible</div></div>
     <div class="stat-card"><div class="label">Weighted Completion</div><div class="value" id="kWComp">0%</div><div class="sub">by weight %, not count</div></div>
     <div class="stat-card"><div class="label">Total Hours Allocated</div><div class="value" id="kMins">0</div><div class="sub">from weight table</div></div>
+  </div>
+  <div class="card mt-12">
+    <div class="card-title">Weekly KPI's for Team</div>
+    <div style="overflow:auto" id="weeklyKpiTableWrap"></div>
   </div>
   <div class="card mt-12">
     <div class="card-title">Person KPI</div>
@@ -488,6 +529,7 @@ function showApp() {
     const setupTab = document.getElementById('tab-setup');
     if (setupTab && setupTab.classList.contains('active')) switchTab('tracker');
   }
+  loadSites();
   loadState();
 }
 
@@ -585,6 +627,96 @@ async function changePassword() {
     if (data.ok) { document.getElementById('cpPass').value = ''; toast('Password updated', 'success'); }
     else toast(data.error, 'error');
   } catch (e) { toast('Failed to update password', 'error'); }
+}
+
+// ========== SITE MANAGEMENT ==========
+let sitesList = [];
+let activeSiteId = '';
+
+async function loadSites() {
+  try {
+    const res = await authFetch('/api/sites');
+    if (res.ok) {
+      const data = await res.json();
+      sitesList = data.sites || [];
+      activeSiteId = data.activeSiteId || '';
+      renderSiteBar();
+    }
+  } catch (e) { console.error('Failed to load sites:', e); }
+}
+
+function renderSiteBar() {
+  const pills = document.getElementById('sitePills');
+  if (!pills) return;
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  pills.innerHTML = sitesList.map(s => {
+    const active = s.id === activeSiteId;
+    return `<button class="site-pill${active ? ' active' : ''}" onclick="switchSite('${esc(s.id)}')">
+      ${esc(s.name)}
+      ${isAdmin && !active ? `<span class="pill-delete" onclick="event.stopPropagation();deleteSite('${esc(s.id)}')">&times;</span>` : ''}
+    </button>`;
+  }).join('');
+  const actions = document.getElementById('siteActions');
+  if (actions) actions.style.display = isAdmin ? '' : 'none';
+}
+
+async function switchSite(siteId) {
+  if (siteId === activeSiteId) return;
+  try {
+    const res = await authFetch('/api/sites/' + encodeURIComponent(siteId) + '/switch', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      activeSiteId = siteId;
+      state = data.state;
+      if (!state.sections) state.sections = { 'Default': { weights: [], infoCols: [], taskCols: [], rows: [], originalHeaders: [] } };
+      if (!state.activeSection || !state.sections[state.activeSection]) {
+        state.activeSection = Object.keys(state.sections)[0] || 'Default';
+      }
+      if (!state.initials) state.initials = [];
+      if (!state.page) state.page = 0;
+      if (!state.pageSize) state.pageSize = 100;
+      document.getElementById('pageSizeSelect').value = state.pageSize || 100;
+      renderSiteBar();
+      renderAfterLoad();
+      toast('Switched to ' + (sitesList.find(s => s.id === siteId) || {}).name, 'success');
+    }
+  } catch (e) { toast('Failed to switch site', 'error'); }
+}
+
+async function promptAddSite() {
+  const name = prompt('Enter new site name:');
+  if (!name || !name.trim()) return;
+  try {
+    const res = await authFetch('/api/sites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      sitesList.push(data.site);
+      await switchSite(data.site.id);
+      toast('Site created: ' + data.site.name, 'success');
+    } else toast(data.error, 'error');
+  } catch (e) { toast('Failed to create site', 'error'); }
+}
+
+async function deleteSite(siteId) {
+  const site = sitesList.find(s => s.id === siteId);
+  if (!confirm('Delete site "' + (site ? site.name : siteId) + '" and ALL its data? This cannot be undone!')) return;
+  try {
+    const res = await authFetch('/api/sites/' + encodeURIComponent(siteId), { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) {
+      sitesList = sitesList.filter(s => s.id !== siteId);
+      if (activeSiteId === siteId) {
+        activeSiteId = sitesList[0].id;
+        await switchSite(activeSiteId);
+      }
+      renderSiteBar();
+      toast('Site deleted', 'success');
+    } else toast(data.error, 'error');
+  } catch (e) { toast('Failed to delete site', 'error'); }
 }
 
 // ========== STATE ==========
@@ -749,6 +881,10 @@ async function promptAddSection() {
     switchSection(trimmed);
     toast('Section created', 'success');
   }
+}
+
+function deleteActiveSection() {
+  deleteSection(state.activeSection);
 }
 
 async function deleteSection(name) {
@@ -1147,12 +1283,14 @@ function generateReport() {
   const totalTaskSlots = totalPossible;
   pb.innerHTML = pEntries.map(([ini, s]) => {
     const p = state.initials.find(x => x.initial === ini);
-    const compPct = totalTaskSlots ? Math.round(s.tasks / totalTaskSlots * 100 * 100) / 100 : 0;
+    const compPct = totalWeightedDone > 0 ? Math.round(s.weightedScore / totalWeightedDone * 100 * 100) / 100 : 0;
+    const hours = s.minutes / 60;
+    const efficiency = hours > 0 ? (s.tasks / hours).toFixed(1) : '-';
     return `<tr>
       <td><strong>${esc(ini)}</strong></td><td>${esc(p ? p.name : '')}</td>
-      <td>${s.tasks}</td><td>${s.weightedScore.toFixed(1)}</td><td>${(s.minutes / 60).toFixed(2)}</td>
+      <td>${s.tasks}</td><td>${s.weightedScore.toFixed(1)}</td><td>${hours.toFixed(2)}</td>
       <td>${s.circuits.size}</td><td>${compPct}%</td>
-      <td>${s.minutes > 0 ? (s.weightedScore / s.minutes * 100).toFixed(0) + '%' : '-'}</td>
+      <td>${efficiency !== '-' ? efficiency + ' tasks/hr' : '-'}</td>
     </tr>`;
   }).join('');
 
@@ -1171,14 +1309,14 @@ function generateReport() {
   renderChart('chartPerson', 'bar', {
     labels: topPeople.map(([ini]) => ini),
     datasets: [
-      { label: 'Tasks', data: topPeople.map(([, s]) => s.tasks), backgroundColor: 'rgba(108,99,255,.7)' },
+      { label: 'Tasks', data: topPeople.map(([, s]) => s.tasks), backgroundColor: 'rgba(33,150,243,.7)' },
       { label: 'Weighted', data: topPeople.map(([, s]) => +s.weightedScore.toFixed(1)), backgroundColor: 'rgba(243,156,18,.7)' }
     ]
   });
 
   const distLabels = taskNames.map(t => t.length > 15 ? t.substring(0, 15) + '...' : t);
   const distPeople = pEntries.slice(0, 8).map(([ini]) => ini);
-  const distColors = ['rgba(108,99,255,.7)', 'rgba(46,204,113,.7)', 'rgba(243,156,18,.7)', 'rgba(231,76,60,.7)', 'rgba(52,152,219,.7)', 'rgba(155,89,182,.7)', 'rgba(26,188,156,.7)', 'rgba(241,196,15,.7)'];
+  const distColors = ['rgba(33,150,243,.7)', 'rgba(46,204,113,.7)', 'rgba(243,156,18,.7)', 'rgba(231,76,60,.7)', 'rgba(52,152,219,.7)', 'rgba(155,89,182,.7)', 'rgba(26,188,156,.7)', 'rgba(241,196,15,.7)'];
   const distDatasets = distPeople.map((ini, pi) => {
     const d = taskNames.map(tn => {
       let c = 0;
@@ -1200,8 +1338,145 @@ function generateReport() {
   const weeks = Object.keys(dateBuckets).sort();
   renderChart('chartTime', 'line', {
     labels: weeks,
-    datasets: [{ label: 'Tasks Completed', data: weeks.map(w => dateBuckets[w]), borderColor: 'rgba(108,99,255,1)', backgroundColor: 'rgba(108,99,255,.2)', fill: true, tension: .3 }]
+    datasets: [{ label: 'Tasks Completed', data: weeks.map(w => dateBuckets[w]), borderColor: 'rgba(33,150,243,1)', backgroundColor: 'rgba(33,150,243,.2)', fill: true, tension: .3 }]
   });
+
+  renderWeeklyKpi(sectionsToProcess, multiSection, fromD, toD);
+}
+
+function renderWeeklyKpi(sectionsToProcess, multiSection, fromD, toD) {
+  const wrap = document.getElementById('weeklyKpiTableWrap');
+  if (!wrap) return;
+
+  // Build unified task columns list with weights
+  const taskColList = [];
+  Object.entries(sectionsToProcess).forEach(([secName, secData]) => {
+    if (!secData) return;
+    (secData.taskCols || []).forEach(tc => {
+      const displayName = multiSection ? secName + ': ' + tc.task : tc.task;
+      const w = getWeightFor(tc.task, secData.weights || []);
+      if (!taskColList.find(t => t.displayName === displayName)) {
+        taskColList.push({ displayName, task: tc.task, secName, weight: w ? w.weight : 0 });
+      }
+    });
+  });
+
+  if (taskColList.length === 0) { wrap.innerHTML = '<p style="color:var(--text-dim);padding:12px">No task columns configured.</p>'; return; }
+
+  // Build per-person per-task counts
+  const personMap = {};
+  state.initials.forEach(p => {
+    personMap[p.initial] = { name: p.name, counts: {} };
+    taskColList.forEach(tc => { personMap[p.initial].counts[tc.displayName] = 0; });
+  });
+
+  const totals = {};
+  taskColList.forEach(tc => { totals[tc.displayName] = 0; });
+
+  Object.entries(sectionsToProcess).forEach(([secName, secData]) => {
+    if (!secData) return;
+    (secData.rows || []).forEach(r => {
+      (secData.taskCols || []).forEach(tc => {
+        const displayName = multiSection ? secName + ': ' + tc.task : tc.task;
+        const t = r._tasks[tc.task];
+        if (t && t.date) {
+          const d = parseDate(t.date);
+          if (fromD && d && d < fromD) return;
+          if (toD && d && d > toD) return;
+          const ini = (t.initial || '').toUpperCase();
+          if (ini && personMap[ini]) {
+            personMap[ini].counts[displayName]++;
+          }
+          totals[displayName]++;
+        }
+      });
+    });
+  });
+
+  // Determine section title
+  const sectionNames = Object.keys(sectionsToProcess);
+  const titleSection = sectionNames.length === 1 ? sectionNames[0] : 'All Sections';
+  const dateRange = [];
+  const fromEl = document.getElementById('rptFrom');
+  const toEl = document.getElementById('rptTo');
+  if (fromEl && fromEl.value) dateRange.push('From: ' + fromEl.value);
+  if (toEl && toEl.value) dateRange.push('To: ' + toEl.value);
+  const subtitle = dateRange.length ? dateRange.join(' &mdash; ') : 'All Time';
+
+  // Calculate total weight
+  const totalWeight = taskColList.reduce((s, tc) => s + tc.weight, 0);
+
+  // Build table HTML
+  let html = '<table class="kpi-table">';
+  html += '<thead>';
+  // Title row
+  html += '<tr><th class="kpi-title" colspan="' + (taskColList.length + 4) + '">Weekly KPI\'s for ' + esc(titleSection) + '<br><span class="kpi-subtitle">' + subtitle + '</span></th></tr>';
+  // Weight row
+  html += '<tr class="kpi-weight-row"><th colspan="2">Weights</th>';
+  taskColList.forEach(tc => {
+    const pct = tc.weight.toFixed(2) + '%';
+    const isHigh = tc.weight >= 10;
+    html += '<th class="' + (isHigh ? 'kpi-weight-high' : '') + '">' + pct + '</th>';
+  });
+  html += '<th></th><th></th></tr>';
+  // Column header row
+  html += '<tr class="kpi-header-row"><th class="kpi-col-id">Initial</th><th class="kpi-col-name">Name</th>';
+  taskColList.forEach(tc => {
+    // Shorten: remove section prefix (e.g. "PIPE: ") for display
+    const shortName = tc.displayName.replace(/^[^:]+:\s*/i, '');
+    html += '<th class="kpi-col-task">' + esc(shortName) + '</th>';
+  });
+  html += '<th class="kpi-col-summary">SUMMARY</th><th class="kpi-col-comments">Comments</th></tr>';
+  html += '</thead><tbody>';
+
+  // Person rows (skip header-like entries)
+  const skipNames = ['initial', 'initials', 'name', 'id'];
+  const persons = state.initials.filter(p => personMap[p.initial] && !skipNames.includes(p.initial.toLowerCase()) && !skipNames.includes(p.name.toLowerCase()));
+  persons.forEach(p => {
+    const pm = personMap[p.initial];
+    const rowTotal = taskColList.reduce((s, tc) => s + (pm.counts[tc.displayName] || 0), 0);
+    html += '<tr>';
+    html += '<td class="kpi-initials">' + esc(p.initial) + '</td>';
+    html += '<td class="kpi-name">' + esc(p.name) + '</td>';
+    taskColList.forEach(tc => {
+      const val = pm.counts[tc.displayName] || 0;
+      if (val > 0) {
+        html += '<td class="kpi-has-data">' + val + '</td>';
+      } else {
+        html += '<td></td>';
+      }
+    });
+    if (rowTotal > 0) {
+      html += '<td class="kpi-has-data"><strong>' + rowTotal + '</strong></td>';
+    } else {
+      html += '<td></td>';
+    }
+    html += '<td></td>';
+    html += '</tr>';
+  });
+
+  // Totals row
+  const grandTotal = taskColList.reduce((s, tc) => s + totals[tc.displayName], 0);
+  html += '<tr class="kpi-totals">';
+  html += '<td></td><td><strong>Totals</strong></td>';
+  taskColList.forEach(tc => {
+    const val = totals[tc.displayName];
+    if (val > 0) {
+      html += '<td class="kpi-has-data">' + val + '</td>';
+    } else {
+      html += '<td></td>';
+    }
+  });
+  if (grandTotal > 0) {
+    html += '<td class="kpi-has-data"><strong>' + grandTotal + '</strong></td>';
+  } else {
+    html += '<td></td>';
+  }
+  html += '<td></td>';
+  html += '</tr>';
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
 }
 
 function getWeekKey(d) {
@@ -1272,7 +1547,7 @@ function renderAnalytics() {
   const wEntries = Object.entries(personWork).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   renderChart('chartWorkload', 'bar', {
     labels: wEntries.map(([k]) => k),
-    datasets: [{ label: 'Tasks Completed', data: wEntries.map(([, v]) => v), backgroundColor: 'rgba(108,99,255,.7)' }]
+    datasets: [{ label: 'Tasks Completed', data: wEntries.map(([, v]) => v), backgroundColor: 'rgba(33,150,243,.7)' }]
   });
 }
 
@@ -1362,7 +1637,7 @@ function editorLoadAsset(idx) {
   document.getElementById('editorInfoCard').style.display = '';
   document.getElementById('editorFormCard').style.display = '';
   const gSel = document.getElementById('editorGlobalInitial');
-  const gVal = gSel.value;
+  const gVal = gSel.value || getLoggedInUserInitial();
   gSel.innerHTML = '<option value="">-- Select Person --</option>' +
     state.initials.map(p => `<option value="${esc(p.initial)}">${esc(p.initial)} - ${esc(p.name)}</option>`).join('');
   gSel.value = gVal;
@@ -1383,18 +1658,21 @@ function editorLoadAsset(idx) {
   badge.className = 'badge ' + (doneCnt === taskCols.length ? 'badge-done' : 'badge-empty');
 
   const form = document.getElementById('editorFormBody');
+  const loggedInInit = getLoggedInUserInitial();
   form.innerHTML = taskCols.map((tc, ti) => {
     const t = r._tasks[tc.task] || { date: '', initial: '' };
     const w = getWeightFor(tc.task);
     const done = !!t.date;
+    // If no initial assigned, default to logged-in user's initial
+    const currentInit = t.initial || loggedInInit;
     const initOpts = state.initials.map(p =>
-      `<option value="${esc(p.initial)}"${t.initial.toUpperCase() === p.initial.toUpperCase() ? ' selected' : ''}>${esc(p.initial)} - ${esc(p.name)}</option>`
+      `<option value="${esc(p.initial)}"${currentInit.toUpperCase() === p.initial.toUpperCase() ? ' selected' : ''}>${esc(p.initial)} - ${esc(p.name)}</option>`
     ).join('');
     return `<div class="form-row" id="erow-${ti}">
       <div class="status-dot ${done ? 'done' : 'empty'}"></div>
       <div class="task-label">${esc(tc.task)}</div>
-      <div class="task-weight">${w ? w.weight + '%' : '-'}</div>
-      <div class="task-mins">${w ? w.minutes + 'm' : '-'}</div>
+      <div class="task-weight" style="display:none">${w ? w.weight + '%' : '-'}</div>
+      <div class="task-mins" style="display:none">${w ? w.minutes + 'm' : '-'}</div>
       <div class="form-fields">
         <input type="text" id="edate-${ti}" value="${esc(t.date)}" placeholder="Date (e.g. 3/26/26)" onchange="editorFieldChanged(${ti})">
         <select id="einit-${ti}" onchange="editorFieldChanged(${ti})">
@@ -1407,23 +1685,66 @@ function editorLoadAsset(idx) {
   }).join('');
 }
 
+function getLoggedInUserInitial() {
+  if (!currentUser) return '';
+  const uname = currentUser.username.toLowerCase();
+  // Match by username or name
+  const match = state.initials.find(p =>
+    p.initial.toLowerCase() === uname ||
+    p.name.toLowerCase() === uname ||
+    p.name.toLowerCase().split(' ').map(w => w[0]).join('').toLowerCase() === uname ||
+    uname.includes(p.name.toLowerCase()) ||
+    p.name.toLowerCase().includes(uname)
+  );
+  return match ? match.initial : '';
+}
+
 function editorFieldChanged(taskIdx) {
   const taskCols = sec().taskCols || [];
   const rows = sec().rows || [];
   const tc = taskCols[taskIdx];
   if (!tc || editorIdx < 0) return;
   const dateVal = document.getElementById('edate-' + taskIdx).value;
-  const initVal = document.getElementById('einit-' + taskIdx).value;
+  let initVal = document.getElementById('einit-' + taskIdx).value;
+
+  // When date is entered, auto-assign logged-in user's initials from dropdown
+  if (dateVal) {
+    const prevTask = rows[editorIdx]._tasks[tc.task] || {};
+    // If initials weren't previously saved, use the dropdown value (pre-selected to logged-in user)
+    if (!prevTask.initial && !initVal) {
+      const userInit = getLoggedInUserInitial();
+      if (userInit) {
+        initVal = userInit;
+        document.getElementById('einit-' + taskIdx).value = userInit;
+      }
+    }
+    // If dropdown has a value (pre-selected), always use it
+    if (!initVal) {
+      const userInit = getLoggedInUserInitial();
+      if (userInit) {
+        initVal = userInit;
+        document.getElementById('einit-' + taskIdx).value = userInit;
+      }
+    }
+  }
+
   rows[editorIdx]._tasks[tc.task] = { date: dateVal, initial: initVal };
   const dot = document.querySelector('#erow-' + taskIdx + ' .status-dot');
   if (dot) dot.className = 'status-dot ' + (dateVal ? 'done' : 'empty');
   saveState();
+  editorLoadAsset(editorIdx);
 }
 
 function editorSetToday(taskIdx) {
   const now = new Date();
   const dateStr = (now.getMonth() + 1) + '/' + now.getDate() + '/' + String(now.getFullYear()).slice(-2);
   document.getElementById('edate-' + taskIdx).value = dateStr;
+  // Auto-assign initials if empty
+  const initEl = document.getElementById('einit-' + taskIdx);
+  if (initEl && !initEl.value) {
+    const userInit = getLoggedInUserInitial();
+    if (userInit) initEl.value = userInit;
+  }
   editorFieldChanged(taskIdx);
   editorLoadAsset(editorIdx);
 }
@@ -1483,17 +1804,22 @@ function editorFillAllToday() {
   const rows = sec().rows || [];
   const now = new Date();
   const dateStr = (now.getMonth() + 1) + '/' + now.getDate() + '/' + String(now.getFullYear()).slice(-2);
+  const userInit = getLoggedInUserInitial();
   let count = 0;
   taskCols.forEach(tc => {
     const t = rows[editorIdx]._tasks[tc.task];
     if (!t || !t.date) {
       if (!rows[editorIdx]._tasks[tc.task]) rows[editorIdx]._tasks[tc.task] = { date: '', initial: '' };
       rows[editorIdx]._tasks[tc.task].date = dateStr;
+      // Auto-assign logged-in user's initials if empty
+      if (!rows[editorIdx]._tasks[tc.task].initial && userInit) {
+        rows[editorIdx]._tasks[tc.task].initial = userInit;
+      }
       count++;
     }
   });
   saveState(); editorLoadAsset(editorIdx);
-  toast(`Set today's date on ${count} empty tasks`, 'success');
+  toast(`Set today's date on ${count} empty tasks` + (userInit ? ` (assigned to ${userInit})` : ''), 'success');
 }
 
 function editorPrev() { if (editorIdx > 0) editorLoadAsset(editorIdx - 1); }
