@@ -7,8 +7,18 @@ const fs = require('fs');
 const crypto = require('crypto');
 const db = require('./db');
 
+// Security packages
+let helmet, rateLimit, bcrypt;
+try { helmet = require('helmet'); } catch (e) { helmet = null; }
+try { rateLimit = require('express-rate-limit'); } catch (e) { rateLimit = null; }
+try { bcrypt = require('bcrypt'); } catch (e) { bcrypt = null; }
+
 const app = express();
 const PORT = process.env.PORT || 3002;
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes idle timeout
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
+const loginAttempts = {}; // Track failed login attempts per IP/username
 
 // Directories
 const DATA_DIR = path.join(__dirname, 'data');
@@ -19,6 +29,37 @@ const TRACKER_DIR = 'C:/Users/Ramii/OneDrive - fixedequipmentreliability.com/Doc
 
 const upload = multer({ dest: UPLOAD_DIR });
 
+// ========== SECURITY MIDDLEWARE ==========
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
+if (helmet) {
+  app.use(helmet({
+    contentSecurityPolicy: false, // Handled by Nginx
+    hsts: false // Handled by Nginx
+  }));
+}
+
+// Rate limiting
+if (rateLimit) {
+  const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+  });
+  app.use('/api/', globalLimiter);
+
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    skipSuccessfulRequests: true,
+    message: { error: 'Too many login attempts. Try again in 15 minutes.' }
+  });
+  app.use('/api/login', loginLimiter);
+}
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -26,15 +67,53 @@ app.use(express.static(path.join(__dirname, 'public')));
 const sessions = {};
 let users = []; // Loaded from DB on startup
 
+// Password hashing: use bcrypt if available, fallback to sha256
 function hashPassword(password, salt) {
   if (!salt) salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.createHash('sha256').update(salt + password).digest('hex');
   return { hash, salt };
 }
 
+async function hashPasswordSecure(password) {
+  if (bcrypt) {
+    const hash = await bcrypt.hash(password, 12);
+    return { hash, salt: 'bcrypt' };
+  }
+  return hashPassword(password);
+}
+
 function verifyPassword(password, storedHash, salt) {
+  if (salt === 'bcrypt' && bcrypt) {
+    return bcrypt.compareSync(password, storedHash);
+  }
   const { hash } = hashPassword(password, salt);
   return hash === storedHash;
+}
+
+// Brute force protection
+function checkBruteForce(key) {
+  const record = loginAttempts[key];
+  if (!record) return { locked: false };
+  if (record.lockedUntil && Date.now() < record.lockedUntil) {
+    return { locked: true, remaining: Math.ceil((record.lockedUntil - Date.now()) / 1000) };
+  }
+  if (record.lockedUntil && Date.now() >= record.lockedUntil) {
+    delete loginAttempts[key];
+    return { locked: false };
+  }
+  return { locked: false, attempts: record.count };
+}
+
+function recordFailedLogin(key) {
+  if (!loginAttempts[key]) loginAttempts[key] = { count: 0 };
+  loginAttempts[key].count++;
+  if (loginAttempts[key].count >= MAX_LOGIN_ATTEMPTS) {
+    loginAttempts[key].lockedUntil = Date.now() + LOCKOUT_DURATION;
+  }
+}
+
+function clearFailedLogin(key) {
+  delete loginAttempts[key];
 }
 
 function generateToken() { return crypto.randomBytes(32).toString('hex'); }
@@ -42,11 +121,29 @@ function generateToken() { return crypto.randomBytes(32).toString('hex'); }
 function authRequired(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Authentication required' });
-  const session = sessions[authHeader.slice(7)];
+  const token = authHeader.slice(7);
+  const session = sessions[token];
   if (!session) return res.status(401).json({ error: 'Invalid or expired session' });
+  // Session timeout check
+  if (Date.now() - (session.lastActivity || session.created) > SESSION_TIMEOUT) {
+    delete sessions[token];
+    return res.status(401).json({ error: 'Session expired due to inactivity. Please login again.' });
+  }
+  session.lastActivity = Date.now();
   req.user = session;
   next();
 }
+
+// Clean up expired sessions periodically (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  Object.keys(sessions).forEach(token => {
+    const s = sessions[token];
+    if (now - (s.lastActivity || s.created) > SESSION_TIMEOUT) {
+      delete sessions[token];
+    }
+  });
+}, 5 * 60 * 1000);
 
 function adminRequired(req, res, next) {
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin') return res.status(403).json({ error: 'Admin access required' });
@@ -71,13 +168,39 @@ function siteAccessRequired(req, res, next) {
 }
 
 // ========== AUTH ROUTES ==========
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+
+  // Brute force check by IP and username
+  const clientIP = req.ip || req.connection.remoteAddress;
+  const bruteKey = `${clientIP}:${username.toLowerCase()}`;
+  const bruteCheck = checkBruteForce(bruteKey);
+  if (bruteCheck.locked) {
+    return res.status(429).json({ error: `Account temporarily locked. Try again in ${bruteCheck.remaining} seconds.` });
+  }
+
   const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-  if (!user || !verifyPassword(password, user.passwordHash, user.salt)) return res.status(401).json({ error: 'Invalid username or password' });
+  if (!user || !verifyPassword(password, user.passwordHash, user.salt)) {
+    recordFailedLogin(bruteKey);
+    return res.status(401).json({ error: 'Invalid username or password' });
+  }
+
+  clearFailedLogin(bruteKey);
+
+  // Re-hash with bcrypt if still using sha256
+  if (user.salt !== 'bcrypt' && bcrypt) {
+    try {
+      const { hash, salt } = await hashPasswordSecure(password);
+      await db.updateUser(user.username, { passwordHash: hash, salt });
+      user.passwordHash = hash;
+      user.salt = salt;
+      console.log(`Upgraded password hash for ${user.username} to bcrypt`);
+    } catch (e) { console.error('bcrypt upgrade failed:', e.message); }
+  }
+
   const token = generateToken();
-  sessions[token] = { username: user.username, role: user.role, created: Date.now() };
+  sessions[token] = { username: user.username, role: user.role, created: Date.now(), lastActivity: Date.now() };
   res.json({ ok: true, token, username: user.username, role: user.role, allowedSites: user.allowedSites || [] });
 });
 
@@ -104,7 +227,7 @@ app.post('/api/users', authRequired, adminRequired, async (req, res) => {
   if (!validRoles.includes(role)) return res.status(400).json({ error: 'Role must be superadmin, admin, or user' });
   if ((role === 'superadmin' || role === 'admin') && req.user.role !== 'superadmin') return res.status(403).json({ error: 'Only Super Admin can create admin/superadmin users' });
   if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) return res.status(400).json({ error: 'Username already exists' });
-  const { hash, salt } = hashPassword(password);
+  const { hash, salt } = await hashPasswordSecure(password);
   try {
     await db.createUser(username, hash, salt, role, allowedSites || []);
     users.push({ username, passwordHash: hash, salt, role, allowedSites: allowedSites || [] });
@@ -129,10 +252,10 @@ app.put('/api/users/:username/password', authRequired, async (req, res) => {
   const target = req.params.username;
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.username.toLowerCase() !== target.toLowerCase()) return res.status(403).json({ error: 'Cannot change another user\'s password' });
   const { password } = req.body;
-  if (!password || password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
+  if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
   const user = users.find(u => u.username.toLowerCase() === target.toLowerCase());
   if (!user) return res.status(404).json({ error: 'User not found' });
-  const { hash, salt } = hashPassword(password);
+  const { hash, salt } = await hashPasswordSecure(password);
   try {
     await db.updateUser(target, { passwordHash: hash, salt });
     user.passwordHash = hash;
