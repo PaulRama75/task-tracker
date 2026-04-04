@@ -1,17 +1,17 @@
+require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 
 // Directories
 const DATA_DIR = path.join(__dirname, 'data');
-const STATE_FILE = path.join(DATA_DIR, 'state.json');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const TRACKER_DIR = 'C:/Users/Ramii/OneDrive - fixedequipmentreliability.com/Documents/Tracker';
 
@@ -24,6 +24,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ========== AUTH SYSTEM ==========
 const sessions = {};
+let users = []; // Loaded from DB on startup
 
 function hashPassword(password, salt) {
   if (!salt) salt = crypto.randomBytes(16).toString('hex');
@@ -35,39 +36,6 @@ function verifyPassword(password, storedHash, salt) {
   const { hash } = hashPassword(password, salt);
   return hash === storedHash;
 }
-
-function loadUsers() {
-  try {
-    if (fs.existsSync(USERS_FILE)) return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-  } catch (e) { console.error('Error loading users:', e.message); }
-  return null;
-}
-
-function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
-}
-
-function initUsers() {
-  let users = loadUsers();
-  if (!users || !users.length) {
-    const { hash, salt } = hashPassword('admin123');
-    users = [{ username: 'admin', passwordHash: hash, salt, role: 'superadmin', allowedSites: [] }];
-    saveUsers(users);
-    console.log('Created default super admin account (admin / admin123)');
-  } else {
-    // Migrate: upgrade old 'admin' role users to 'superadmin' if no superadmin exists
-    const hasSuperAdmin = users.some(u => u.role === 'superadmin');
-    if (!hasSuperAdmin) {
-      const firstAdmin = users.find(u => u.role === 'admin');
-      if (firstAdmin) { firstAdmin.role = 'superadmin'; firstAdmin.allowedSites = []; saveUsers(users); console.log('Migrated ' + firstAdmin.username + ' to superadmin'); }
-    }
-    // Ensure all users have allowedSites array
-    users.forEach(u => { if (!u.allowedSites) u.allowedSites = []; });
-  }
-  return users;
-}
-
-let users = initUsers();
 
 function generateToken() { return crypto.randomBytes(32).toString('hex'); }
 
@@ -90,13 +58,11 @@ function superAdminRequired(req, res, next) {
   next();
 }
 
-// Check if user has access to the currently active site
 function siteAccessRequired(req, res, next) {
-  if (req.user.role === 'superadmin') return next(); // superadmin has all access
+  if (req.user.role === 'superadmin') return next();
   const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
   if (!userRecord) return res.status(403).json({ error: 'User not found' });
   if (req.user.role === 'admin') {
-    // Admin can only access their allowed sites
     if (userRecord.allowedSites && userRecord.allowedSites.length > 0 && !userRecord.allowedSites.includes(activeSiteId)) {
       return res.status(403).json({ error: 'No access to this site' });
     }
@@ -131,76 +97,83 @@ app.get('/api/users', authRequired, adminRequired, (req, res) => {
   res.json(users.map(u => ({ username: u.username, role: u.role, allowedSites: u.allowedSites || [] })));
 });
 
-app.post('/api/users', authRequired, adminRequired, (req, res) => {
+app.post('/api/users', authRequired, adminRequired, async (req, res) => {
   const { username, password, role, allowedSites } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
   const validRoles = ['superadmin', 'admin', 'user'];
   if (!validRoles.includes(role)) return res.status(400).json({ error: 'Role must be superadmin, admin, or user' });
-  // Only superadmin can create superadmin or admin users
   if ((role === 'superadmin' || role === 'admin') && req.user.role !== 'superadmin') return res.status(403).json({ error: 'Only Super Admin can create admin/superadmin users' });
   if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) return res.status(400).json({ error: 'Username already exists' });
   const { hash, salt } = hashPassword(password);
-  users.push({ username, passwordHash: hash, salt, role, allowedSites: allowedSites || [] });
-  saveUsers(users);
-  res.json({ ok: true });
+  try {
+    await db.createUser(username, hash, salt, role, allowedSites || []);
+    users.push({ username, passwordHash: hash, salt, role, allowedSites: allowedSites || [] });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/users/:username', authRequired, superAdminRequired, (req, res) => {
+app.delete('/api/users/:username', authRequired, superAdminRequired, async (req, res) => {
   const target = req.params.username;
   if (target.toLowerCase() === req.user.username.toLowerCase()) return res.status(400).json({ error: 'Cannot delete your own account' });
   const idx = users.findIndex(u => u.username.toLowerCase() === target.toLowerCase());
   if (idx === -1) return res.status(404).json({ error: 'User not found' });
-  users.splice(idx, 1);
-  saveUsers(users);
-  Object.keys(sessions).forEach(t => { if (sessions[t].username.toLowerCase() === target.toLowerCase()) delete sessions[t]; });
-  res.json({ ok: true });
+  try {
+    await db.deleteUser(target);
+    users.splice(idx, 1);
+    Object.keys(sessions).forEach(t => { if (sessions[t].username.toLowerCase() === target.toLowerCase()) delete sessions[t]; });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/users/:username/password', authRequired, (req, res) => {
+app.put('/api/users/:username/password', authRequired, async (req, res) => {
   const target = req.params.username;
-  if (req.user.role !== 'admin' && req.user.username.toLowerCase() !== target.toLowerCase()) return res.status(403).json({ error: 'Cannot change another user\'s password' });
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && req.user.username.toLowerCase() !== target.toLowerCase()) return res.status(403).json({ error: 'Cannot change another user\'s password' });
   const { password } = req.body;
   if (!password || password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
   const user = users.find(u => u.username.toLowerCase() === target.toLowerCase());
   if (!user) return res.status(404).json({ error: 'User not found' });
   const { hash, salt } = hashPassword(password);
-  user.passwordHash = hash;
-  user.salt = salt;
-  saveUsers(users);
-  res.json({ ok: true });
+  try {
+    await db.updateUser(target, { passwordHash: hash, salt });
+    user.passwordHash = hash;
+    user.salt = salt;
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/users/:username/role', authRequired, adminRequired, (req, res) => {
+app.put('/api/users/:username/role', authRequired, adminRequired, async (req, res) => {
   const target = req.params.username;
   if (target.toLowerCase() === req.user.username.toLowerCase()) return res.status(400).json({ error: 'Cannot change your own role' });
   const { role, allowedSites } = req.body;
   const validRoles = ['superadmin', 'admin', 'user'];
   if (!validRoles.includes(role)) return res.status(400).json({ error: 'Role must be superadmin, admin, or user' });
-  // Only superadmin can assign superadmin role
   if (role === 'superadmin' && req.user.role !== 'superadmin') return res.status(403).json({ error: 'Only Super Admin can assign superadmin role' });
   const user = users.find(u => u.username.toLowerCase() === target.toLowerCase());
   if (!user) return res.status(404).json({ error: 'User not found' });
-  user.role = role;
-  if (allowedSites !== undefined) user.allowedSites = allowedSites;
-  saveUsers(users);
-  Object.values(sessions).forEach(s => { if (s.username.toLowerCase() === target.toLowerCase()) s.role = role; });
-  res.json({ ok: true });
+  try {
+    const updates = { role };
+    if (allowedSites !== undefined) updates.allowedSites = allowedSites;
+    await db.updateUser(target, updates);
+    user.role = role;
+    if (allowedSites !== undefined) user.allowedSites = allowedSites;
+    Object.values(sessions).forEach(s => { if (s.username.toLowerCase() === target.toLowerCase()) s.role = role; });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Update user's allowed sites
-app.put('/api/users/:username/sites', authRequired, superAdminRequired, (req, res) => {
+app.put('/api/users/:username/sites', authRequired, superAdminRequired, async (req, res) => {
   const target = req.params.username;
   const { allowedSites } = req.body;
   const user = users.find(u => u.username.toLowerCase() === target.toLowerCase());
   if (!user) return res.status(404).json({ error: 'User not found' });
-  user.allowedSites = allowedSites || [];
-  saveUsers(users);
-  res.json({ ok: true });
+  try {
+    await db.updateUser(target, { allowedSites: allowedSites || [] });
+    user.allowedSites = allowedSites || [];
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ========== MULTI-SITE STATE MANAGEMENT ==========
-const SITES_FILE = path.join(DATA_DIR, 'sites.json');
-
 function emptySection(label) {
   return { label, weights: [], infoCols: [], taskCols: [], rows: [], originalHeaders: [] };
 }
@@ -220,141 +193,84 @@ function getDefaultState() {
   };
 }
 
-function loadSites() {
+let sites = [];
+let activeSiteId = '';
+let state = getDefaultState();
+
+// Save state to DB (replaces JSON file save)
+async function saveStateToDisk(st) {
   try {
-    if (fs.existsSync(SITES_FILE)) return JSON.parse(fs.readFileSync(SITES_FILE, 'utf8'));
-  } catch (e) { console.error('Error loading sites:', e.message); }
-  return null;
-}
-
-function saveSites(sites) {
-  fs.writeFileSync(SITES_FILE, JSON.stringify(sites, null, 2), 'utf8');
-}
-
-function getSiteStateFile(siteId) {
-  return path.join(DATA_DIR, 'state-' + siteId + '.json');
-}
-
-function loadSiteState(siteId) {
-  const file = getSiteStateFile(siteId);
-  try {
-    if (fs.existsSync(file)) {
-      let s = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (s.rows && !s.sections) {
-        const migrated = getDefaultState();
-        migrated.initials = s.initials || [];
-        migrated.sections.PIPE = {
-          label: 'PIPE', weights: s.weights || [], infoCols: s.infoCols || [],
-          taskCols: s.taskCols || [], rows: s.rows || [], originalHeaders: s.originalHeaders || []
-        };
-        return migrated;
-      }
-      return s;
-    }
-  } catch (e) { console.error('Error loading site state:', siteId, e.message); }
-  return getDefaultState();
-}
-
-function saveSiteState(siteId, st) {
-  fs.writeFileSync(getSiteStateFile(siteId), JSON.stringify(st), 'utf8');
-}
-
-// Initialize sites - migrate existing state.json to first site if needed
-function initSites() {
-  let sites = loadSites();
-  if (!sites) {
-    // First run or migration: create default site from existing state.json
-    const defaultId = 'default';
-    sites = [{ id: defaultId, name: 'Default Site' }];
-    if (fs.existsSync(STATE_FILE)) {
-      // Migrate existing state.json to site-specific file
-      const existingData = fs.readFileSync(STATE_FILE, 'utf8');
-      fs.writeFileSync(getSiteStateFile(defaultId), existingData, 'utf8');
-      console.log('Migrated existing state.json to site: Default Site');
-    }
-    saveSites(sites);
+    await db.saveSiteState(activeSiteId, st);
+  } catch (e) {
+    console.error('Error saving state to DB:', e.message);
   }
-  return sites;
-}
-
-let sites = initSites();
-let activeSiteId = sites[0].id;
-let state = loadSiteState(activeSiteId);
-
-// Legacy compat wrapper
-function saveStateToDisk(st) {
-  saveSiteState(activeSiteId, st);
-}
-
-function loadState() {
-  return loadSiteState(activeSiteId);
 }
 
 // ========== SITE CRUD ROUTES ==========
 app.get('/api/sites', authRequired, (req, res) => {
   const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
   let visibleSites = sites;
-  // Admin users can only see their allowed sites
   if (req.user.role === 'admin' && userRecord && userRecord.allowedSites && userRecord.allowedSites.length > 0) {
     visibleSites = sites.filter(s => userRecord.allowedSites.includes(s.id));
   }
-  // Users see same sites as their access allows (or all if no restriction)
   if (req.user.role === 'user' && userRecord && userRecord.allowedSites && userRecord.allowedSites.length > 0) {
     visibleSites = sites.filter(s => userRecord.allowedSites.includes(s.id));
   }
   res.json({ sites: visibleSites, activeSiteId });
 });
 
-app.post('/api/sites', authRequired, superAdminRequired, (req, res) => {
+app.post('/api/sites', authRequired, superAdminRequired, async (req, res) => {
   const { name } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Site name required' });
   const trimmed = name.trim();
   if (sites.find(s => s.name.toLowerCase() === trimmed.toLowerCase())) return res.status(400).json({ error: 'Site already exists' });
   const id = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('site-' + Date.now());
-  const newSite = { id, name: trimmed };
-  sites.push(newSite);
-  saveSites(sites);
-  // Create empty state for new site
-  saveSiteState(id, getDefaultState());
-  res.json({ ok: true, site: newSite });
+  try {
+    await db.createSite(id, trimmed);
+    const newSite = { id, name: trimmed };
+    sites.push(newSite);
+    res.json({ ok: true, site: newSite });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/sites/:id', authRequired, superAdminRequired, (req, res) => {
+app.delete('/api/sites/:id', authRequired, superAdminRequired, async (req, res) => {
   const id = req.params.id;
   if (sites.length <= 1) return res.status(400).json({ error: 'Cannot delete the last site' });
   const idx = sites.findIndex(s => s.id === id);
   if (idx === -1) return res.status(404).json({ error: 'Site not found' });
-  sites.splice(idx, 1);
-  saveSites(sites);
-  // Remove state file
-  const file = getSiteStateFile(id);
-  if (fs.existsSync(file)) fs.unlinkSync(file);
-  // Switch active site if needed
-  if (activeSiteId === id) {
-    activeSiteId = sites[0].id;
-    state = loadSiteState(activeSiteId);
-  }
-  res.json({ ok: true });
+  try {
+    await db.deleteSite(id);
+    sites.splice(idx, 1);
+    if (activeSiteId === id) {
+      activeSiteId = sites[0].id;
+      state = await db.loadSiteState(activeSiteId);
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/sites/:id/switch', authRequired, (req, res) => {
+app.post('/api/sites/:id/switch', authRequired, async (req, res) => {
   const id = req.params.id;
   const site = sites.find(s => s.id === id);
   if (!site) return res.status(404).json({ error: 'Site not found' });
-  activeSiteId = id;
-  state = loadSiteState(id);
-  res.json({ ok: true, state });
+  try {
+    activeSiteId = id;
+    state = await db.loadSiteState(id);
+    res.json({ ok: true, state });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/sites/:id', authRequired, superAdminRequired, (req, res) => {
+app.put('/api/sites/:id', authRequired, superAdminRequired, async (req, res) => {
   const id = req.params.id;
   const { name } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Site name required' });
   const site = sites.find(s => s.id === id);
   if (!site) return res.status(404).json({ error: 'Site not found' });
-  site.name = name.trim();
-  saveSites(sites);
-  res.json({ ok: true, site });
+  try {
+    await db.renameSite(id, name.trim());
+    site.name = name.trim();
+    res.json({ ok: true, site });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Helper to get a section or 404
@@ -371,7 +287,6 @@ function parseWeightWorkbook(wb) {
   const weights = [];
   const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  // Find header row and column indices dynamically
   let headerRowIdx = -1, taskIdx = -1, tColIdx = -1, weightIdx = -1, minsIdx = -1;
   const taskLabels = ['task', 'taskname', 'task_name', 'activity'];
   const tColLabels = ['tracker_dimension_column', 'trackerdimensioncolumn', 'trackercolumn', 'tracker_column', 'trackercol', 'column', 'dimension'];
@@ -391,7 +306,6 @@ function parseWeightWorkbook(wb) {
     if (taskIdx !== -1 && tColIdx !== -1) break;
   }
 
-  // If header detection found columns, use index-based parsing
   if (headerRowIdx >= 0 && taskIdx >= 0 && tColIdx >= 0) {
     console.log(`Weight parse: header at row ${headerRowIdx}, task=${taskIdx}, tCol=${tColIdx}, weight=${weightIdx}, mins=${minsIdx}`);
     for (let ri = headerRowIdx + 1; ri < rows.length; ri++) {
@@ -405,7 +319,6 @@ function parseWeightWorkbook(wb) {
       weights.push({ task, trackerCol: tCol, weight: w, minutes: m });
     }
   } else {
-    // Fallback: positional parsing (scan each row for string+string+number+number pattern)
     console.log('Weight parse: no header detected, using fallback positional parsing');
     rows.forEach(r => {
       const vals = Object.values(r);
@@ -526,27 +439,27 @@ app.get('/api/sections', authRequired, (req, res) => {
   res.json(Object.keys(state.sections));
 });
 
-app.post('/api/sections', authRequired, adminRequired, (req, res) => {
+app.post('/api/sections', authRequired, adminRequired, async (req, res) => {
   const { name } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Section name required' });
   const key = name.trim().toUpperCase();
   if (state.sections[key]) return res.status(400).json({ error: 'Section already exists' });
   state.sections[key] = emptySection(key);
-  saveStateToDisk(state);
+  await saveStateToDisk(state);
   res.json({ ok: true, name: key });
 });
 
-app.delete('/api/sections/:name', authRequired, adminRequired, (req, res) => {
+app.delete('/api/sections/:name', authRequired, adminRequired, async (req, res) => {
   const key = req.params.name.toUpperCase();
   if (!state.sections[key]) return res.status(404).json({ error: 'Section not found' });
   if (Object.keys(state.sections).length <= 1) return res.status(400).json({ error: 'Cannot delete the last section' });
   delete state.sections[key];
   if (state.activeSection === key) state.activeSection = Object.keys(state.sections)[0];
-  saveStateToDisk(state);
+  await saveStateToDisk(state);
   res.json({ ok: true });
 });
 
-app.post('/api/sections/:name/duplicate', authRequired, adminRequired, (req, res) => {
+app.post('/api/sections/:name/duplicate', authRequired, adminRequired, async (req, res) => {
   const sourceKey = req.params.name.toUpperCase();
   const { newName } = req.body;
   if (!newName || !newName.trim()) return res.status(400).json({ error: 'New section name required' });
@@ -554,7 +467,6 @@ app.post('/api/sections/:name/duplicate', authRequired, adminRequired, (req, res
   if (state.sections[targetKey]) return res.status(400).json({ error: 'Section already exists' });
   const source = state.sections[sourceKey];
   if (!source) return res.status(404).json({ error: 'Source section not found' });
-  // Copy structure (weights, taskCols, infoCols) but empty rows
   state.sections[targetKey] = {
     label: targetKey,
     weights: JSON.parse(JSON.stringify(source.weights)),
@@ -563,7 +475,7 @@ app.post('/api/sections/:name/duplicate', authRequired, adminRequired, (req, res
     rows: [],
     originalHeaders: JSON.parse(JSON.stringify(source.originalHeaders))
   };
-  saveStateToDisk(state);
+  await saveStateToDisk(state);
   res.json({ ok: true, name: targetKey });
 });
 
@@ -572,38 +484,37 @@ app.get('/api/state', authRequired, (req, res) => {
   res.json(state);
 });
 
-app.post('/api/state', authRequired, (req, res) => {
+app.post('/api/state', authRequired, async (req, res) => {
   state = req.body;
-  saveStateToDisk(state);
+  await saveStateToDisk(state);
   res.json({ ok: true });
 });
 
 // ========== SECTION-AWARE UPLOAD ROUTES ==========
-app.post('/api/upload/:section/weight', authRequired, adminRequired, upload.single('file'), (req, res) => {
+app.post('/api/upload/:section/weight', authRequired, adminRequired, upload.single('file'), async (req, res) => {
   const key = req.params.section.toUpperCase();
   const sec = state.sections[key];
   if (!sec) return res.status(404).json({ error: 'Section not found' });
   try {
     const wb = XLSX.readFile(req.file.path);
     sec.weights = parseWeightWorkbook(wb);
-    saveStateToDisk(state);
+    await saveStateToDisk(state);
     fs.unlinkSync(req.file.path);
     res.json({ ok: true, count: sec.weights.length, weights: sec.weights });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// Global initials upload (shared across sections)
-app.post('/api/upload/initials', authRequired, adminRequired, upload.single('file'), (req, res) => {
+app.post('/api/upload/initials', authRequired, adminRequired, upload.single('file'), async (req, res) => {
   try {
     const wb = XLSX.readFile(req.file.path);
     state.initials = parseInitialsWorkbook(wb);
-    saveStateToDisk(state);
+    await saveStateToDisk(state);
     fs.unlinkSync(req.file.path);
     res.json({ ok: true, count: state.initials.length, initials: state.initials });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-app.post('/api/upload/:section/tracker', authRequired, adminRequired, upload.single('file'), (req, res) => {
+app.post('/api/upload/:section/tracker', authRequired, adminRequired, upload.single('file'), async (req, res) => {
   const key = req.params.section.toUpperCase();
   const sec = state.sections[key];
   if (!sec) return res.status(404).json({ error: 'Section not found' });
@@ -615,13 +526,13 @@ app.post('/api/upload/:section/tracker', authRequired, adminRequired, upload.sin
     sec.rows = result.rows;
     sec.originalHeaders = result.originalHeaders;
     state.page = 0;
-    saveStateToDisk(state);
+    await saveStateToDisk(state);
     fs.unlinkSync(req.file.path);
     res.json({ ok: true, rows: sec.rows.length, taskCols: sec.taskCols.length, infoCols: sec.infoCols.length });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// ========== SECTION-AWARE EXPORT ROUTES ==========
+// ========== EXPORT ROUTES ==========
 app.get('/api/export/:section/tracker.xlsx', authRequired, (req, res) => {
   const key = req.params.section.toUpperCase();
   const sec = state.sections[key];
@@ -711,19 +622,82 @@ app.get('/api/export/backup.json', authRequired, (req, res) => {
   res.json(state);
 });
 
-app.post('/api/import/backup', authRequired, adminRequired, upload.single('file'), (req, res) => {
+app.post('/api/import/backup', authRequired, adminRequired, upload.single('file'), async (req, res) => {
   try {
     const data = fs.readFileSync(req.file.path, 'utf8');
     state = JSON.parse(data);
-    saveStateToDisk(state);
+    await saveStateToDisk(state);
     fs.unlinkSync(req.file.path);
     res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: 'Invalid JSON file' }); }
 });
 
-// ========== START ==========
-autoImportFromTrackerFolder();
+// ========== STARTUP ==========
+async function startServer() {
+  try {
+    // 1. Initialize database schema
+    console.log('Initializing PostgreSQL database...');
+    await db.initDB();
 
-app.listen(PORT, () => {
-  console.log(`Task Tracker running at http://localhost:${PORT}`);
-});
+    // 2. Load users from DB
+    users = await db.getUsers();
+    if (!users.length) {
+      // Create default super admin
+      const { hash, salt } = hashPassword('admin123');
+      await db.createUser('admin', hash, salt, 'superadmin', []);
+      users = await db.getUsers();
+      console.log('Created default super admin account (admin / admin123)');
+    }
+    // Ensure at least one superadmin exists
+    if (!users.some(u => u.role === 'superadmin')) {
+      const firstAdmin = users.find(u => u.role === 'admin');
+      if (firstAdmin) {
+        await db.updateUser(firstAdmin.username, { role: 'superadmin' });
+        firstAdmin.role = 'superadmin';
+        console.log('Migrated ' + firstAdmin.username + ' to superadmin');
+      }
+    }
+    console.log(`Loaded ${users.length} users from database`);
+
+    // 3. Load sites from DB
+    sites = await db.getSites();
+    if (!sites.length) {
+      // Check if JSON data exists for migration
+      const sitesFile = path.join(DATA_DIR, 'sites.json');
+      if (fs.existsSync(sitesFile)) {
+        console.log('Migrating existing JSON data to PostgreSQL...');
+        await db.migrateFromJSON(DATA_DIR);
+        sites = await db.getSites();
+        users = await db.getUsers();
+        console.log('Migration complete!');
+      } else {
+        // Create default site
+        await db.createSite('default', 'Default Site');
+        sites = await db.getSites();
+        console.log('Created default site');
+      }
+    }
+    console.log(`Loaded ${sites.length} sites from database`);
+
+    // 4. Load active site state
+    activeSiteId = sites[0].id;
+    state = await db.loadSiteState(activeSiteId);
+    console.log(`Active site: ${sites[0].name} (${activeSiteId})`);
+
+    // 5. Auto-import if empty
+    autoImportFromTrackerFolder();
+
+    // 6. Start HTTP server
+    app.listen(PORT, () => {
+      console.log(`Task Tracker running at http://localhost:${PORT}`);
+      console.log(`Database: PostgreSQL (${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'task_tracker'})`);
+    });
+
+  } catch (e) {
+    console.error('Failed to start server:', e.message);
+    console.error(e.stack);
+    process.exit(1);
+  }
+}
+
+startServer();
