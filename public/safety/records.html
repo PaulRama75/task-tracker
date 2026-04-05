@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FER JSA - Saved Records</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: #f0f0f0; }
+
+  /* Toolbar */
+  .toolbar { max-width: 1100px; margin: 10px auto 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 20px; background: #1a3a5c; border-radius: 6px; }
+  .toolbar h1 { color: #fff; font-size: 18px; margin: 0; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar a, .toolbar button { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; text-decoration: none; display: inline-block; }
+  .btn-new { background: #2e7d32; }
+  .btn-new:hover { background: #1b5e20; }
+
+  /* Container */
+  .container { max-width: 1100px; margin: 12px auto; background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); overflow: hidden; }
+
+  /* Stats bar */
+  .stats-bar { display: flex; gap: 20px; padding: 14px 20px; background: #f5f8fb; border-bottom: 2px solid #1a3a5c; }
+  .stat-item { text-align: center; }
+  .stat-value { font-size: 22px; font-weight: bold; color: #1a3a5c; }
+  .stat-label { font-size: 11px; color: #666; }
+
+  /* Search */
+  .search-bar { padding: 12px 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 10px; align-items: center; }
+  .search-bar input { flex: 1; padding: 8px 12px; border: 2px solid #c8d6e5; border-radius: 4px; font-size: 13px; font-family: inherit; }
+  .search-bar input:focus { outline: none; border-color: #1a3a5c; }
+
+  /* Table */
+  .records-table { width: 100%; border-collapse: collapse; }
+  .records-table th { background: #1a3a5c; color: #fff; padding: 10px 14px; text-align: left; font-size: 12px; letter-spacing: 0.3px; }
+  .records-table th:first-child { text-align: center; width: 60px; }
+  .records-table td { padding: 10px 14px; border-bottom: 1px solid #e8ecf0; font-size: 12px; }
+  .records-table tr:hover td { background: #eaf0f7; }
+  .records-table tr:nth-child(even) td { background: #f9fbfd; }
+  .records-table tr:nth-child(even):hover td { background: #eaf0f7; }
+  .records-table td:first-child { text-align: center; font-weight: bold; color: #1a3a5c; }
+
+  /* Status badges */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: bold; }
+  .badge-size { background: #e3f2fd; color: #1565c0; }
+  .badge-date { background: #f5f8fb; color: #333; border: 1px solid #c8d6e5; }
+
+  /* Download link */
+  .dl-link { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: #1a3a5c; color: #fff; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .dl-link:hover { background: #0d2840; }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+  .empty-state .icon { font-size: 48px; margin-bottom: 10px; }
+  .empty-state p { font-size: 15px; margin-bottom: 16px; }
+  .empty-state a { color: #1a3a5c; font-weight: bold; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px; color: #666; }
+
+  @media print {
+    .toolbar, .search-bar { display: none; }
+    .container { box-shadow: none; margin: 0; }
+    .dl-link { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>FER JSA - Saved Records</h1>
+  <div class="spacer"></div>
+  <a href="/safety/form.html" class="btn-new">+ New JSA Form</a>
+</div>
+
+<div class="container">
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-item">
+      <div class="stat-value" id="totalCount">--</div>
+      <div class="stat-label">Total Records</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="todayCount">--</div>
+      <div class="stat-label">Today</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="weekCount">--</div>
+      <div class="stat-label">This Week</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="uniqueSites">--</div>
+      <div class="stat-label">Unique Sites</div>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search by site name or description..." oninput="filterRecords()">
+  </div>
+
+  <div id="tableContainer">
+    <div class="loading">Loading records...</div>
+  </div>
+</div>
+
+<script>
+  let allRecords = [];
+
+  async function loadRecords() {
+    try {
+      const res = await fetch('/safety/api/jsa-records');
+      allRecords = await res.json();
+      updateStats();
+      renderTable(allRecords);
+    } catch (err) {
+      document.getElementById('tableContainer').innerHTML =
+        '<div class="empty-state"><div class="icon">&#9888;</div><p>Failed to load records</p></div>';
+    }
+  }
+
+  function updateStats() {
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+    const today = allRecords.filter(r => r.saved_at.slice(0, 10) === todayStr).length;
+    const week = allRecords.filter(r => new Date(r.saved_at) >= weekAgo).length;
+    const sites = new Set(allRecords.map(r => r.site_name)).size;
+
+    document.getElementById('totalCount').textContent = allRecords.length;
+    document.getElementById('todayCount').textContent = today;
+    document.getElementById('weekCount').textContent = week;
+    document.getElementById('uniqueSites').textContent = sites;
+  }
+
+  function renderTable(records) {
+    const container = document.getElementById('tableContainer');
+
+    if (records.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">&#128196;</div>
+          <p>No JSA records found</p>
+          <a href="/safety/form.html">+ Create New JSA Form</a>
+        </div>`;
+      return;
+    }
+
+    let html = `<table class="records-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Site Name</th>
+          <th>Description of Work</th>
+          <th>Date & Time</th>
+          <th>Size</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    records.forEach(r => {
+      const d = new Date(r.saved_at);
+      const dateStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const sizeKB = (r.file_size / 1024).toFixed(1);
+
+      html += `<tr>
+        <td>${r.id}</td>
+        <td><strong>${escapeHtml(r.site_name)}</strong></td>
+        <td>${escapeHtml(r.description_of_work || '-')}</td>
+        <td>
+          <span class="badge badge-date">${dateStr}</span><br>
+          <span style="font-size:11px; color:#666;">${timeStr}</span>
+        </td>
+        <td><span class="badge badge-size">${sizeKB} KB</span></td>
+        <td><a href="/safety/api/jsa-records/${r.id}/pdf" class="dl-link">&#128229; Download</a></td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  function filterRecords() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    if (!q) {
+      renderTable(allRecords);
+      return;
+    }
+    const filtered = allRecords.filter(r =>
+      r.site_name.toLowerCase().includes(q) ||
+      (r.description_of_work && r.description_of_work.toLowerCase().includes(q))
+    );
+    renderTable(filtered);
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Load on page ready
+  loadRecords();
+</script>
+</body>
+</html>

@@ -27,9 +27,18 @@ async function initDB() {
         salt VARCHAR(255) NOT NULL,
         role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('superadmin','admin','user')),
         allowed_sites TEXT[] DEFAULT '{}',
+        allowed_apps INTEGER[] DEFAULT '{}',
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
+    `);
+
+    // Add allowed_apps column if it doesn't exist (migration for existing DBs)
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_apps INTEGER[] DEFAULT '{}';
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$
     `);
 
     // Sites table
@@ -37,8 +46,17 @@ async function initDB() {
       CREATE TABLE IF NOT EXISTS sites (
         id VARCHAR(100) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
+        app_id INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT NOW()
       )
+    `);
+
+    // Add app_id column if it doesn't exist (migration for existing DBs)
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE sites ADD COLUMN IF NOT EXISTS app_id INTEGER DEFAULT 1;
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$
     `);
 
     // Sections table (per site)
@@ -162,6 +180,77 @@ async function initDB() {
       )
     `);
 
+    // Apps table (sidebar modules)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS apps (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        icon VARCHAR(50) DEFAULT 'folder',
+        sort_order INTEGER DEFAULT 0,
+        is_builtin BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Seed default apps if empty
+    const appCount = await client.query('SELECT COUNT(*) FROM apps');
+    if (parseInt(appCount.rows[0].count) === 0) {
+      await client.query(`INSERT INTO apps (name, icon, sort_order, is_builtin) VALUES ('Safety', 'shield', 0, true)`);
+      await client.query(`INSERT INTO apps (name, icon, sort_order, is_builtin) VALUES ('Task Tracker', 'clipboard', 1, false)`);
+    }
+
+    // Seed Users app if missing
+    const usersAppCheck = await client.query(`SELECT id FROM apps WHERE LOWER(name)='users'`);
+    if (usersAppCheck.rows.length === 0) {
+      const maxSort = await client.query('SELECT COALESCE(MAX(sort_order), 0) + 1 as next FROM apps');
+      await client.query(`INSERT INTO apps (name, icon, sort_order, is_builtin) VALUES ('Users', 'users', $1, true)`, [maxSort.rows[0].next]);
+    } else {
+      // Ensure Users app is built-in
+      await client.query(`UPDATE apps SET is_builtin = true WHERE LOWER(name)='users'`);
+    }
+
+    // Migration: ensure Safety is built-in and Task Tracker is assignable
+    const safetyCheck = await client.query(`SELECT id FROM apps WHERE LOWER(name)='safety' AND is_builtin=true`);
+    if (safetyCheck.rows.length === 0) {
+      await client.query(`UPDATE apps SET is_builtin=false WHERE LOWER(name)='task tracker'`);
+      const safetyExists = await client.query(`SELECT id FROM apps WHERE LOWER(name)='safety'`);
+      if (safetyExists.rows.length > 0) {
+        await client.query(`UPDATE apps SET is_builtin=true WHERE LOWER(name)='safety'`);
+      } else {
+        await client.query(`INSERT INTO apps (name, icon, sort_order, is_builtin) VALUES ('Safety', 'shield', 0, true)`);
+      }
+    }
+
+    // Migration: ensure Safety is always first in sidebar (sort_order = 0)
+    const safetySort = await client.query(`SELECT id, sort_order FROM apps WHERE LOWER(name)='safety'`);
+    if (safetySort.rows.length > 0 && safetySort.rows[0].sort_order !== 0) {
+      await client.query(`UPDATE apps SET sort_order = sort_order + 1 WHERE sort_order >= 0`);
+      await client.query(`UPDATE apps SET sort_order = 0 WHERE id = $1`, [safetySort.rows[0].id]);
+    }
+
+    // Migration: assign existing sites to Task Tracker app if app_id is still default 1
+    const trackerApp = await client.query(`SELECT id FROM apps WHERE LOWER(name)='task tracker'`);
+    if (trackerApp.rows.length > 0) {
+      const trackerId = trackerApp.rows[0].id;
+      // Update any sites with default app_id=1 to Task Tracker's actual ID (in case it's not 1)
+      if (trackerId !== 1) {
+        await client.query(`UPDATE sites SET app_id=$1 WHERE app_id=1 OR app_id IS NULL`, [trackerId]);
+      }
+    }
+
+    // JSA Records table (for Safety app)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS jsa_records (
+        id SERIAL PRIMARY KEY,
+        site_name VARCHAR(255) NOT NULL,
+        description_of_work TEXT,
+        saved_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        pdf_data BYTEA NOT NULL,
+        file_size INTEGER,
+        created_by VARCHAR(255) DEFAULT 'system'
+      )
+    `);
+
     // Create indexes for performance
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sections_site ON sections(site_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_initials_site ON initials(site_id)`);
@@ -171,6 +260,7 @@ async function initDB() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_tracker_rows_section ON tracker_rows(section_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_task_entries_row ON task_entries(row_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_billing_ts_site ON billing_timesheet(site_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_jsa_records_saved ON jsa_records(saved_at DESC)`);
 
     await client.query('COMMIT');
     console.log('Database schema initialized successfully');
@@ -184,14 +274,14 @@ async function initDB() {
 
 // ========== USER OPERATIONS ==========
 async function getUsers() {
-  const { rows } = await pool.query('SELECT username, password_hash, salt, role, allowed_sites FROM users ORDER BY id');
-  return rows.map(r => ({ username: r.username, passwordHash: r.password_hash, salt: r.salt, role: r.role, allowedSites: r.allowed_sites || [] }));
+  const { rows } = await pool.query('SELECT username, password_hash, salt, role, allowed_sites, allowed_apps FROM users ORDER BY id');
+  return rows.map(r => ({ username: r.username, passwordHash: r.password_hash, salt: r.salt, role: r.role, allowedSites: r.allowed_sites || [], allowedApps: (r.allowed_apps || []).map(Number) }));
 }
 
-async function createUser(username, passwordHash, salt, role, allowedSites) {
+async function createUser(username, passwordHash, salt, role, allowedSites, allowedApps) {
   await pool.query(
-    'INSERT INTO users (username, password_hash, salt, role, allowed_sites) VALUES ($1,$2,$3,$4,$5)',
-    [username, passwordHash, salt, role, allowedSites || []]
+    'INSERT INTO users (username, password_hash, salt, role, allowed_sites, allowed_apps) VALUES ($1,$2,$3,$4,$5,$6)',
+    [username, passwordHash, salt, role, allowedSites || [], allowedApps || []]
   );
 }
 
@@ -203,6 +293,7 @@ async function updateUser(username, fields) {
   if (fields.salt !== undefined) { sets.push(`salt=$${i++}`); vals.push(fields.salt); }
   if (fields.role !== undefined) { sets.push(`role=$${i++}`); vals.push(fields.role); }
   if (fields.allowedSites !== undefined) { sets.push(`allowed_sites=$${i++}`); vals.push(fields.allowedSites); }
+  if (fields.allowedApps !== undefined) { sets.push(`allowed_apps=$${i++}`); vals.push(fields.allowedApps); }
   sets.push(`updated_at=NOW()`);
   vals.push(username);
   await pool.query(`UPDATE users SET ${sets.join(',')} WHERE LOWER(username)=LOWER($${i})`, vals);
@@ -213,13 +304,17 @@ async function deleteUser(username) {
 }
 
 // ========== SITE OPERATIONS ==========
-async function getSites() {
-  const { rows } = await pool.query('SELECT id, name FROM sites ORDER BY created_at');
+async function getSites(appId) {
+  if (appId) {
+    const { rows } = await pool.query('SELECT id, name, app_id FROM sites WHERE app_id=$1 ORDER BY created_at', [appId]);
+    return rows;
+  }
+  const { rows } = await pool.query('SELECT id, name, app_id FROM sites ORDER BY created_at');
   return rows;
 }
 
-async function createSite(id, name) {
-  await pool.query('INSERT INTO sites (id, name) VALUES ($1,$2)', [id, name]);
+async function createSite(id, name, appId) {
+  await pool.query('INSERT INTO sites (id, name, app_id) VALUES ($1,$2,$3)', [id, name, appId || 1]);
   // Create default sections
   for (const sec of ['PIPE', 'PV', 'PSV']) {
     await pool.query('INSERT INTO sections (site_id, name, label) VALUES ($1,$2,$3)', [id, sec, sec]);
@@ -466,6 +561,71 @@ async function deleteSection(siteId, name) {
   await pool.query('DELETE FROM sections WHERE site_id=$1 AND name=$2', [siteId, name]);
 }
 
+// ========== APP MODULE OPERATIONS ==========
+async function getApps() {
+  const { rows } = await pool.query('SELECT id, name, icon, sort_order, is_builtin FROM apps ORDER BY sort_order, id');
+  return rows.map(r => ({ id: r.id, name: r.name, icon: r.icon, sortOrder: r.sort_order, isBuiltin: r.is_builtin }));
+}
+
+async function createApp(name, icon) {
+  const maxOrder = await pool.query('SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order FROM apps');
+  const nextOrder = maxOrder.rows[0].next_order;
+  const { rows } = await pool.query(
+    'INSERT INTO apps (name, icon, sort_order, is_builtin) VALUES ($1, $2, $3, false) RETURNING id, name, icon, sort_order, is_builtin',
+    [name, icon || 'folder', nextOrder]
+  );
+  const r = rows[0];
+  return { id: r.id, name: r.name, icon: r.icon, sortOrder: r.sort_order, isBuiltin: r.is_builtin };
+}
+
+async function updateApp(id, fields) {
+  const sets = [];
+  const vals = [];
+  let i = 1;
+  if (fields.name !== undefined) { sets.push(`name=$${i++}`); vals.push(fields.name); }
+  if (fields.icon !== undefined) { sets.push(`icon=$${i++}`); vals.push(fields.icon); }
+  if (fields.sortOrder !== undefined) { sets.push(`sort_order=$${i++}`); vals.push(fields.sortOrder); }
+  if (!sets.length) return;
+  vals.push(id);
+  await pool.query(`UPDATE apps SET ${sets.join(',')} WHERE id=$${i}`, vals);
+}
+
+async function deleteApp(id) {
+  // Don't delete built-in apps
+  const check = await pool.query('SELECT is_builtin FROM apps WHERE id=$1', [id]);
+  if (check.rows.length && check.rows[0].is_builtin) {
+    throw new Error('Cannot delete built-in application');
+  }
+  await pool.query('DELETE FROM apps WHERE id=$1', [id]);
+}
+
+// ========== JSA RECORD OPERATIONS (Safety App) ==========
+async function saveJsaRecord(siteName, descriptionOfWork, pdfBuffer) {
+  const result = await pool.query(
+    `INSERT INTO jsa_records (site_name, description_of_work, pdf_data, file_size)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, site_name, saved_at, file_size`,
+    [siteName, descriptionOfWork || '', pdfBuffer, pdfBuffer.length]
+  );
+  return result.rows[0];
+}
+
+async function getJsaRecords() {
+  const { rows } = await pool.query(
+    `SELECT id, site_name, description_of_work, saved_at, file_size
+     FROM jsa_records ORDER BY saved_at DESC`
+  );
+  return rows;
+}
+
+async function getJsaRecordPdf(id) {
+  const { rows } = await pool.query(
+    'SELECT pdf_data, site_name, saved_at FROM jsa_records WHERE id = $1',
+    [id]
+  );
+  return rows[0] || null;
+}
+
 // ========== MIGRATION: JSON → PostgreSQL ==========
 async function migrateFromJSON(dataDir) {
   const fs = require('fs');
@@ -525,5 +685,7 @@ module.exports = {
   loadSiteState, saveSiteState,
   getSectionId, saveSectionWeights, saveInitials,
   createSection, deleteSection,
+  getApps, createApp, updateApp, deleteApp,
+  saveJsaRecord, getJsaRecords, getJsaRecordPdf,
   migrateFromJSON
 };

@@ -159,10 +159,14 @@ function siteAccessRequired(req, res, next) {
   if (req.user.role === 'superadmin') return next();
   const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
   if (!userRecord) return res.status(403).json({ error: 'User not found' });
-  if (req.user.role === 'admin') {
-    if (userRecord.allowedSites && userRecord.allowedSites.length > 0 && !userRecord.allowedSites.includes(activeSiteId)) {
-      return res.status(403).json({ error: 'No access to this site' });
-    }
+  const allowedSites = userRecord.allowedSites || [];
+  // If user has assigned sites, check current site is in the list
+  if (allowedSites.length > 0 && !allowedSites.includes(activeSiteId)) {
+    return res.status(403).json({ error: 'No access to this site' });
+  }
+  // If user has no sites assigned at all, block access
+  if (allowedSites.length === 0) {
+    return res.status(403).json({ error: 'No sites assigned to your account' });
   }
   next();
 }
@@ -201,7 +205,7 @@ app.post('/api/login', async (req, res) => {
 
   const token = generateToken();
   sessions[token] = { username: user.username, role: user.role, created: Date.now(), lastActivity: Date.now() };
-  res.json({ ok: true, token, username: user.username, role: user.role, allowedSites: user.allowedSites || [] });
+  res.json({ ok: true, token, username: user.username, role: user.role, allowedSites: user.allowedSites || [], allowedApps: user.allowedApps || [] });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -212,16 +216,16 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/me', authRequired, (req, res) => {
   const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
-  res.json({ username: req.user.username, role: req.user.role, allowedSites: userRecord ? userRecord.allowedSites || [] : [] });
+  res.json({ username: req.user.username, role: req.user.role, allowedSites: userRecord ? userRecord.allowedSites || [] : [], allowedApps: userRecord ? userRecord.allowedApps || [] : [] });
 });
 
 // User management
 app.get('/api/users', authRequired, adminRequired, (req, res) => {
-  res.json(users.map(u => ({ username: u.username, role: u.role, allowedSites: u.allowedSites || [] })));
+  res.json(users.map(u => ({ username: u.username, role: u.role, allowedSites: u.allowedSites || [], allowedApps: u.allowedApps || [] })));
 });
 
 app.post('/api/users', authRequired, adminRequired, async (req, res) => {
-  const { username, password, role, allowedSites } = req.body;
+  const { username, password, role, allowedSites, allowedApps } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
   const validRoles = ['superadmin', 'admin', 'user'];
   if (!validRoles.includes(role)) return res.status(400).json({ error: 'Role must be superadmin, admin, or user' });
@@ -229,8 +233,8 @@ app.post('/api/users', authRequired, adminRequired, async (req, res) => {
   if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) return res.status(400).json({ error: 'Username already exists' });
   const { hash, salt } = await hashPasswordSecure(password);
   try {
-    await db.createUser(username, hash, salt, role, allowedSites || []);
-    users.push({ username, passwordHash: hash, salt, role, allowedSites: allowedSites || [] });
+    await db.createUser(username, hash, salt, role, allowedSites || [], allowedApps || []);
+    users.push({ username, passwordHash: hash, salt, role, allowedSites: allowedSites || [], allowedApps: allowedApps || [] });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -296,6 +300,124 @@ app.put('/api/users/:username/sites', authRequired, superAdminRequired, async (r
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put('/api/users/:username/access', authRequired, superAdminRequired, async (req, res) => {
+  const target = req.params.username;
+  const { allowedSites, allowedApps } = req.body;
+  const user = users.find(u => u.username.toLowerCase() === target.toLowerCase());
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  try {
+    const updates = {};
+    if (allowedSites !== undefined) updates.allowedSites = allowedSites;
+    if (allowedApps !== undefined) updates.allowedApps = allowedApps;
+    await db.updateUser(target, updates);
+    if (allowedSites !== undefined) user.allowedSites = allowedSites;
+    if (allowedApps !== undefined) user.allowedApps = allowedApps;
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ========== APP MODULE ROUTES ==========
+app.get('/api/apps', authRequired, async (req, res) => {
+  try {
+    const apps = await db.getApps();
+    // Superadmin sees all apps
+    if (req.user.role === 'superadmin') return res.json({ apps });
+    // Admins see all except hide nothing — but Users app only for admin+
+    // Regular users: only built-in apps (except Users) + their assigned apps
+    const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
+    const allowedApps = userRecord ? (userRecord.allowedApps || []) : [];
+    const isAdmin = req.user.role === 'admin';
+    const filtered = apps.filter(a => {
+      // Users app: only admin and superadmin
+      if (a.name.toLowerCase() === 'users') return isAdmin;
+      // Built-in apps: always visible
+      if (a.isBuiltin) return true;
+      // Assigned apps
+      return allowedApps.includes(a.id);
+    });
+    res.json({ apps: filtered });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/apps', authRequired, superAdminRequired, async (req, res) => {
+  const { name, icon } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'App name required' });
+  try {
+    const app = await db.createApp(name.trim(), icon || 'folder');
+    res.json({ ok: true, app });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/apps/:id', authRequired, superAdminRequired, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { name, icon, sortOrder } = req.body;
+  try {
+    await db.updateApp(id, { name, icon, sortOrder });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/apps/:id', authRequired, superAdminRequired, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    await db.deleteApp(id);
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Switch active app - loads that app's sites and state
+app.post('/api/apps/:id/switch', authRequired, async (req, res) => {
+  const appId = parseInt(req.params.id);
+  try {
+    // Check access: non-superadmin must have this app assigned or it must be built-in
+    if (req.user.role !== 'superadmin') {
+      const allApps = await db.getApps();
+      const targetApp = allApps.find(a => a.id === appId);
+      if (!targetApp) return res.status(404).json({ error: 'App not found' });
+      if (!targetApp.isBuiltin) {
+        const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
+        const allowedApps = userRecord ? (userRecord.allowedApps || []) : [];
+        if (!allowedApps.includes(appId)) return res.status(403).json({ error: 'No access to this application' });
+      }
+    }
+    // Load sites for this app
+    activeAppId = appId;
+    sites = await db.getSites(appId);
+
+    // Only create default site for Task Tracker app (not Safety, Users, or placeholder apps)
+    if (!sites.length) {
+      const allApps = await db.getApps();
+      const targetApp = allApps.find(a => a.id === appId);
+      if (targetApp && targetApp.name.toLowerCase() === 'task tracker') {
+        const defaultId = 'default-app' + appId;
+        await db.createSite(defaultId, 'Default Site', appId);
+        sites = await db.getSites(appId);
+        console.log(`Created default site for app ${appId}`);
+      }
+    }
+
+    // Filter sites by user access for non-superadmin
+    let userSites = sites;
+    if (req.user.role !== 'superadmin') {
+      const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
+      const allowedSites = userRecord ? (userRecord.allowedSites || []) : [];
+      if (allowedSites.length > 0) {
+        userSites = sites.filter(s => allowedSites.includes(s.id));
+      } else {
+        userSites = [];
+      }
+    }
+
+    // Load first accessible site's state
+    if (userSites.length > 0) {
+      activeSiteId = userSites[0].id;
+      state = await db.loadSiteState(activeSiteId);
+    }
+
+    res.json({ ok: true, sites: userSites, activeSiteId: userSites.length > 0 ? userSites[0].id : '', state: userSites.length > 0 ? state : null });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ========== MULTI-SITE STATE MANAGEMENT ==========
 function emptySection(label) {
   return { label, weights: [], infoCols: [], taskCols: [], rows: [], originalHeaders: [] };
@@ -318,6 +440,7 @@ function getDefaultState() {
 
 let sites = [];
 let activeSiteId = '';
+let activeAppId = 1;
 let state = getDefaultState();
 
 // Save state to DB (replaces JSON file save)
@@ -331,15 +454,19 @@ async function saveStateToDisk(st) {
 
 // ========== SITE CRUD ROUTES ==========
 app.get('/api/sites', authRequired, (req, res) => {
+  // Superadmin sees all sites
+  if (req.user.role === 'superadmin') {
+    return res.json({ sites, activeSiteId, activeAppId });
+  }
+  // Non-superadmin: filter by allowed sites
   const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
-  let visibleSites = sites;
-  if (req.user.role === 'admin' && userRecord && userRecord.allowedSites && userRecord.allowedSites.length > 0) {
-    visibleSites = sites.filter(s => userRecord.allowedSites.includes(s.id));
+  const allowedSites = userRecord ? (userRecord.allowedSites || []) : [];
+  if (allowedSites.length > 0) {
+    const visibleSites = sites.filter(s => allowedSites.includes(s.id));
+    return res.json({ sites: visibleSites, activeSiteId, activeAppId });
   }
-  if (req.user.role === 'user' && userRecord && userRecord.allowedSites && userRecord.allowedSites.length > 0) {
-    visibleSites = sites.filter(s => userRecord.allowedSites.includes(s.id));
-  }
-  res.json({ sites: visibleSites, activeSiteId });
+  // No sites assigned — show nothing
+  res.json({ sites: [], activeSiteId, activeAppId });
 });
 
 app.post('/api/sites', authRequired, superAdminRequired, async (req, res) => {
@@ -347,10 +474,10 @@ app.post('/api/sites', authRequired, superAdminRequired, async (req, res) => {
   if (!name || !name.trim()) return res.status(400).json({ error: 'Site name required' });
   const trimmed = name.trim();
   if (sites.find(s => s.name.toLowerCase() === trimmed.toLowerCase())) return res.status(400).json({ error: 'Site already exists' });
-  const id = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('site-' + Date.now());
+  const id = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + activeAppId || ('site-' + Date.now());
   try {
-    await db.createSite(id, trimmed);
-    const newSite = { id, name: trimmed };
+    await db.createSite(id, trimmed, activeAppId);
+    const newSite = { id, name: trimmed, app_id: activeAppId };
     sites.push(newSite);
     res.json({ ok: true, site: newSite });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -376,6 +503,17 @@ app.post('/api/sites/:id/switch', authRequired, async (req, res) => {
   const id = req.params.id;
   const site = sites.find(s => s.id === id);
   if (!site) return res.status(404).json({ error: 'Site not found' });
+  // Check site access for non-superadmin
+  if (req.user.role !== 'superadmin') {
+    const userRecord = users.find(u => u.username.toLowerCase() === req.user.username.toLowerCase());
+    const allowedSites = userRecord ? (userRecord.allowedSites || []) : [];
+    if (allowedSites.length > 0 && !allowedSites.includes(id)) {
+      return res.status(403).json({ error: 'No access to this site' });
+    }
+    if (allowedSites.length === 0) {
+      return res.status(403).json({ error: 'No sites assigned to your account' });
+    }
+  }
   try {
     activeSiteId = id;
     state = await db.loadSiteState(id);
@@ -755,6 +893,246 @@ app.post('/api/import/backup', authRequired, adminRequired, upload.single('file'
   } catch (e) { res.status(400).json({ error: 'Invalid JSON file' }); }
 });
 
+// ========== USERS APP ROUTES ==========
+// Serve users management page
+app.get('/users/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'users', 'index.html'));
+});
+
+// Get ALL sites across all apps (for user access assignment)
+app.get('/users/api/all-sites', authRequired, adminRequired, async (req, res) => {
+  try {
+    const allSites = await db.getSites(); // no appId filter = all sites
+    res.json(allSites);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Export users to Excel
+app.get('/users/api/export', authRequired, adminRequired, async (req, res) => {
+  try {
+    const allUsers = await db.getUsers();
+    const allApps = await db.getApps();
+    const allSites = await db.getSites();
+
+    const rows = [['Username', 'Role', 'Allowed Apps', 'Allowed Sites']];
+    allUsers.forEach(u => {
+      const appNames = (u.allowedApps || []).map(aid => {
+        const app = allApps.find(a => a.id === aid);
+        return app ? app.name : 'App #' + aid;
+      }).join(', ');
+      const siteNames = (u.allowedSites || []).map(sid => {
+        const site = allSites.find(s => s.id === sid);
+        return site ? site.name : sid;
+      }).join(', ');
+      rows.push([u.username, u.role, appNames, siteNames]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    // Set column widths
+    ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 30 }, { wch: 40 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Users');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Disposition', 'attachment; filename="users-export.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buf);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Import preview — parse Excel and show what will happen
+app.post('/users/api/import-preview', authRequired, superAdminRequired, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const wb = XLSX.readFile(req.file.path);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+    fs.unlinkSync(req.file.path);
+
+    if (rows.length < 2) return res.status(400).json({ error: 'File has no data rows' });
+
+    // Find header row
+    const header = rows[0].map(h => String(h || '').toLowerCase().trim());
+    const usernameIdx = header.findIndex(h => h.includes('username') || h === 'user');
+    const roleIdx = header.findIndex(h => h.includes('role'));
+    const passwordIdx = header.findIndex(h => h.includes('password'));
+    const appsIdx = header.findIndex(h => h.includes('app'));
+    const sitesIdx = header.findIndex(h => h.includes('site'));
+
+    if (usernameIdx === -1) return res.status(400).json({ error: 'Could not find "Username" column in file' });
+
+    const existingUsers = await db.getUsers();
+    const parsed = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const username = String(r[usernameIdx] || '').trim();
+      if (!username) continue;
+
+      const role = roleIdx >= 0 ? String(r[roleIdx] || 'user').trim().toLowerCase() : 'user';
+      const password = passwordIdx >= 0 ? String(r[passwordIdx] || '').trim() : '';
+      const appsStr = appsIdx >= 0 ? String(r[appsIdx] || '').trim() : '';
+      const sitesStr = sitesIdx >= 0 ? String(r[sitesIdx] || '').trim() : '';
+      const exists = existingUsers.some(u => u.username.toLowerCase() === username.toLowerCase());
+
+      parsed.push({ username, role, password, allowedApps: appsStr, allowedSites: sitesStr, exists });
+    }
+
+    res.json({ users: parsed });
+  } catch (e) {
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Import confirm — create/update users
+app.post('/users/api/import', authRequired, superAdminRequired, async (req, res) => {
+  try {
+    const { users: importUsers } = req.body;
+    if (!importUsers || !importUsers.length) return res.status(400).json({ error: 'No users to import' });
+
+    const allApps = await db.getApps();
+    const allSites = await db.getSites();
+    const existingUsers = await db.getUsers();
+
+    let created = 0, updated = 0, errors = [];
+
+    for (const u of importUsers) {
+      const username = String(u.username || '').trim();
+      if (!username) continue;
+
+      let role = String(u.role || 'user').trim().toLowerCase();
+      if (!['superadmin', 'admin', 'user'].includes(role)) role = 'user';
+
+      // Resolve app names to IDs
+      const allowedApps = [];
+      if (u.allowedApps) {
+        String(u.allowedApps).split(',').forEach(name => {
+          const n = name.trim().toLowerCase();
+          if (!n) return;
+          const app = allApps.find(a => a.name.toLowerCase() === n);
+          if (app) allowedApps.push(app.id);
+        });
+      }
+
+      // Resolve site names to IDs
+      const allowedSites = [];
+      if (u.allowedSites) {
+        String(u.allowedSites).split(',').forEach(name => {
+          const n = name.trim().toLowerCase();
+          if (!n) return;
+          const site = allSites.find(s => s.name.toLowerCase() === n || s.id.toLowerCase() === n);
+          if (site) allowedSites.push(site.id);
+        });
+      }
+
+      const exists = existingUsers.some(eu => eu.username.toLowerCase() === username.toLowerCase());
+
+      if (exists) {
+        // Update existing user
+        try {
+          const updates = { role, allowedSites, allowedApps };
+          if (u.password && u.password.length >= 6) {
+            const { hash, salt } = hashPassword(u.password);
+            updates.passwordHash = hash;
+            updates.salt = salt;
+          }
+          await db.updateUser(username, updates);
+          // Update in-memory
+          const idx = users.findIndex(eu => eu.username.toLowerCase() === username.toLowerCase());
+          if (idx >= 0) {
+            users[idx].role = role;
+            users[idx].allowedSites = allowedSites;
+            users[idx].allowedApps = allowedApps;
+            if (updates.passwordHash) { users[idx].passwordHash = updates.passwordHash; users[idx].salt = updates.salt; }
+          }
+          updated++;
+        } catch (e) { errors.push(username + ': ' + e.message); }
+      } else {
+        // Create new user
+        const password = u.password && u.password.length >= 6 ? u.password : 'password123';
+        try {
+          const { hash, salt } = hashPassword(password);
+          await db.createUser(username, hash, salt, role, allowedSites, allowedApps);
+          users.push({ username, passwordHash: hash, salt, role, allowedSites, allowedApps });
+          created++;
+        } catch (e) { errors.push(username + ': ' + e.message); }
+      }
+    }
+
+    res.json({ ok: true, created, updated, errors });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ========== SAFETY APP ROUTES (JSA) ==========
+// Serve safety landing page
+app.get('/safety/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'safety', 'index.html'));
+});
+
+// Serve safety JSA form page
+app.get('/safety/form', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'safety', 'form.html'));
+});
+
+// Serve safety records page
+app.get('/safety/records', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'safety', 'records.html'));
+});
+
+// API: Save JSA PDF record
+app.post('/safety/api/save-jsa', async (req, res) => {
+  try {
+    const { siteName, descriptionOfWork, pdfBase64 } = req.body;
+    if (!pdfBase64 || !siteName) {
+      return res.status(400).json({ error: 'Missing required fields: siteName and pdfBase64' });
+    }
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+    const record = await db.saveJsaRecord(siteName, descriptionOfWork, pdfBuffer);
+    console.log(`JSA saved: ID=${record.id}, Site="${record.site_name}", Date=${record.saved_at}, Size=${record.file_size} bytes`);
+    res.json({
+      success: true,
+      record: {
+        id: record.id,
+        siteName: record.site_name,
+        savedAt: record.saved_at,
+        fileSize: record.file_size
+      }
+    });
+  } catch (err) {
+    console.error('Error saving JSA:', err.message);
+    res.status(500).json({ error: 'Failed to save JSA record' });
+  }
+});
+
+// API: List all saved JSA records
+app.get('/safety/api/jsa-records', async (req, res) => {
+  try {
+    const records = await db.getJsaRecords();
+    res.json(records);
+  } catch (err) {
+    console.error('Error fetching JSA records:', err.message);
+    res.status(500).json({ error: 'Failed to fetch records' });
+  }
+});
+
+// API: Download a saved JSA PDF by ID
+app.get('/safety/api/jsa-records/:id/pdf', async (req, res) => {
+  try {
+    const row = await db.getJsaRecordPdf(req.params.id);
+    if (!row) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    const dateStr = new Date(row.saved_at).toISOString().slice(0, 10);
+    const filename = `JSA_${row.site_name.replace(/[^a-zA-Z0-9]/g, '_')}_${dateStr}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(row.pdf_data);
+  } catch (err) {
+    console.error('Error downloading JSA PDF:', err.message);
+    res.status(500).json({ error: 'Failed to download PDF' });
+  }
+});
+
 // ========== STARTUP ==========
 async function startServer() {
   try {
@@ -782,30 +1160,48 @@ async function startServer() {
     }
     console.log(`Loaded ${users.length} users from database`);
 
-    // 3. Load sites from DB
-    sites = await db.getSites();
+    // 3. Determine default app (Safety first for UI, but load Task Tracker sites for backend)
+    const allApps = await db.getApps();
+    const safetyApp = allApps.find(a => a.name.toLowerCase() === 'safety');
+    activeAppId = safetyApp ? safetyApp.id : (allApps[0] ? allApps[0].id : 1);
+
+    // 4. Load sites for Task Tracker (the app that uses sites/state)
+    const trackerApp = allApps.find(a => a.name.toLowerCase() === 'task tracker');
+    const trackerAppId = trackerApp ? trackerApp.id : activeAppId;
+    sites = await db.getSites(trackerAppId);
     if (!sites.length) {
       // Check if JSON data exists for migration
       const sitesFile = path.join(DATA_DIR, 'sites.json');
       if (fs.existsSync(sitesFile)) {
         console.log('Migrating existing JSON data to PostgreSQL...');
         await db.migrateFromJSON(DATA_DIR);
-        sites = await db.getSites();
+        // Assign migrated sites to Task Tracker app
+        const allSites = await db.getSites();
+        for (const s of allSites) {
+          if (!s.app_id || s.app_id === 1) {
+            await db.pool.query('UPDATE sites SET app_id=$1 WHERE id=$2', [trackerAppId, s.id]);
+          }
+        }
+        sites = await db.getSites(trackerAppId);
         users = await db.getUsers();
         console.log('Migration complete!');
       } else {
-        // Create default site
-        await db.createSite('default', 'Default Site');
-        sites = await db.getSites();
+        // Create default site for Task Tracker
+        await db.createSite('default', 'Default Site', trackerAppId);
+        sites = await db.getSites(trackerAppId);
         console.log('Created default site');
       }
     }
     console.log(`Loaded ${sites.length} sites from database`);
 
-    // 4. Load active site state
-    activeSiteId = sites[0].id;
-    state = await db.loadSiteState(activeSiteId);
-    console.log(`Active site: ${sites[0].name} (${activeSiteId})`);
+    // 5. Load active site state
+    if (sites.length > 0) {
+      activeSiteId = sites[0].id;
+      state = await db.loadSiteState(activeSiteId);
+      console.log(`Active site: ${sites[0].name} (${activeSiteId})`);
+    } else {
+      console.log('No sites loaded (Safety/Users app has no sites)');
+    }
 
     // 5. Auto-import if empty
     autoImportFromTrackerFolder();

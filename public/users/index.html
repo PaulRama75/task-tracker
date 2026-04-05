@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FER - User Management</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: #f0f0f0; }
+
+  .toolbar { max-width: 1200px; margin: 10px auto 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 20px; background: #1a3a5c; border-radius: 6px; }
+  .toolbar h1 { color: #fff; font-size: 18px; margin: 0; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar button, .toolbar label { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-add { background: #2e7d32; }
+  .btn-add:hover { background: #1b5e20; }
+  .btn-export { background: #1565c0; }
+  .btn-export:hover { background: #0d47a1; }
+  .btn-import { background: #ef6c00; }
+  .btn-import:hover { background: #e65100; }
+  .toolbar input[type="file"] { display: none; }
+
+  .container { max-width: 1200px; margin: 12px auto; background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); overflow: hidden; }
+
+  /* Stats */
+  .stats-bar { display: flex; gap: 20px; padding: 14px 20px; background: #f5f8fb; border-bottom: 2px solid #1a3a5c; flex-wrap: wrap; }
+  .stat-item { text-align: center; min-width: 90px; }
+  .stat-value { font-size: 22px; font-weight: bold; color: #1a3a5c; }
+  .stat-label { font-size: 11px; color: #666; }
+
+  /* Search */
+  .search-bar { padding: 12px 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 10px; align-items: center; }
+  .search-bar input { flex: 1; padding: 8px 12px; border: 2px solid #c8d6e5; border-radius: 4px; font-size: 13px; font-family: inherit; }
+  .search-bar input:focus { outline: none; border-color: #1a3a5c; }
+
+  /* Table */
+  .user-table { width: 100%; border-collapse: collapse; }
+  .user-table th { background: #1a3a5c; color: #fff; padding: 10px 14px; text-align: left; font-size: 12px; letter-spacing: 0.3px; }
+  .user-table td { padding: 10px 14px; border-bottom: 1px solid #e8ecf0; font-size: 12px; vertical-align: middle; }
+  .user-table tr:hover td { background: #eaf0f7; }
+  .user-table tr:nth-child(even) td { background: #f9fbfd; }
+  .user-table tr:nth-child(even):hover td { background: #eaf0f7; }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: bold; }
+  .badge-superadmin { background: #ffcdd2; color: #b71c1c; }
+  .badge-admin { background: #fff3e0; color: #e65100; }
+  .badge-user { background: #e3f2fd; color: #1565c0; }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; margin: 1px 2px; background: #e8ecf0; color: #333; }
+  .tag-app { background: #e8f5e9; color: #2e7d32; }
+  .tag-site { background: #e3f2fd; color: #1565c0; }
+
+  .action-btn { padding: 5px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; margin: 0 2px; }
+  .btn-edit { background: #1a3a5c; color: #fff; }
+  .btn-edit:hover { background: #0d2840; }
+  .btn-delete { background: #c62828; color: #fff; }
+  .btn-delete:hover { background: #8e0000; }
+  .btn-pwd { background: #ef6c00; color: #fff; }
+  .btn-pwd:hover { background: #e65100; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: #999; }
+  .empty-state .icon { font-size: 40px; margin-bottom: 8px; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+  .modal-overlay.hidden { display: none; }
+  .modal { background: #fff; border-radius: 8px; width: 500px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+  .modal-header { padding: 16px 20px; background: #1a3a5c; color: #fff; border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h3 { margin: 0; font-size: 16px; }
+  .modal-close { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 0 4px; }
+  .modal-body { padding: 20px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #1a3a5c; }
+  .form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 2px solid #c8d6e5; border-radius: 4px; font-size: 13px; font-family: inherit; }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: #1a3a5c; }
+  .checkbox-group { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; }
+  .checkbox-group label { font-weight: normal; font-size: 12px; display: flex; align-items: center; gap: 4px; min-width: 120px; }
+  .modal-footer { padding: 12px 20px; background: #f5f8fb; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 10px; border-radius: 0 0 8px 8px; }
+  .modal-footer button { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-save { background: #2e7d32; color: #fff; }
+  .btn-save:hover { background: #1b5e20; }
+  .btn-cancel { background: #999; color: #fff; }
+  .btn-cancel:hover { background: #666; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 6px; color: #fff; font-weight: bold; font-size: 13px; z-index: 99999; opacity: 0; transition: opacity 0.3s; }
+  .toast.show { opacity: 1; }
+  .toast-success { background: #2e7d32; }
+  .toast-error { background: #c62828; }
+  .toast-info { background: #1565c0; }
+
+  /* Import preview */
+  .import-preview { margin-top: 10px; max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; }
+  .import-preview table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .import-preview th { background: #f5f8fb; padding: 6px 8px; text-align: left; font-size: 10px; position: sticky; top: 0; }
+  .import-preview td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>&#128101; User Management</h1>
+  <div class="spacer"></div>
+  <button class="btn-export" onclick="exportUsers()">&#128229; Export Excel</button>
+  <label class="btn-import">
+    &#128228; Import Excel
+    <input type="file" id="importFile" accept=".xlsx,.xls,.csv" onchange="handleImport(this)">
+  </label>
+  <button class="btn-add" onclick="openAddModal()">+ Add User</button>
+</div>
+
+<div class="container">
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-item">
+      <div class="stat-value" id="totalUsers">--</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="superAdminCount">--</div>
+      <div class="stat-label">Super Admins</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="adminCount">--</div>
+      <div class="stat-label">Admins</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="userCount">--</div>
+      <div class="stat-label">Users</div>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search by username, role, site, or app..." oninput="filterUsers()">
+  </div>
+
+  <div id="tableContainer">
+    <div class="empty-state"><div class="icon">&#9203;</div><p>Loading...</p></div>
+  </div>
+</div>
+
+<!-- Add/Edit User Modal -->
+<div id="userModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Add User</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="modalUsername" placeholder="Enter username">
+      </div>
+      <div class="form-group" id="passwordGroup">
+        <label>Password</label>
+        <input type="password" id="modalPassword" placeholder="Enter password (min 6 chars)">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="modalRole">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+          <option value="superadmin">Super Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Allowed Apps</label>
+        <div class="checkbox-group" id="modalApps"></div>
+      </div>
+      <div class="form-group">
+        <label>Allowed Sites</label>
+        <div class="checkbox-group" id="modalSites"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="modalSaveBtn" onclick="saveUser()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Preview Modal -->
+<div id="importModal" class="modal-overlay hidden">
+  <div class="modal" style="width:700px">
+    <div class="modal-header">
+      <h3>Import Users from Excel</h3>
+      <button class="modal-close" onclick="closeImportModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:10px;font-size:12px;color:#666;">Review the users below before importing. Existing users will be <strong>updated</strong>, new users will be <strong>created</strong>.</p>
+      <div class="import-preview" id="importPreview"></div>
+      <p style="margin-top:10px;font-size:11px;color:#999;" id="importSummary"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeImportModal()">Cancel</button>
+      <button class="btn-save" onclick="confirmImport()">Import Users</button>
+    </div>
+  </div>
+</div>
+
+<!-- Password Modal -->
+<div id="pwdModal" class="modal-overlay hidden">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <h3>Change Password</h3>
+      <button class="modal-close" onclick="closePwdModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="pwdUsername" disabled>
+      </div>
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="pwdNewPassword" placeholder="Min 6 characters">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closePwdModal()">Cancel</button>
+      <button class="btn-save" onclick="changePassword()">Update Password</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+let allUsers = [];
+let allApps = [];
+let allSites = [];
+let editingUser = null;
+let importData = [];
+
+// Get auth token from parent window
+function getToken() {
+  try {
+    // Same-origin iframe can access parent's JS variables directly
+    if (window.parent && window.parent.authToken) return window.parent.authToken;
+  } catch (e) {}
+  try {
+    // Fallback: try parent's sessionStorage
+    const t = window.parent.sessionStorage.getItem('authToken');
+    if (t) return t;
+  } catch (e) {}
+  try {
+    return sessionStorage.getItem('authToken') || '';
+  } catch (e) {}
+  return '';
+}
+
+async function apiFetch(url, opts = {}) {
+  const token = getToken();
+  if (!opts.headers) opts.headers = {};
+  opts.headers['Authorization'] = 'Bearer ' + token;
+  if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  return fetch(url, opts);
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg;
+  el.className = 'toast toast-' + (type || 'info') + ' show';
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ========== LOAD DATA ==========
+async function loadAll() {
+  try {
+    const [usersRes, appsRes, sitesRes] = await Promise.all([
+      apiFetch('/api/users'),
+      apiFetch('/api/apps'),
+      apiFetch('/users/api/all-sites')
+    ]);
+    if (usersRes.status === 401) {
+      document.getElementById('tableContainer').innerHTML =
+        '<div class="empty-state"><div class="icon">&#128274;</div><p>Session expired — please log in again</p></div>';
+      return;
+    }
+    allUsers = await usersRes.json();
+    const appsData = await appsRes.json();
+    allApps = appsData.apps || [];
+    allSites = await sitesRes.json();
+    updateStats();
+    renderTable(allUsers);
+  } catch (e) {
+    console.error('loadAll error:', e);
+    document.getElementById('tableContainer').innerHTML =
+      '<div class="empty-state"><div class="icon">&#9888;</div><p>Failed to load data</p></div>';
+  }
+}
+
+function updateStats() {
+  document.getElementById('totalUsers').textContent = allUsers.length;
+  document.getElementById('superAdminCount').textContent = allUsers.filter(u => u.role === 'superadmin').length;
+  document.getElementById('adminCount').textContent = allUsers.filter(u => u.role === 'admin').length;
+  document.getElementById('userCount').textContent = allUsers.filter(u => u.role === 'user').length;
+}
+
+function renderTable(users) {
+  const container = document.getElementById('tableContainer');
+  if (users.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">&#128101;</div><p>No users found</p></div>';
+    return;
+  }
+
+  let html = `<table class="user-table">
+    <thead><tr>
+      <th>#</th>
+      <th>Username</th>
+      <th>Role</th>
+      <th>Allowed Apps</th>
+      <th>Allowed Sites</th>
+      <th>Actions</th>
+    </tr></thead><tbody>`;
+
+  users.forEach((u, i) => {
+    const roleBadge = `<span class="badge badge-${u.role}">${u.role === 'superadmin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'User'}</span>`;
+
+    const appTags = (u.allowedApps || []).map(aid => {
+      const app = allApps.find(a => a.id === aid);
+      return `<span class="tag tag-app">${app ? escHtml(app.name) : 'App #' + aid}</span>`;
+    }).join('') || '<span style="color:#999;font-size:11px;">All / None</span>';
+
+    const siteTags = (u.allowedSites || []).map(sid => {
+      const site = allSites.find(s => s.id === sid);
+      if (!site) return `<span class="tag tag-site">${escHtml(sid)}</span>`;
+      const app = allApps.find(a => a.id === site.app_id);
+      const appSuffix = app ? ' (' + escHtml(app.name) + ')' : '';
+      return `<span class="tag tag-site">${escHtml(site.name)}${appSuffix}</span>`;
+    }).join('') || '<span style="color:#999;font-size:11px;">All / None</span>';
+
+    html += `<tr>
+      <td style="text-align:center;font-weight:bold;color:#1a3a5c;">${i + 1}</td>
+      <td><strong>${escHtml(u.username)}</strong></td>
+      <td>${roleBadge}</td>
+      <td>${appTags}</td>
+      <td>${siteTags}</td>
+      <td>
+        <button class="action-btn btn-edit" onclick="openEditModal('${escAttr(u.username)}')">Edit</button>
+        <button class="action-btn btn-pwd" onclick="openPwdModal('${escAttr(u.username)}')">Password</button>
+        <button class="action-btn btn-delete" onclick="deleteUser('${escAttr(u.username)}')">Delete</button>
+      </td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function filterUsers() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  if (!q) { renderTable(allUsers); return; }
+  const filtered = allUsers.filter(u => {
+    if (u.username.toLowerCase().includes(q)) return true;
+    if (u.role.toLowerCase().includes(q)) return true;
+    if ((u.allowedApps || []).some(aid => {
+      const app = allApps.find(a => a.id === aid);
+      return app && app.name.toLowerCase().includes(q);
+    })) return true;
+    if ((u.allowedSites || []).some(sid => sid.toLowerCase().includes(q))) return true;
+    return false;
+  });
+  renderTable(filtered);
+}
+
+// ========== ADD / EDIT USER ==========
+function openAddModal() {
+  editingUser = null;
+  document.getElementById('modalTitle').textContent = 'Add User';
+  document.getElementById('modalUsername').value = '';
+  document.getElementById('modalUsername').disabled = false;
+  document.getElementById('modalPassword').value = '';
+  document.getElementById('passwordGroup').style.display = '';
+  document.getElementById('modalRole').value = 'user';
+  renderModalCheckboxes([], []);
+  document.getElementById('userModal').classList.remove('hidden');
+}
+
+function openEditModal(username) {
+  const user = allUsers.find(u => u.username === username);
+  if (!user) return;
+  editingUser = username;
+  document.getElementById('modalTitle').textContent = 'Edit User — ' + username;
+  document.getElementById('modalUsername').value = username;
+  document.getElementById('modalUsername').disabled = true;
+  document.getElementById('modalPassword').value = '';
+  document.getElementById('passwordGroup').style.display = 'none';
+  document.getElementById('modalRole').value = user.role;
+  renderModalCheckboxes(user.allowedApps || [], user.allowedSites || []);
+  document.getElementById('userModal').classList.remove('hidden');
+}
+
+function renderModalCheckboxes(selectedApps, selectedSites) {
+  const appsDiv = document.getElementById('modalApps');
+  const assignableApps = allApps.filter(a => !a.isBuiltin);
+  if (assignableApps.length === 0) {
+    appsDiv.innerHTML = '<span style="color:#999;font-size:11px;">No assignable apps</span>';
+  } else {
+    appsDiv.innerHTML = assignableApps.map(a =>
+      `<label><input type="checkbox" value="${a.id}" ${selectedApps.includes(a.id) ? 'checked' : ''}> ${escHtml(a.name)}</label>`
+    ).join('');
+  }
+
+  const sitesDiv = document.getElementById('modalSites');
+  if (allSites.length === 0) {
+    sitesDiv.innerHTML = '<span style="color:#999;font-size:11px;">No sites available</span>';
+  } else {
+    sitesDiv.innerHTML = allSites.map(s => {
+      const app = allApps.find(a => a.id === s.app_id);
+      const appLabel = app ? ' <span style="color:#999;font-size:10px;">(' + escHtml(app.name) + ')</span>' : '';
+      return `<label><input type="checkbox" value="${escAttr(s.id)}" ${selectedSites.includes(s.id) ? 'checked' : ''}> ${escHtml(s.name)}${appLabel}</label>`;
+    }).join('');
+  }
+}
+
+function closeModal() {
+  document.getElementById('userModal').classList.add('hidden');
+  editingUser = null;
+}
+
+async function saveUser() {
+  const username = document.getElementById('modalUsername').value.trim();
+  const password = document.getElementById('modalPassword').value;
+  const role = document.getElementById('modalRole').value;
+  const allowedApps = [...document.querySelectorAll('#modalApps input:checked')].map(cb => parseInt(cb.value));
+  const allowedSites = [...document.querySelectorAll('#modalSites input:checked')].map(cb => cb.value);
+
+  if (!username) { toast('Username required', 'error'); return; }
+
+  if (editingUser) {
+    // Update role + access
+    try {
+      const res = await apiFetch('/api/users/' + encodeURIComponent(editingUser) + '/role', {
+        method: 'PUT', body: { role, allowedSites }
+      });
+      if (!res.ok) { const d = await res.json(); toast(d.error, 'error'); return; }
+
+      await apiFetch('/api/users/' + encodeURIComponent(editingUser) + '/access', {
+        method: 'PUT', body: { allowedSites, allowedApps }
+      });
+
+      toast('User updated', 'success');
+    } catch (e) { toast('Failed to update user', 'error'); return; }
+  } else {
+    // Create new user
+    if (!password || password.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
+    try {
+      const res = await apiFetch('/api/users', {
+        method: 'POST', body: { username, password, role, allowedSites, allowedApps }
+      });
+      if (!res.ok) { const d = await res.json(); toast(d.error, 'error'); return; }
+      toast('User created', 'success');
+    } catch (e) { toast('Failed to create user', 'error'); return; }
+  }
+
+  closeModal();
+  await loadAll();
+}
+
+async function deleteUser(username) {
+  if (!confirm('Delete user "' + username + '"? This cannot be undone.')) return;
+  try {
+    const res = await apiFetch('/api/users/' + encodeURIComponent(username), { method: 'DELETE' });
+    if (!res.ok) { const d = await res.json(); toast(d.error, 'error'); return; }
+    toast('User deleted', 'success');
+    await loadAll();
+  } catch (e) { toast('Failed to delete user', 'error'); }
+}
+
+// ========== PASSWORD ==========
+function openPwdModal(username) {
+  document.getElementById('pwdUsername').value = username;
+  document.getElementById('pwdNewPassword').value = '';
+  document.getElementById('pwdModal').classList.remove('hidden');
+}
+
+function closePwdModal() {
+  document.getElementById('pwdModal').classList.add('hidden');
+}
+
+async function changePassword() {
+  const username = document.getElementById('pwdUsername').value;
+  const password = document.getElementById('pwdNewPassword').value;
+  if (!password || password.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
+  try {
+    const res = await apiFetch('/api/users/' + encodeURIComponent(username) + '/password', {
+      method: 'PUT', body: { password }
+    });
+    if (!res.ok) { const d = await res.json(); toast(d.error, 'error'); return; }
+    toast('Password updated', 'success');
+    closePwdModal();
+  } catch (e) { toast('Failed to change password', 'error'); }
+}
+
+// ========== EXPORT ==========
+async function exportUsers() {
+  try {
+    const res = await apiFetch('/users/api/export');
+    if (!res.ok) { toast('Export failed', 'error'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'users-export.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Users exported', 'success');
+  } catch (e) { toast('Export failed', 'error'); }
+}
+
+// ========== IMPORT ==========
+async function handleImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await apiFetch('/users/api/import-preview', { method: 'POST', body: formData });
+    if (!res.ok) { const d = await res.json(); toast(d.error || 'Import failed', 'error'); return; }
+    importData = await res.json();
+    renderImportPreview();
+    document.getElementById('importModal').classList.remove('hidden');
+  } catch (e) { toast('Failed to read file', 'error'); }
+}
+
+function renderImportPreview() {
+  const container = document.getElementById('importPreview');
+  if (!importData.users || importData.users.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>No users found in file</p></div>';
+    document.getElementById('importSummary').textContent = '';
+    return;
+  }
+
+  let html = `<table><thead><tr>
+    <th>Status</th><th>Username</th><th>Role</th><th>Password</th><th>Apps</th><th>Sites</th>
+  </tr></thead><tbody>`;
+
+  importData.users.forEach(u => {
+    const status = u.exists ? '<span class="badge badge-admin">Update</span>' : '<span class="badge badge-user">New</span>';
+    html += `<tr>
+      <td>${status}</td>
+      <td><strong>${escHtml(u.username)}</strong></td>
+      <td>${escHtml(u.role)}</td>
+      <td>${u.password ? '***' : '<span style="color:#999">unchanged</span>'}</td>
+      <td>${escHtml(u.allowedApps || '-')}</td>
+      <td>${escHtml(u.allowedSites || '-')}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+
+  const newCount = importData.users.filter(u => !u.exists).length;
+  const updateCount = importData.users.filter(u => u.exists).length;
+  document.getElementById('importSummary').textContent = `${newCount} new user(s) will be created, ${updateCount} existing user(s) will be updated.`;
+}
+
+function closeImportModal() {
+  document.getElementById('importModal').classList.add('hidden');
+  importData = [];
+}
+
+async function confirmImport() {
+  try {
+    const res = await apiFetch('/users/api/import', {
+      method: 'POST',
+      body: { users: importData.users }
+    });
+    if (!res.ok) { const d = await res.json(); toast(d.error || 'Import failed', 'error'); return; }
+    const result = await res.json();
+    toast(`Imported: ${result.created} created, ${result.updated} updated`, 'success');
+    closeImportModal();
+    await loadAll();
+  } catch (e) { toast('Import failed', 'error'); }
+}
+
+// ========== HELPERS ==========
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+function escAttr(str) {
+  return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// Init
+loadAll();
+</script>
+</body>
+</html>

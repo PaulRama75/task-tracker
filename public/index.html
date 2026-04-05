@@ -147,6 +147,47 @@ input:focus,select:focus{border-color:var(--accent)}
 .site-pill .pill-delete{display:none;position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:10px;line-height:16px;text-align:center;cursor:pointer}
 .site-pill:hover .pill-delete{display:block}
 .site-actions{margin-left:auto;display:flex;gap:6px}
+/* ===== SIDEBAR ===== */
+.app-layout{display:flex;height:calc(100vh - 60px);overflow:hidden}
+.sidebar{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .25s ease,min-width .25s ease;overflow:hidden;z-index:10}
+.sidebar.collapsed{width:56px;min-width:56px}
+.sidebar-header{padding:12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.sidebar-toggle{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:4px;transition:.2s}
+.sidebar-toggle:hover{background:var(--surface2);color:var(--text)}
+.sidebar-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:600;white-space:nowrap;overflow:hidden}
+.sidebar.collapsed .sidebar-title{display:none}
+.sidebar-nav{flex:1;overflow-y:auto;padding:8px 0}
+.sidebar-item{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;transition:.15s;color:var(--text-dim);font-size:13px;font-weight:500;white-space:nowrap;border-left:3px solid transparent;position:relative}
+.sidebar-item:hover{background:var(--surface2);color:var(--text)}
+.sidebar-item.active{color:var(--accent);background:rgba(33,150,243,.08);border-left-color:var(--accent)}
+.sidebar-item .sidebar-icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.sidebar-item .sidebar-label{overflow:hidden;text-overflow:ellipsis}
+.sidebar.collapsed .sidebar-label{display:none}
+.sidebar.collapsed .sidebar-item{justify-content:center;padding:10px 0}
+.sidebar.collapsed .sidebar-item .sidebar-icon{width:100%}
+.sidebar-item .sidebar-delete{display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--danger);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;line-height:18px;text-align:center;cursor:pointer}
+.sidebar-item:hover .sidebar-delete{display:block}
+.sidebar.collapsed .sidebar-delete{display:none!important}
+.sidebar-footer{padding:8px;border-top:1px solid var(--border)}
+.sidebar-footer .btn{width:100%;justify-content:center;font-size:12px}
+.sidebar.collapsed .sidebar-footer .btn span{display:none}
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.main-area .tabs{flex-shrink:0}
+.main-area .site-bar{flex-shrink:0}
+.main-area .section-bar{flex-shrink:0}
+.main-area .content{flex:1;overflow-y:auto}
+/* App placeholder page */
+.app-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-dim);gap:16px}
+.app-placeholder .placeholder-icon{font-size:64px;opacity:.3}
+.app-placeholder h2{font-size:24px;color:var(--text);font-weight:600}
+.app-placeholder p{font-size:14px;max-width:400px;text-align:center;line-height:1.6}
+/* Manage Apps Modal */
+.app-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.app-row:last-child{border-bottom:none}
+.app-row .app-info{display:flex;align-items:center;gap:10px;font-size:14px}
+.app-row .app-info .app-icon-preview{font-size:18px;width:28px;text-align:center}
+.app-row .app-builtin{font-size:10px;color:var(--text-dim);background:var(--surface2);padding:2px 8px;border-radius:10px}
+@media(max-width:768px){.sidebar{width:56px;min-width:56px}.sidebar .sidebar-label{display:none}.sidebar .sidebar-title{display:none}.sidebar .sidebar-footer .btn span{display:none}}
 </style>
 </head>
 <body>
@@ -181,6 +222,10 @@ input:focus,select:focus{border-color:var(--accent)}
       <span style="font-size:11px;color:var(--text-dim)">Allowed Sites (leave empty = all):</span>
       <div id="newUserSiteChecks" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
     </div>
+    <div id="newUserAppsWrap" class="add-user-form" style="display:none;border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+      <span style="font-size:11px;color:var(--text-dim)">Allowed Apps (leave empty = all):</span>
+      <div id="newUserAppChecks" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+    </div>
     <div class="add-user-form" style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
       <span style="font-size:12px;color:var(--text-dim)">Change password:</span>
       <select id="cpUser" style="width:120px"></select>
@@ -194,8 +239,9 @@ input:focus,select:focus{border-color:var(--accent)}
 <div id="appContainer" style="display:none">
 <div class="header">
   <div style="display:flex;align-items:center;gap:12px">
+    <button class="sidebar-toggle" id="sidebarToggleBtn" onclick="toggleSidebar()" title="Toggle Sidebar">&#9776;</button>
     <img src="/logo.png" alt="RAMI Scope" style="height:40px">
-    <h1><span>Task</span> Tracker</h1>
+    <h1 id="headerAppTitle"><span>Task</span> Tracker</h1>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <span id="saveIndicator" style="font-size:11px;color:var(--text-dim);margin-right:8px">Loading...</span>
@@ -210,6 +256,21 @@ input:focus,select:focus{border-color:var(--accent)}
     </div>
   </div>
 </div>
+<div class="app-layout">
+<!-- SIDEBAR -->
+<div class="sidebar" id="appSidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-title">Applications</span>
+  </div>
+  <div class="sidebar-nav" id="sidebarNav"></div>
+  <div class="sidebar-footer" id="sidebarFooter" style="display:none">
+    <button class="btn btn-outline btn-sm" onclick="openManageAppsModal()"><span>Manage Apps</span> &#9881;</button>
+  </div>
+</div>
+<!-- MAIN AREA -->
+<div class="main-area">
+<!-- Task Tracker Content (shown when Task Tracker app is active) -->
+<div id="taskTrackerApp">
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('setup')">Setup</button>
   <button class="tab-btn" onclick="switchTab('tracker')">Tracker</button>
@@ -533,11 +594,57 @@ input:focus,select:focus{border-color:var(--accent)}
 </div>
 
 </div>
+</div><!-- /taskTrackerApp -->
+<!-- Custom App Placeholder (shown when a custom app is active) -->
+<div id="customAppPlaceholder" style="display:none">
+  <div class="content" style="height:100%">
+    <div class="app-placeholder">
+      <div class="placeholder-icon" id="placeholderIcon">&#128194;</div>
+      <h2 id="placeholderTitle">Application</h2>
+      <p id="placeholderDesc">This module is ready for development. Contact your Super Admin to configure this application.</p>
+      <span style="font-size:12px;color:var(--text-dim);background:var(--surface2);padding:6px 16px;border-radius:20px">Coming Soon</span>
+    </div>
+  </div>
+</div>
+<div id="safetyAppFrame" style="display:none">
+  <iframe id="safetyIframe" src="/safety/" style="width:100%;height:calc(100vh - 48px);border:none;"></iframe>
+</div>
+<div id="usersAppFrame" style="display:none">
+  <iframe id="usersIframe" src="/users/" style="width:100%;height:calc(100vh - 48px);border:none;"></iframe>
+</div>
+</div><!-- /main-area -->
+</div><!-- /app-layout -->
 </div><!-- /appContainer -->
+
+<!-- MANAGE APPS MODAL -->
+<div id="manageAppsModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Manage Applications <button class="close-btn" onclick="closeManageAppsModal()">&times;</button></h3>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:16px">Add, rename, or remove application modules from the sidebar.</p>
+    <div id="appsListContainer"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <input id="newAppName" placeholder="App Name" style="flex:1;padding:8px 12px;font-size:13px">
+      <select id="newAppIcon" style="padding:8px 12px;font-size:13px;width:120px">
+        <option value="clipboard">&#128203; Clipboard</option>
+        <option value="folder">&#128194; Folder</option>
+        <option value="chart">&#128200; Chart</option>
+        <option value="shield">&#128737; Shield</option>
+        <option value="exchange">&#128260; Exchange</option>
+        <option value="gear">&#9881; Gear</option>
+        <option value="doc">&#128196; Document</option>
+        <option value="tool">&#128295; Tool</option>
+        <option value="star">&#11088; Star</option>
+        <option value="bolt">&#9889; Bolt</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="addNewApp()">+ Add App</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ========== AUTH STATE ==========
 let authToken = sessionStorage.getItem('authToken') || '';
+window.authToken = authToken; // expose for iframes
 let currentUser = null; // { username, role }
 
 function authHeaders() {
@@ -567,8 +674,9 @@ async function doLogin() {
     const data = await res.json();
     if (data.ok) {
       authToken = data.token;
+      window.authToken = authToken;
       sessionStorage.setItem('authToken', authToken);
-      currentUser = { username: data.username, role: data.role, allowedSites: data.allowedSites || [] };
+      currentUser = { username: data.username, role: data.role, allowedSites: data.allowedSites || [], allowedApps: data.allowedApps || [] };
       showApp();
     } else {
       errEl.textContent = data.error || 'Login failed';
@@ -602,7 +710,7 @@ async function checkSession() {
   }
 }
 
-function showApp() {
+async function showApp() {
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('appContainer').style.display = '';
   // Update header
@@ -650,8 +758,36 @@ function showApp() {
   const siteActions = document.getElementById('siteActions');
   if (siteActions) siteActions.style.display = isSuperAdmin ? '' : 'none';
 
-  loadSites();
-  loadState();
+  await loadApps();
+  // Show the correct app on initial load
+  const activeApp = appModules.find(a => a.id === activeAppId);
+  const activeAppName = activeApp ? activeApp.name.toLowerCase() : '';
+  const titleEl = document.getElementById('headerAppTitle');
+  if (activeAppName === 'safety') {
+    document.getElementById('taskTrackerApp').style.display = 'none';
+    document.getElementById('customAppPlaceholder').style.display = 'none';
+    document.getElementById('usersAppFrame').style.display = 'none';
+    document.getElementById('safetyAppFrame').style.display = '';
+    document.getElementById('safetyIframe').src = '/safety/';
+    if (titleEl) titleEl.innerHTML = '<span>Safety</span>';
+  } else if (activeAppName === 'users') {
+    document.getElementById('taskTrackerApp').style.display = 'none';
+    document.getElementById('customAppPlaceholder').style.display = 'none';
+    document.getElementById('safetyAppFrame').style.display = 'none';
+    document.getElementById('usersAppFrame').style.display = '';
+    document.getElementById('usersIframe').src = '/users/';
+    if (titleEl) titleEl.innerHTML = '<span>Users</span>';
+  } else if (activeAppName === 'task tracker') {
+    document.getElementById('safetyAppFrame').style.display = 'none';
+    document.getElementById('usersAppFrame').style.display = 'none';
+    document.getElementById('customAppPlaceholder').style.display = 'none';
+    if (titleEl) titleEl.innerHTML = '<span>Task Tracker</span>';
+    loadSites();
+    loadState();
+  } else {
+    loadSites();
+    loadState();
+  }
 }
 
 // ========== USER MANAGEMENT ==========
@@ -675,12 +811,16 @@ async function refreshUserList() {
       const sitesLabel = (u.allowedSites && u.allowedSites.length > 0)
         ? u.allowedSites.map(sid => { const s = sitesList.find(ss => ss.id === sid); return s ? s.name : sid; }).join(', ')
         : 'All Sites';
+      const appsLabel = (u.allowedApps && u.allowedApps.length > 0)
+        ? u.allowedApps.map(aid => { const a = appModules.find(aa => aa.id === aid); return a ? a.name : 'App #' + aid; }).join(', ')
+        : 'All Apps';
       const isMe = u.username === currentUser.username;
       return `<div class="user-row">
         <div class="user-info" style="flex:1">
           <strong>${esc(u.username)}</strong>
           <span class="role-badge ${u.role}">${esc(roleLabel)}</span>
-          ${u.role !== 'superadmin' ? `<span style="font-size:10px;color:var(--text-dim);margin-left:4px">📍 ${esc(sitesLabel)}</span>` : ''}
+          ${u.role !== 'superadmin' ? `<span style="font-size:10px;color:var(--text-dim);margin-left:4px">📍 ${esc(sitesLabel)}</span>
+          <span style="font-size:10px;color:var(--text-dim);margin-left:4px">📱 ${esc(appsLabel)}</span>` : ''}
         </div>
         <div class="user-actions">
           ${!isMe && isSuperAdmin ? `
@@ -689,7 +829,7 @@ async function refreshUserList() {
               <option value="admin"${u.role === 'admin' ? ' selected' : ''}>Admin</option>
               <option value="superadmin"${u.role === 'superadmin' ? ' selected' : ''}>Super Admin</option>
             </select>
-            <button class="btn btn-outline btn-sm" onclick="openSiteAccessModal('${esc(u.username)}')">Sites</button>
+            <button class="btn btn-outline btn-sm" onclick="openAccessModal('${esc(u.username)}')">Access</button>
             <button class="btn btn-danger btn-sm" onclick="deleteUser('${esc(u.username)}')">Delete</button>
           ` : isMe ? '<span style="font-size:11px;color:var(--text-dim)">(you)</span>' : ''}
         </div>
@@ -711,11 +851,14 @@ async function createUser() {
   // Gather allowed sites from checkboxes
   const allowedSites = [];
   document.querySelectorAll('#newUserSiteChecks input[type=checkbox]:checked').forEach(cb => allowedSites.push(cb.value));
+  // Gather allowed apps from checkboxes
+  const allowedApps = [];
+  document.querySelectorAll('#newUserAppChecks input[type=checkbox]:checked').forEach(cb => allowedApps.push(parseInt(cb.value)));
   try {
     const res = await authFetch('/api/users', {
       method: 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, role, allowedSites })
+      body: JSON.stringify({ username, password, role, allowedSites, allowedApps })
     });
     const data = await res.json();
     if (data.ok) {
@@ -729,60 +872,105 @@ async function createUser() {
 
 function toggleNewUserSites() {
   const role = document.getElementById('newRole').value;
-  const wrap = document.getElementById('newUserSitesWrap');
+  const siteWrap = document.getElementById('newUserSitesWrap');
+  const appWrap = document.getElementById('newUserAppsWrap');
   if (role === 'admin' || role === 'user') {
-    wrap.style.display = '';
-    const checks = document.getElementById('newUserSiteChecks');
-    checks.innerHTML = sitesList.map(s =>
+    siteWrap.style.display = '';
+    appWrap.style.display = '';
+    const siteChecks = document.getElementById('newUserSiteChecks');
+    siteChecks.innerHTML = sitesList.map(s =>
       `<label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer">
         <input type="checkbox" value="${esc(s.id)}">${esc(s.name)}
       </label>`
     ).join('');
+    const appChecks = document.getElementById('newUserAppChecks');
+    const customApps = appModules.filter(a => !a.isBuiltin);
+    const assignableApps = appModules.filter(a => !a.isBuiltin);
+    appChecks.innerHTML = assignableApps.length ? assignableApps.map(a =>
+      `<label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" value="${a.id}">${esc(a.name)}
+      </label>`
+    ).join('') : '<span style="font-size:10px;color:var(--text-dim)">No assignable apps yet (Safety is always accessible)</span>';
   } else {
-    wrap.style.display = 'none';
+    siteWrap.style.display = 'none';
+    appWrap.style.display = 'none';
   }
 }
 
 function openSiteAccessModal(username) {
+  openAccessModal(username);
+}
+
+function openAccessModal(username) {
   const user = (window._usersList || []).find(u => u.username === username);
   if (!user) return;
   const currentSites = user.allowedSites || [];
-  const html = sitesList.map(s => {
+  const currentApps = (user.allowedApps || []).map(Number);
+  const assignableApps = appModules.filter(a => !a.isBuiltin);
+
+  const sitesHtml = sitesList.map(s => {
     const checked = currentSites.includes(s.id) ? ' checked' : '';
     return `<label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0">
       <input type="checkbox" value="${esc(s.id)}" class="site-access-cb"${checked}>${esc(s.name)}
     </label>`;
   }).join('');
+
+  const appsHtml = assignableApps.length ? assignableApps.map(a => {
+    const checked = currentApps.includes(a.id) ? ' checked' : '';
+    return `<label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0">
+      <input type="checkbox" value="${a.id}" class="app-access-cb"${checked}>
+      <span>${getAppIcon(a.icon)}</span> ${esc(a.name)}
+    </label>`;
+  }).join('') : '<span style="font-size:11px;color:var(--text-dim)">No assignable apps yet</span>';
+
   const dialog = document.createElement('div');
   dialog.className = 'modal-overlay';
-  dialog.innerHTML = `<div class="modal" style="max-width:350px">
-    <h3>Site Access: ${esc(username)} <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button></h3>
-    <p style="font-size:11px;color:var(--text-dim);margin-bottom:12px">Leave all unchecked for access to all sites</p>
-    <div style="max-height:250px;overflow-y:auto">${html}</div>
-    <div style="margin-top:12px;text-align:right">
-      <button class="btn btn-primary btn-sm" onclick="saveSiteAccess('${esc(username)}',this)">Save</button>
+  dialog.innerHTML = `<div class="modal" style="max-width:420px">
+    <h3>Access: ${esc(username)} <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button></h3>
+
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--accent)">📍 Site Access</div>
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Leave all unchecked for access to all sites</p>
+      <div style="max-height:150px;overflow-y:auto;padding-left:4px">${sitesHtml}</div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:16px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--accent)">📱 Application Access</div>
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Leave all unchecked for access to all apps. Safety is always accessible to everyone.</p>
+      <div style="max-height:150px;overflow-y:auto;padding-left:4px">${appsHtml}</div>
+    </div>
+
+    <div style="margin-top:16px;text-align:right;border-top:1px solid var(--border);padding-top:12px">
+      <button class="btn btn-outline btn-sm" onclick="this.closest('.modal-overlay').remove()" style="margin-right:8px">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveAccess('${esc(username)}',this)">Save Access</button>
     </div>
   </div>`;
   document.body.appendChild(dialog);
 }
 
-async function saveSiteAccess(username, btn) {
+async function saveAccess(username, btn) {
   const dialog = btn.closest('.modal-overlay');
   const allowedSites = [];
   dialog.querySelectorAll('.site-access-cb:checked').forEach(cb => allowedSites.push(cb.value));
+  const allowedApps = [];
+  dialog.querySelectorAll('.app-access-cb:checked').forEach(cb => allowedApps.push(parseInt(cb.value)));
   try {
-    const res = await authFetch('/api/users/' + encodeURIComponent(username) + '/sites', {
+    const res = await authFetch('/api/users/' + encodeURIComponent(username) + '/access', {
       method: 'PUT',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ allowedSites })
+      body: JSON.stringify({ allowedSites, allowedApps })
     });
     const data = await res.json();
     if (data.ok) {
-      toast('Site access updated for ' + username, 'success');
+      toast('Access updated for ' + username, 'success');
       dialog.remove();
       refreshUserList();
     } else toast(data.error, 'error');
-  } catch (e) { toast('Failed to update site access', 'error'); }
+  } catch (e) { toast('Failed to update access', 'error'); }
+}
+
+async function saveSiteAccess(username, btn) {
+  await saveAccess(username, btn);
 }
 
 async function deleteUser(username) {
@@ -844,6 +1032,12 @@ function renderSiteBar() {
   const pills = document.getElementById('sitePills');
   if (!pills) return;
   const isSuperAdmin = currentUser && currentUser.role === 'superadmin';
+  if (!isSuperAdmin && sitesList.length === 0) {
+    pills.innerHTML = '<span style="color:#999;font-size:12px;padding:4px 10px;">No sites assigned — contact your Super Admin</span>';
+    const actions = document.getElementById('siteActions');
+    if (actions) actions.style.display = 'none';
+    return;
+  }
   pills.innerHTML = sitesList.map(s => {
     const active = s.id === activeSiteId;
     return `<button class="site-pill${active ? ' active' : ''}" onclick="switchSite('${esc(s.id)}')">
@@ -2339,7 +2533,281 @@ function updateBillingComparison() {
   });
 }
 
+// ========== SIDEBAR / APP MODULES ==========
+let appModules = [];
+let activeAppId = null;
+
+const APP_ICONS = {
+  clipboard: '&#128203;',
+  folder: '&#128194;',
+  chart: '&#128200;',
+  shield: '&#128737;',
+  exchange: '&#128260;',
+  gear: '&#9881;',
+  doc: '&#128196;',
+  tool: '&#128295;',
+  star: '&#11088;',
+  bolt: '&#9889;',
+  users: '&#128101;'
+};
+
+function getAppIcon(icon) {
+  return APP_ICONS[icon] || APP_ICONS.folder;
+}
+
+async function loadApps() {
+  try {
+    const res = await authFetch('/api/apps');
+    const data = await res.json();
+    appModules = data.apps || [];
+    if (appModules.length > 0 && !activeAppId) {
+      // Default to Safety if available, otherwise first app
+      const safety = appModules.find(a => a.name.toLowerCase() === 'safety');
+      activeAppId = safety ? safety.id : appModules[0].id;
+    }
+    renderSidebar();
+  } catch (e) { console.error('Failed to load apps:', e); }
+}
+
+function renderSidebar() {
+  const nav = document.getElementById('sidebarNav');
+  if (!nav) return;
+  const isSuperAdmin = currentUser && currentUser.role === 'superadmin';
+
+  nav.innerHTML = appModules.map(app => {
+    const active = app.id === activeAppId;
+    return `<div class="sidebar-item${active ? ' active' : ''}" onclick="switchApp(${app.id})" title="${esc(app.name)}">
+      <div class="sidebar-icon">${getAppIcon(app.icon)}</div>
+      <span class="sidebar-label">${esc(app.name)}</span>
+      ${!app.isBuiltin && isSuperAdmin ? `<button class="sidebar-delete" onclick="event.stopPropagation();deleteAppFromSidebar(${app.id})" title="Remove">&times;</button>` : ''}
+    </div>`;
+  }).join('');
+
+  // Show manage apps button for superadmin
+  const footer = document.getElementById('sidebarFooter');
+  if (footer) footer.style.display = isSuperAdmin ? '' : 'none';
+}
+
+async function switchApp(appId) {
+  if (appId === activeAppId) {
+    const app2 = appModules.find(a => a.id === appId);
+    const appName = app2 ? app2.name.toLowerCase() : '';
+    if (appName === 'safety' && document.getElementById('safetyAppFrame').style.display !== 'none') return;
+    if (appName === 'users' && document.getElementById('usersAppFrame').style.display !== 'none') return;
+    if (appName === 'task tracker' && document.getElementById('taskTrackerApp').style.display !== 'none') return;
+    if (!['safety','users','task tracker'].includes(appName) && document.getElementById('customAppPlaceholder').style.display !== 'none') return;
+  }
+  activeAppId = appId;
+  const app = appModules.find(a => a.id === appId);
+  renderSidebar();
+
+  const trackerApp = document.getElementById('taskTrackerApp');
+  const titleEl = document.getElementById('headerAppTitle');
+  const safetyFrame = document.getElementById('safetyAppFrame');
+  const customPlaceholder = document.getElementById('customAppPlaceholder');
+
+  if (titleEl && app) titleEl.innerHTML = '<span>' + esc(app.name) + '</span>';
+
+  const usersFrame = document.getElementById('usersAppFrame');
+
+  // Check if this is the Safety app
+  if (app && app.name.toLowerCase() === 'safety') {
+    trackerApp.style.display = 'none';
+    customPlaceholder.style.display = 'none';
+    safetyFrame.style.display = '';
+    usersFrame.style.display = 'none';
+    const iframe = document.getElementById('safetyIframe');
+    iframe.src = '/safety/';
+    toast('Switched to Safety', 'success');
+    return;
+  }
+
+  // Check if this is Users app
+  if (app && app.name.toLowerCase() === 'users') {
+    trackerApp.style.display = 'none';
+    customPlaceholder.style.display = 'none';
+    safetyFrame.style.display = 'none';
+    usersFrame.style.display = '';
+    const iframe = document.getElementById('usersIframe');
+    iframe.src = '/users/';
+    toast('Switched to Users', 'success');
+    return;
+  }
+
+  // Check if this is Task Tracker — show tracker UI
+  if (app && app.name.toLowerCase() === 'task tracker') {
+    trackerApp.style.display = '';
+    customPlaceholder.style.display = 'none';
+    safetyFrame.style.display = 'none';
+    usersFrame.style.display = 'none';
+
+    // Call server to switch app — loads that app's sites & state
+    try {
+    const res = await authFetch('/api/apps/' + appId + '/switch', { method: 'POST' });
+    if (res.status === 403) {
+      const err = await res.json();
+      toast(err.error || 'No access to this application', 'error');
+      return;
+    }
+    if (res.ok) {
+      const data = await res.json();
+      sitesList = data.sites || [];
+      activeSiteId = data.activeSiteId || '';
+      state = data.state || getDefaultState();
+      if (!state.sections) state.sections = { 'Default': { weights: [], infoCols: [], taskCols: [], rows: [], originalHeaders: [] } };
+      if (!state.activeSection || !state.sections[state.activeSection]) {
+        state.activeSection = Object.keys(state.sections)[0] || 'Default';
+      }
+      if (!state.initials) state.initials = [];
+      if (!state.billing) state.billing = {};
+      if (!state.page) state.page = 0;
+      if (!state.pageSize) state.pageSize = 100;
+      editorIdx = -1;
+      document.getElementById('pageSizeSelect').value = state.pageSize || 100;
+      renderSiteBar();
+      renderAfterLoad();
+      toast('Switched to ' + (app ? app.name : 'App'), 'success');
+    }
+  } catch (e) {
+    console.error('Failed to switch app:', e);
+    toast('Failed to switch app', 'error');
+  }
+    return;
+  }
+
+  // All other apps — show "Coming Soon" placeholder
+  trackerApp.style.display = 'none';
+  safetyFrame.style.display = 'none';
+  usersFrame.style.display = 'none';
+  customPlaceholder.style.display = '';
+  document.getElementById('placeholderTitle').textContent = app ? app.name : 'Application';
+  document.getElementById('placeholderIcon').innerHTML = app ? getAppIcon(app.icon) : '&#128194;';
+  document.getElementById('placeholderDesc').textContent = 'This module is under development and will be available soon.';
+  toast('Switched to ' + (app ? app.name : 'App'), 'success');
+}
+
+function getDefaultState() {
+  return {
+    initials: [],
+    sections: { 'Default': { weights: [], infoCols: [], taskCols: [], rows: [], originalHeaders: [] } },
+    activeSection: 'Default',
+    billing: { po: 0, rate: 0, timesheet: [] },
+    page: 0,
+    pageSize: 100
+  };
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  sidebar.classList.toggle('collapsed');
+  localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+}
+
+function restoreSidebarState() {
+  const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+  if (collapsed) {
+    document.getElementById('appSidebar').classList.add('collapsed');
+  }
+}
+
+// ===== Manage Apps Modal =====
+function openManageAppsModal() {
+  document.getElementById('manageAppsModal').classList.remove('hidden');
+  renderAppsListModal();
+}
+
+function closeManageAppsModal() {
+  document.getElementById('manageAppsModal').classList.add('hidden');
+}
+
+function renderAppsListModal() {
+  const container = document.getElementById('appsListContainer');
+  container.innerHTML = appModules.map(app => {
+    return `<div class="app-row">
+      <div class="app-info">
+        <span class="app-icon-preview">${getAppIcon(app.icon)}</span>
+        <strong>${esc(app.name)}</strong>
+        ${app.isBuiltin ? '<span class="app-builtin">Built-in</span>' : ''}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${!app.isBuiltin ? `
+          <button class="btn btn-outline btn-sm" onclick="renameApp(${app.id},'${esc(app.name)}')">Rename</button>
+          <button class="btn btn-danger btn-sm" onclick="removeApp(${app.id})">Delete</button>
+        ` : '<span style="font-size:11px;color:var(--text-dim)">Cannot modify</span>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addNewApp() {
+  const nameEl = document.getElementById('newAppName');
+  const iconEl = document.getElementById('newAppIcon');
+  const name = nameEl.value.trim();
+  if (!name) return toast('App name required', 'error');
+  try {
+    const res = await authFetch('/api/apps', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, icon: iconEl.value })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      appModules.push(data.app);
+      nameEl.value = '';
+      renderSidebar();
+      renderAppsListModal();
+      toast('App added: ' + name, 'success');
+    } else toast(data.error, 'error');
+  } catch (e) { toast('Failed to add app', 'error'); }
+}
+
+async function renameApp(id, currentName) {
+  const newName = prompt('Rename application:', currentName);
+  if (!newName || !newName.trim() || newName.trim() === currentName) return;
+  try {
+    const res = await authFetch('/api/apps/' + id, {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName.trim() })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const app = appModules.find(a => a.id === id);
+      if (app) app.name = newName.trim();
+      renderSidebar();
+      renderAppsListModal();
+      // Update header if this is the active app
+      if (activeAppId === id) switchApp(id);
+      toast('App renamed', 'success');
+    } else toast(data.error, 'error');
+  } catch (e) { toast('Failed to rename app', 'error'); }
+}
+
+async function removeApp(id) {
+  if (!confirm('Delete this application module?')) return;
+  try {
+    const res = await authFetch('/api/apps/' + id, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) {
+      appModules = appModules.filter(a => a.id !== id);
+      if (activeAppId === id) {
+        activeAppId = appModules[0]?.id || null;
+        if (activeAppId) switchApp(activeAppId);
+      }
+      renderSidebar();
+      renderAppsListModal();
+      toast('App removed', 'success');
+    } else toast(data.error, 'error');
+  } catch (e) { toast('Failed to remove app', 'error'); }
+}
+
+async function deleteAppFromSidebar(id) {
+  if (!confirm('Remove this application?')) return;
+  await removeApp(id);
+}
+
 // ========== INIT ==========
+restoreSidebarState();
 checkSession();
 </script>
 </body>
