@@ -593,6 +593,16 @@
     const btns = form.querySelectorAll('.btn-add-employee, .btn-add-row, .btn-remove-emp, .sig-clear');
     btns.forEach(b => b.style.display = 'none');
 
+    // Hide placeholder text from empty fields during PDF capture
+    const allInputs = form.querySelectorAll('input[placeholder], textarea[placeholder]');
+    const savedPlaceholders = [];
+    allInputs.forEach(el => {
+      if (!el.value && el.placeholder) {
+        savedPlaceholders.push({ el, ph: el.placeholder });
+        el.placeholder = '';
+      }
+    });
+
     // Convert signature canvases to images for capture
     const canvases = form.querySelectorAll('.sig-canvas');
     const swaps = [];
@@ -636,6 +646,8 @@
         img.remove();
       });
       btns.forEach(b => b.style.display = '');
+      // Restore placeholders
+      savedPlaceholders.forEach(({ el, ph }) => { el.placeholder = ph; });
     }
   }
 
