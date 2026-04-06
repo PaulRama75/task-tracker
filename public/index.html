@@ -204,11 +204,11 @@ input:focus,select:focus{border-color:var(--accent)}
     <div style="text-align:center;margin-bottom:16px"><img src="/logo.png" alt="RAMI Scope" style="height:60px"></div>
     <h2><span>Task</span> Tracker</h2>
     <div class="login-sub">Sign in to continue</div>
-    <label>Username</label>
-    <input type="text" id="loginUser" placeholder="Enter username" autofocus onkeydown="if(event.key==='Enter')doLogin()">
-    <label>Password</label>
-    <input type="password" id="loginPass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn btn-primary login-btn" onclick="doLogin()">Sign In</button>
+    <label for="loginUser">Username</label>
+    <input type="text" id="loginUser" placeholder="Enter username" autofocus onkeydown="if(event.key==='Enter')doLogin()" aria-label="Username">
+    <label for="loginPass">Password</label>
+    <input type="password" id="loginPass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()" aria-label="Password">
+    <button class="btn btn-primary login-btn" onclick="doLogin()" aria-label="Sign in to Task Tracker">Sign In</button>
     <div class="login-error" id="loginError"></div>
   </div>
 </div>
@@ -216,13 +216,13 @@ input:focus,select:focus{border-color:var(--accent)}
 <!-- USER MANAGEMENT MODAL -->
 <div id="userModal" class="modal-overlay hidden">
   <div class="modal">
-    <h3>Manage Users <button class="close-btn" onclick="closeUserModal()">&times;</button></h3>
+    <h3>Manage Users <button class="close-btn" onclick="closeUserModal()" aria-label="Close user management modal">&times;</button></h3>
     <div id="userList"></div>
     <div class="add-user-form">
-      <input id="newUsername" placeholder="Username" style="width:120px">
-      <input id="newPassword" type="password" placeholder="Password" style="width:120px">
-      <select id="newRole" style="width:120px" onchange="toggleNewUserSites()"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin">Super Admin</option></select>
-      <button class="btn btn-primary btn-sm" onclick="createUser()">Add User</button>
+      <input id="newUsername" placeholder="Username" style="width:120px" aria-label="New username">
+      <input id="newPassword" type="password" placeholder="Password" style="width:120px" aria-label="New user password">
+      <select id="newRole" style="width:120px" onchange="toggleNewUserSites()" aria-label="New user role"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin">Super Admin</option></select>
+      <button class="btn btn-primary btn-sm" onclick="createUser()" aria-label="Add new user">Add User</button>
     </div>
     <div id="newUserSitesWrap" class="add-user-form" style="display:none;border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
       <span style="font-size:11px;color:var(--text-dim)">Allowed Sites (leave empty = all):</span>
@@ -234,9 +234,9 @@ input:focus,select:focus{border-color:var(--accent)}
     </div>
     <div class="add-user-form" style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
       <span style="font-size:12px;color:var(--text-dim)">Change password:</span>
-      <select id="cpUser" style="width:120px"></select>
-      <input id="cpPass" type="password" placeholder="New password" style="width:120px">
-      <button class="btn btn-outline btn-sm" onclick="changePassword()">Update</button>
+      <select id="cpUser" style="width:120px" aria-label="Select user for password change"></select>
+      <input id="cpPass" type="password" placeholder="New password" style="width:120px" aria-label="New password">
+      <button class="btn btn-outline btn-sm" onclick="changePassword()" aria-label="Update password">Update</button>
     </div>
   </div>
 </div>
@@ -245,20 +245,20 @@ input:focus,select:focus{border-color:var(--accent)}
 <div id="appContainer" style="display:none">
 <div class="header">
   <div style="display:flex;align-items:center;gap:12px">
-    <button class="sidebar-toggle" id="sidebarToggleBtn" onclick="toggleSidebar()" title="Toggle Sidebar">&#9776;</button>
+    <button class="sidebar-toggle" id="sidebarToggleBtn" onclick="toggleSidebar()" title="Toggle Sidebar" aria-label="Toggle sidebar navigation">&#9776;</button>
     <img src="/logo.png" alt="RAMI Scope" style="height:40px">
     <h1 id="headerAppTitle"><span>Task</span> Tracker</h1>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <span id="saveIndicator" style="font-size:11px;color:var(--text-dim);margin-right:8px">Loading...</span>
-    <button class="btn btn-outline btn-sm" onclick="exportBackupJSON()" style="display:none">Backup JSON</button>
-    <button class="btn btn-outline btn-sm" onclick="document.getElementById('importJSON').click()" style="display:none">Restore JSON</button>
-    <input type="file" id="importJSON" accept=".json" style="display:none" onchange="importBackupJSON(event)">
-    <button class="btn btn-outline btn-sm" id="btnManageUsers" style="display:none" onclick="openUserModal()">Manage Users</button>
+    <button class="btn btn-outline btn-sm" onclick="exportBackupJSON()" style="display:none" aria-label="Backup data as JSON">Backup JSON</button>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('importJSON').click()" style="display:none" aria-label="Restore data from JSON backup">Restore JSON</button>
+    <input type="file" id="importJSON" accept=".json" style="display:none" onchange="importBackupJSON(event)" aria-label="Select JSON backup file">
+    <button class="btn btn-outline btn-sm" id="btnManageUsers" style="display:none" onclick="openUserModal()" aria-label="Manage users">Manage Users</button>
     <div class="header-user">
       <strong id="headerUsername"></strong>
       <span class="role-badge" id="headerRole"></span>
-      <button class="btn btn-outline btn-sm" onclick="doLogout()">Logout</button>
+      <button class="btn btn-outline btn-sm" onclick="doLogout()" aria-label="Log out">Logout</button>
     </div>
   </div>
 </div>
@@ -270,52 +270,52 @@ input:focus,select:focus{border-color:var(--accent)}
   </div>
   <div class="sidebar-nav" id="sidebarNav"></div>
   <div class="sidebar-footer" id="sidebarFooter" style="display:none">
-    <button class="btn btn-outline btn-sm" onclick="openManageAppsModal()"><span>Manage Apps</span> &#9881;</button>
+    <button class="btn btn-outline btn-sm" onclick="openManageAppsModal()" aria-label="Manage applications"><span>Manage Apps</span> &#9881;</button>
   </div>
 </div>
 <!-- MAIN AREA -->
 <div class="main-area">
 <!-- Task Tracker Content (shown when Task Tracker app is active) -->
 <div id="taskTrackerApp">
-<div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('setup')">Setup</button>
-  <button class="tab-btn" onclick="switchTab('tracker')">Tracker</button>
-  <button class="tab-btn" onclick="switchTab('reports')">Reports & KPI</button>
-  <button class="tab-btn" onclick="switchTab('editor')">Editor</button>
-  <button class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
-  <button class="tab-btn" onclick="switchTab('billing')">Billing</button>
+<div class="tabs" role="tablist" aria-label="Task Tracker navigation">
+  <button class="tab-btn active" onclick="switchTab('setup')" role="tab" aria-selected="true" tabindex="0" aria-controls="tab-setup" id="tab-btn-setup">Setup</button>
+  <button class="tab-btn" onclick="switchTab('tracker')" role="tab" aria-selected="false" tabindex="-1" aria-controls="tab-tracker" id="tab-btn-tracker">Tracker</button>
+  <button class="tab-btn" onclick="switchTab('reports')" role="tab" aria-selected="false" tabindex="-1" aria-controls="tab-reports" id="tab-btn-reports">Reports & KPI</button>
+  <button class="tab-btn" onclick="switchTab('editor')" role="tab" aria-selected="false" tabindex="-1" aria-controls="tab-editor" id="tab-btn-editor">Editor</button>
+  <button class="tab-btn" onclick="switchTab('analytics')" role="tab" aria-selected="false" tabindex="-1" aria-controls="tab-analytics" id="tab-btn-analytics">Analytics</button>
+  <button class="tab-btn" onclick="switchTab('billing')" role="tab" aria-selected="false" tabindex="-1" aria-controls="tab-billing" id="tab-btn-billing">Billing</button>
 </div>
 <div class="site-bar" id="siteBar">
   <span class="site-label">Site:</span>
   <div id="sitePills" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   <div class="site-actions" id="siteActions" style="display:none">
-    <button class="btn btn-primary btn-sm" onclick="promptAddSite()">+ Add Site</button>
+    <button class="btn btn-primary btn-sm" onclick="promptAddSite()" aria-label="Add new site">+ Add Site</button>
   </div>
 </div>
 <div class="section-bar" id="sectionBar">
   <div id="sectionPills"></div>
   <div id="sectionActions" style="display:none">
-    <button class="btn btn-outline btn-sm" onclick="duplicateSection()">Duplicate</button>
-    <button class="btn btn-danger btn-sm" onclick="deleteActiveSection()">Delete Section</button>
-    <button class="btn btn-primary btn-sm" onclick="promptAddSection()">+ Add Section</button>
+    <button class="btn btn-outline btn-sm" onclick="duplicateSection()" aria-label="Duplicate current section">Duplicate</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteActiveSection()" aria-label="Delete current section">Delete Section</button>
+    <button class="btn btn-primary btn-sm" onclick="promptAddSection()" aria-label="Add new section">+ Add Section</button>
   </div>
 </div>
 <div class="content">
 
 <!-- ============ SETUP TAB ============ -->
-<div id="tab-setup" class="tab-content active">
+<div id="tab-setup" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-setup">
   <div class="grid-3">
     <div class="card">
       <div class="card-title flex-between"><span id="weightCardTitle">Weight Table</span>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-primary btn-sm" onclick="document.getElementById('weightFile').click()">Upload</button>
-          <button class="btn btn-danger btn-sm" onclick="clearWeights()">Clear</button>
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('weightFile').click()" aria-label="Upload weight table file">Upload</button>
+          <button class="btn btn-danger btn-sm" onclick="clearWeights()" aria-label="Clear weight table">Clear</button>
         </div>
       </div>
       <div class="drop-zone" id="weightDZ" onclick="document.getElementById('weightFile').click()">
         <strong>Import WEIGHT.xlsx</strong>
         <p>task, tracker_dimension_column, weight, Hours</p>
-        <input type="file" id="weightFile" accept=".csv,.xlsx,.xls" onchange="uploadWeight(event)">
+        <input type="file" id="weightFile" accept=".csv,.xlsx,.xls" onchange="uploadWeight(event)" aria-label="Select weight table file">
       </div>
       <div id="weightStatus" class="mt-12" style="font-size:12px;color:var(--text-dim)"></div>
       <div style="overflow:auto;max-height:300px" class="mt-12">
@@ -327,19 +327,19 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card">
       <div class="card-title flex-between">Initials
         <div style="display:flex;gap:4px">
-          <button class="btn btn-primary btn-sm" onclick="document.getElementById('initialFile').click()">Upload</button>
-          <button class="btn btn-danger btn-sm" onclick="clearInitials()">Clear</button>
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('initialFile').click()" aria-label="Upload initials file">Upload</button>
+          <button class="btn btn-danger btn-sm" onclick="clearInitials()" aria-label="Clear initials">Clear</button>
         </div>
       </div>
       <div class="drop-zone" id="initialDZ" onclick="document.getElementById('initialFile').click()">
         <strong>Import INTIAL.xlsx</strong>
         <p>initial, Name</p>
-        <input type="file" id="initialFile" accept=".csv,.xlsx,.xls" onchange="uploadInitials(event)">
+        <input type="file" id="initialFile" accept=".csv,.xlsx,.xls" onchange="uploadInitials(event)" aria-label="Select initials file">
       </div>
       <div class="inline-form mt-12">
-        <input id="addInit" placeholder="Initials" style="width:60px" maxlength="5">
-        <input id="addName" placeholder="Full Name" style="flex:1">
-        <button class="btn btn-primary btn-sm" onclick="addInitial()">Add</button>
+        <input id="addInit" placeholder="Initials" style="width:60px" maxlength="5" aria-label="Employee initials">
+        <input id="addName" placeholder="Full Name" style="flex:1" aria-label="Employee full name">
+        <button class="btn btn-primary btn-sm" onclick="addInitial()" aria-label="Add employee initials">Add</button>
       </div>
       <div style="overflow:auto;max-height:300px" class="mt-12">
         <table><thead><tr><th>Initials</th><th>Name</th><th></th></tr></thead>
@@ -350,14 +350,14 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="card">
       <div class="card-title flex-between"><span id="trackerCardTitle">Tracker Data</span>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-primary btn-sm" onclick="document.getElementById('trackerFile').click()">Upload</button>
-          <button class="btn btn-danger btn-sm" onclick="clearTracker()">Clear</button>
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('trackerFile').click()" aria-label="Upload tracker data file">Upload</button>
+          <button class="btn btn-danger btn-sm" onclick="clearTracker()" aria-label="Clear tracker data">Clear</button>
         </div>
       </div>
       <div class="drop-zone" id="trackerDZ" onclick="document.getElementById('trackerFile').click()">
         <strong>Import TACKER.xlsx</strong>
         <p>Auto-detects header row & DATE/INITIAL pairs</p>
-        <input type="file" id="trackerFile" accept=".csv,.xlsx,.xls" onchange="uploadTracker(event)">
+        <input type="file" id="trackerFile" accept=".csv,.xlsx,.xls" onchange="uploadTracker(event)" aria-label="Select tracker data file">
       </div>
       <div id="trackerStatus" class="mt-12" style="font-size:12px"></div>
       <div id="mappingStatus" class="mt-12" style="font-size:12px"></div>
@@ -366,20 +366,20 @@ input:focus,select:focus{border-color:var(--accent)}
 </div>
 
 <!-- ============ TRACKER TAB ============ -->
-<div id="tab-tracker" class="tab-content">
+<div id="tab-tracker" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-tracker">
   <div class="card">
     <div class="card-title flex-between">
       Tracker
       <div style="display:flex;gap:6px">
-        <button class="btn btn-success btn-sm" id="btnExportExcel" onclick="exportFile('/api/export/' + encodeURIComponent(state.activeSection) + '/tracker.xlsx','tracker-export.xlsx')">Export Excel</button>
-        <button class="btn btn-outline btn-sm" id="btnExportCSV" onclick="exportFile('/api/export/' + encodeURIComponent(state.activeSection) + '/tracker.csv','tracker-export.csv')">Export CSV</button>
+        <button class="btn btn-success btn-sm" id="btnExportExcel" onclick="exportFile('/api/export/' + encodeURIComponent(state.activeSection) + '/tracker.xlsx','tracker-export.xlsx')" aria-label="Export tracker as Excel">Export Excel</button>
+        <button class="btn btn-outline btn-sm" id="btnExportCSV" onclick="exportFile('/api/export/' + encodeURIComponent(state.activeSection) + '/tracker.csv','tracker-export.csv')" aria-label="Export tracker as CSV">Export CSV</button>
       </div>
     </div>
     <div class="filters">
-      <input id="searchCircuit" placeholder="Search circuit/asset..." style="width:200px" oninput="renderTracker()">
-      <select id="filterPerson" onchange="renderTracker()"><option value="">All People</option></select>
-      <select id="filterTask" onchange="renderTracker()"><option value="">All Tasks</option></select>
-      <select id="filterStatus" onchange="renderTracker()">
+      <input id="searchCircuit" placeholder="Search circuit/asset..." style="width:200px" oninput="renderTracker()" aria-label="Search circuit or asset">
+      <select id="filterPerson" onchange="renderTracker()" aria-label="Filter by person"><option value="">All People</option></select>
+      <select id="filterTask" onchange="renderTracker()" aria-label="Filter by task"><option value="">All Tasks</option></select>
+      <select id="filterStatus" onchange="renderTracker()" aria-label="Filter by status">
         <option value="">All Status</option><option value="done">Completed</option><option value="empty">Not Done</option>
       </select>
       <span id="trackerCount" style="font-size:12px;color:var(--text-dim)"></span>
@@ -388,10 +388,10 @@ input:focus,select:focus{border-color:var(--accent)}
       <table id="trackerTable"><thead id="trackerHead"></thead><tbody id="trackerBody"></tbody></table>
     </div>
     <div class="page-nav">
-      <button class="btn btn-outline btn-sm" onclick="changePage(-1)">Prev</button>
+      <button class="btn btn-outline btn-sm" onclick="changePage(-1)" aria-label="Previous page">Prev</button>
       <span id="pageInfo">Page 1</span>
-      <button class="btn btn-outline btn-sm" onclick="changePage(1)">Next</button>
-      <select id="pageSizeSelect" onchange="state.pageSize=+this.value;state.page=0;renderTracker()" style="width:70px">
+      <button class="btn btn-outline btn-sm" onclick="changePage(1)" aria-label="Next page">Next</button>
+      <select id="pageSizeSelect" onchange="state.pageSize=+this.value;state.page=0;renderTracker()" style="width:70px" aria-label="Rows per page">
         <option value="50">50</option><option value="100" selected>100</option><option value="250">250</option><option value="500">500</option>
       </select>
       <span style="font-size:11px;color:var(--text-dim)">rows/page</span>
@@ -401,19 +401,19 @@ input:focus,select:focus{border-color:var(--accent)}
 </div>
 
 <!-- ============ REPORTS & KPI TAB ============ -->
-<div id="tab-reports" class="tab-content">
+<div id="tab-reports" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-reports">
   <div class="card">
     <div class="card-title">Report Filters</div>
     <div class="filters">
       <label style="font-size:12px;color:var(--text-dim)">Section:</label>
-      <select id="rptSection" onchange="generateReport()" style="width:160px"><option value="">All Sections</option></select>
-      <label style="font-size:12px;color:var(--text-dim)">From:</label><input type="date" id="rptFrom">
-      <label style="font-size:12px;color:var(--text-dim)">To:</label><input type="date" id="rptTo">
-      <button class="btn btn-primary btn-sm" onclick="generateReport()">Generate</button>
-      <button class="btn btn-outline btn-sm" onclick="setWeek(0)">This Week</button>
-      <button class="btn btn-outline btn-sm" onclick="setWeek(-1)">Last Week</button>
-      <button class="btn btn-outline btn-sm" onclick="clearDates()">All Time</button>
-      <button class="btn btn-success btn-sm" onclick="exportFile('/api/export/kpi.csv','kpi-report.csv')">Export KPI CSV</button>
+      <select id="rptSection" onchange="generateReport()" style="width:160px" aria-label="Filter by section"><option value="">All Sections</option></select>
+      <label style="font-size:12px;color:var(--text-dim)">From:</label><input type="date" id="rptFrom" aria-label="Report start date">
+      <label style="font-size:12px;color:var(--text-dim)">To:</label><input type="date" id="rptTo" aria-label="Report end date">
+      <button class="btn btn-primary btn-sm" onclick="generateReport()" aria-label="Generate report">Generate</button>
+      <button class="btn btn-outline btn-sm" onclick="setWeek(0)" aria-label="Filter this week">This Week</button>
+      <button class="btn btn-outline btn-sm" onclick="setWeek(-1)" aria-label="Filter last week">Last Week</button>
+      <button class="btn btn-outline btn-sm" onclick="clearDates()" aria-label="Clear date filters">All Time</button>
+      <button class="btn btn-success btn-sm" onclick="exportFile('/api/export/kpi.csv','kpi-report.csv')" aria-label="Export KPI report as CSV">Export KPI CSV</button>
     </div>
   </div>
   <div class="grid-4" id="kpiCards">
@@ -444,20 +444,20 @@ input:focus,select:focus{border-color:var(--accent)}
 </div>
 
 <!-- ============ EDITOR TAB ============ -->
-<div id="tab-editor" class="tab-content">
+<div id="tab-editor" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-editor">
   <div class="editor-sticky">
   <div class="card" style="margin-bottom:8px;padding:12px 16px">
     <div class="filters" style="gap:8px">
       <span class="card-title" style="margin:0;font-size:13px;white-space:nowrap">Asset Editor</span>
       <span id="editorColLabel" style="font-size:11px;color:var(--text-dim);white-space:nowrap"></span>
       <div style="position:relative;flex:1;max-width:500px">
-        <input id="editorSearch" placeholder="Select or search asset..." style="width:100%;padding:8px 32px 8px 10px;font-size:13px" oninput="editorSearchRows()" onfocus="editorShowDropdown()" autocomplete="off">
+        <input id="editorSearch" placeholder="Select or search asset..." style="width:100%;padding:8px 32px 8px 10px;font-size:13px" oninput="editorSearchRows()" onfocus="editorShowDropdown()" autocomplete="off" aria-label="Search or select asset">
         <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;font-size:11px">&#9660;</span>
         <div id="editorDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:400px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:0 0 8px 8px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
       </div>
       <select id="editorAssetSelect" style="display:none"><option value=""></option></select>
-      <button class="btn btn-outline btn-sm" onclick="editorPrev()">&#9664;</button>
-      <button class="btn btn-outline btn-sm" onclick="editorNext()">&#9654;</button>
+      <button class="btn btn-outline btn-sm" onclick="editorPrev()" aria-label="Previous asset">&#9664;</button>
+      <button class="btn btn-outline btn-sm" onclick="editorNext()" aria-label="Next asset">&#9654;</button>
       <span id="editorNav" style="font-size:11px;color:var(--text-dim)"></span>
     </div>
   </div>
@@ -465,7 +465,7 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="flex-between">
       <div style="display:flex;align-items:center;gap:10px">
         <div class="card-title" style="margin:0;font-size:14px" id="editorAssetTitle">Asset Details</div>
-        <button class="btn btn-outline btn-sm" onclick="toggleEditorInfo()" id="editorInfoToggle" style="padding:2px 8px;font-size:10px">▼ Details</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleEditorInfo()" id="editorInfoToggle" style="padding:2px 8px;font-size:10px" aria-label="Toggle asset details">▼ Details</button>
       </div>
       <div style="display:flex;gap:8px">
         <span class="badge badge-done" id="editorBadge"></span>
@@ -479,13 +479,13 @@ input:focus,select:focus{border-color:var(--accent)}
       <div class="card-title" style="margin:0">Task Completion Form</div>
       <div id="editorQuickBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:11px;font-weight:500;color:var(--text-dim)">Quick:</span>
-        <select id="editorGlobalInitial" style="padding:5px 8px;font-size:11px;width:150px">
+        <select id="editorGlobalInitial" style="padding:5px 8px;font-size:11px;width:150px" aria-label="Select person for quick apply">
           <option value="">-- Select Person --</option>
         </select>
-        <button class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorApplyToEmpty()">Apply Empty</button>
-        <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorApplyToAll()">Apply All</button>
-        <button class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorFillAllToday()">All Dates Today</button>
-        <button class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorSaveAll()">Save All</button>
+        <button class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorApplyToEmpty()" aria-label="Apply person to empty tasks">Apply Empty</button>
+        <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorApplyToAll()" aria-label="Apply person to all tasks">Apply All</button>
+        <button class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorFillAllToday()" aria-label="Set all dates to today">All Dates Today</button>
+        <button class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorSaveAll()" aria-label="Save all task changes">Save All</button>
       </div>
     </div>
     <div class="editor-form-grid" id="editorFormBody"></div>
@@ -494,12 +494,12 @@ input:focus,select:focus{border-color:var(--accent)}
 </div>
 
 <!-- ============ ANALYTICS TAB ============ -->
-<div id="tab-analytics" class="tab-content">
+<div id="tab-analytics" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-analytics">
   <div class="card">
     <div class="card-title flex-between">Task-Level Breakdown
       <div class="filters" style="margin:0">
         <label style="font-size:12px;color:var(--text-dim)">Section:</label>
-        <select id="analyticsSection" onchange="renderAnalytics()" style="width:160px"><option value="">All Sections</option></select>
+        <select id="analyticsSection" onchange="renderAnalytics()" style="width:160px" aria-label="Filter analytics by section"><option value="">All Sections</option></select>
       </div>
     </div>
     <div style="overflow:auto"><table>
@@ -514,14 +514,14 @@ input:focus,select:focus{border-color:var(--accent)}
 </div>
 
 <!-- ============ BILLING TAB ============ -->
-<div id="tab-billing" class="tab-content">
+<div id="tab-billing" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-billing">
   <div class="grid-2">
     <div class="card">
       <div class="card-title flex-between">Weekly Timesheet
         <div style="display:flex;gap:6px">
-          <button class="btn btn-success btn-sm" onclick="document.getElementById('billingFile').click()">Import Excel</button>
-          <input type="file" id="billingFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importBillingFile(event)">
-          <button class="btn btn-outline btn-sm" onclick="addBillingRow()">+ Add Row</button>
+          <button class="btn btn-success btn-sm" onclick="document.getElementById('billingFile').click()" aria-label="Import billing Excel file">Import Excel</button>
+          <input type="file" id="billingFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importBillingFile(event)" aria-label="Select billing file">
+          <button class="btn btn-outline btn-sm" onclick="addBillingRow()" aria-label="Add billing row">+ Add Row</button>
         </div>
       </div>
       <div style="overflow:auto;max-height:400px"><table>
@@ -539,14 +539,14 @@ input:focus,select:focus{border-color:var(--accent)}
       <div style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;gap:12px;align-items:center">
           <label style="font-size:12px;color:var(--text-dim);width:140px">Original PO Value ($):</label>
-          <input type="number" id="billedPO" placeholder="0" step="0.01" style="width:180px" oninput="updateBillingComparison()">
+          <input type="number" id="billedPO" placeholder="0" step="0.01" style="width:180px" oninput="updateBillingComparison()" aria-label="Original PO value in dollars">
         </div>
         <div style="display:flex;gap:12px;align-items:center">
           <label style="font-size:12px;color:var(--text-dim);width:140px">Total Billed ($):</label>
           <span id="billedRate" style="font-size:16px;font-weight:700;color:var(--accent)">$0.00</span>
           <span style="font-size:10px;color:var(--text-dim)">(from timesheet total cost)</span>
         </div>
-        <button class="btn btn-primary btn-sm" style="width:100px" onclick="saveBillingData()">Save</button>
+        <button class="btn btn-primary btn-sm" style="width:100px" onclick="saveBillingData()" aria-label="Save billing data">Save</button>
       </div>
     </div>
   </div>
@@ -625,12 +625,12 @@ input:focus,select:focus{border-color:var(--accent)}
 <!-- MANAGE APPS MODAL -->
 <div id="manageAppsModal" class="modal-overlay hidden">
   <div class="modal">
-    <h3>Manage Applications <button class="close-btn" onclick="closeManageAppsModal()">&times;</button></h3>
+    <h3>Manage Applications <button class="close-btn" onclick="closeManageAppsModal()" aria-label="Close manage applications modal">&times;</button></h3>
     <p style="font-size:11px;color:var(--text-dim);margin-bottom:16px">Add, rename, or remove application modules from the sidebar.</p>
     <div id="appsListContainer"></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <input id="newAppName" placeholder="App Name" style="flex:1;padding:8px 12px;font-size:13px">
-      <select id="newAppIcon" style="padding:8px 12px;font-size:13px;width:120px">
+      <input id="newAppName" placeholder="App Name" style="flex:1;padding:8px 12px;font-size:13px" aria-label="New application name">
+      <select id="newAppIcon" style="padding:8px 12px;font-size:13px;width:120px" aria-label="New application icon">
         <option value="clipboard">&#128203; Clipboard</option>
         <option value="folder">&#128194; Folder</option>
         <option value="chart">&#128200; Chart</option>
@@ -642,7 +642,7 @@ input:focus,select:focus{border-color:var(--accent)}
         <option value="star">&#11088; Star</option>
         <option value="bolt">&#9889; Bolt</option>
       </select>
-      <button class="btn btn-primary btn-sm" onclick="addNewApp()">+ Add App</button>
+      <button class="btn btn-primary btn-sm" onclick="addNewApp()" aria-label="Add new application">+ Add App</button>
     </div>
   </div>
 </div>
@@ -1354,7 +1354,12 @@ async function duplicateSection() {
 
 // ========== TABS ==========
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().replace(/[&\s]/g, '') === name.replace(/[&\s]/g, '')));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    const isActive = b.textContent.toLowerCase().replace(/[&\s]/g, '') === name.replace(/[&\s]/g, '');
+    b.classList.toggle('active', isActive);
+    b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    b.setAttribute('tabindex', isActive ? '0' : '-1');
+  });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'tracker') { populateFilters(); renderTracker(); }
@@ -1364,6 +1369,40 @@ function switchTab(name) {
   if (name === 'billing') { loadBillingData(); updateBillingComparison(); }
   if (name === 'setup') { updateSetupCardTitles(); renderWeight(); showTrackerStatus(); showMappingStatus(); }
 }
+
+// ========== KEYBOARD NAVIGATION FOR TABS ==========
+function initTabKeyboardNavigation(tablistSelector) {
+  const tablist = document.querySelector(tablistSelector);
+  if (!tablist) return;
+  tablist.addEventListener('keydown', function(e) {
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+    const currentIndex = tabs.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+    let newIndex = -1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      newIndex = (currentIndex + 1) % tabs.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      newIndex = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      newIndex = tabs.length - 1;
+    }
+    if (newIndex >= 0) {
+      tabs[newIndex].focus();
+      tabs[newIndex].click();
+    }
+  });
+}
+
+// Initialize keyboard navigation for the main tab bar
+document.addEventListener('DOMContentLoaded', function() {
+  initTabKeyboardNavigation('[role="tablist"]');
+});
 
 function populateReportSectionFilter() {
   const sel = document.getElementById('rptSection');

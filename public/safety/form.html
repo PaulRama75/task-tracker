@@ -126,9 +126,9 @@
 
 <!-- TOOLBAR -->
 <div class="toolbar">
-  <button class="btn-download" onclick="downloadPDF()">&#128229; Download PDF</button>
-  <button class="btn-print" onclick="printForm()">&#128424; Print</button>
-  <a href="/safety/records" class="btn-records" style="background:#ef6c00; padding:8px 18px; border-radius:4px; color:#fff; text-decoration:none; font-size:13px; font-weight:600;">&#128196; Saved Records</a>
+  <button class="btn-download" onclick="downloadPDF()" aria-label="Download JSA form as PDF">&#128229; Download PDF</button>
+  <button class="btn-print" onclick="printForm()" aria-label="Print JSA form">&#128424; Print</button>
+  <a href="/safety/records" class="btn-records" style="background:#ef6c00; padding:8px 18px; border-radius:4px; color:#fff; text-decoration:none; font-size:13px; font-weight:600;" aria-label="View saved records">&#128196; Saved Records</a>
   <span class="timestamp" id="createTimestamp" style="display:none;"></span>
 </div>
 
@@ -150,29 +150,29 @@
   <table class="header-table">
     <tr>
       <td style="width:25%;"><strong>Description of Work:</strong></td>
-      <td colspan="3"><input type="text" class="field-input" placeholder="Enter description of work"></td>
+      <td colspan="3"><input type="text" class="field-input" placeholder="Enter description of work" aria-label="Description of work"></td>
     </tr>
     <tr>
       <td><strong>Site Location/Unit:</strong></td>
-      <td><input type="text" class="field-input" placeholder="Enter site location"></td>
+      <td><input type="text" class="field-input" placeholder="Enter site location" aria-label="Site location"></td>
       <td style="width:18%;"><strong>Equipment Type:</strong></td>
-      <td style="width:22%;"><input type="text" class="field-input" placeholder="Enter equipment type"></td>
+      <td style="width:22%;"><input type="text" class="field-input" placeholder="Enter equipment type" aria-label="Equipment type"></td>
     </tr>
     <tr>
       <td><strong>Date:</strong></td>
-      <td><input type="date" class="field-input"></td>
+      <td><input type="date" class="field-input" aria-label="Date"></td>
       <td><strong>Muster Point:</strong></td>
-      <td><input type="text" class="field-input" placeholder="Enter muster point"></td>
+      <td><input type="text" class="field-input" placeholder="Enter muster point" aria-label="Muster point"></td>
     </tr>
     <tr>
       <td><strong>Wind Direction:</strong></td>
-      <td><input type="text" class="field-input" placeholder="Enter wind direction"></td>
+      <td><input type="text" class="field-input" placeholder="Enter wind direction" aria-label="Wind direction"></td>
       <td><strong>Weather Condition:</strong></td>
-      <td><input type="text" class="field-input" placeholder="Enter weather"></td>
+      <td><input type="text" class="field-input" placeholder="Enter weather" aria-label="Weather condition"></td>
     </tr>
     <tr>
       <td><strong>Safety Shower Location:</strong></td>
-      <td colspan="3"><input type="text" class="field-input" placeholder="Enter safety shower location"></td>
+      <td colspan="3"><input type="text" class="field-input" placeholder="Enter safety shower location" aria-label="Safety shower location"></td>
     </tr>
   </table>
 
@@ -184,14 +184,14 @@
       <td id="teamMembersCell" style="padding: 6px;">
         <div id="teamMembersList">
           <div style="display:flex; gap:8px; margin-bottom:4px;">
-            <input type="text" class="field-input" placeholder="Team Member 1" style="flex:1;">
-            <input type="text" class="field-input" placeholder="Team Member 2" style="flex:1;">
-            <input type="text" class="field-input" placeholder="Team Member 3" style="flex:1;">
+            <input type="text" class="field-input" placeholder="Team Member 1" style="flex:1;" aria-label="Team member 1 name">
+            <input type="text" class="field-input" placeholder="Team Member 2" style="flex:1;" aria-label="Team member 2 name">
+            <input type="text" class="field-input" placeholder="Team Member 3" style="flex:1;" aria-label="Team member 3 name">
           </div>
           <div style="display:flex; gap:8px;">
-            <input type="text" class="field-input" placeholder="Team Member 4" style="flex:1;">
-            <input type="text" class="field-input" placeholder="Team Member 5" style="flex:1;">
-            <input type="text" class="field-input" placeholder="Team Member 6" style="flex:1;">
+            <input type="text" class="field-input" placeholder="Team Member 4" style="flex:1;" aria-label="Team member 4 name">
+            <input type="text" class="field-input" placeholder="Team Member 5" style="flex:1;" aria-label="Team member 5 name">
+            <input type="text" class="field-input" placeholder="Team Member 6" style="flex:1;" aria-label="Team member 6 name">
           </div>
         </div>
       </td>
@@ -224,7 +224,7 @@
       </tr>
     </tbody>
   </table>
-  <button class="btn-add-row" onclick="addJobStep()">+ Add Job Step Row</button>
+  <button class="btn-add-row" onclick="addJobStep()" aria-label="Add job step row">+ Add Job Step Row</button>
 
   <br><br>
 
@@ -356,13 +356,13 @@
       <div class="employee-row" data-emp="1">
         <div class="employee-name-col">
           <strong>Employee 1:</strong><br>
-          <input type="text" class="field-input" placeholder="Print full name" style="margin-top:4px;">
+          <input type="text" class="field-input" placeholder="Print full name" style="margin-top:4px;" aria-label="Employee 1 full name">
         </div>
         <div class="employee-sig-col">
           <span style="font-size:10px; font-weight:bold;">Signature (draw below):</span>
           <div class="sig-wrapper">
             <canvas class="sig-canvas" width="280" height="70"></canvas>
-            <button class="sig-clear" onclick="clearSig(this)">Clear</button>
+            <button class="sig-clear" onclick="clearSig(this)" aria-label="Clear employee 1 signature">Clear</button>
           </div>
         </div>
       </div>
@@ -370,13 +370,13 @@
       <div class="employee-row" data-emp="2">
         <div class="employee-name-col">
           <strong>Employee 2:</strong><br>
-          <input type="text" class="field-input" placeholder="Print full name" style="margin-top:4px;">
+          <input type="text" class="field-input" placeholder="Print full name" style="margin-top:4px;" aria-label="Employee 2 full name">
         </div>
         <div class="employee-sig-col">
           <span style="font-size:10px; font-weight:bold;">Signature (draw below):</span>
           <div class="sig-wrapper">
             <canvas class="sig-canvas" width="280" height="70"></canvas>
-            <button class="sig-clear" onclick="clearSig(this)">Clear</button>
+            <button class="sig-clear" onclick="clearSig(this)" aria-label="Clear employee 2 signature">Clear</button>
           </div>
         </div>
       </div>
@@ -384,18 +384,18 @@
       <div class="employee-row" data-emp="3">
         <div class="employee-name-col">
           <strong>Employee 3:</strong><br>
-          <input type="text" class="field-input" placeholder="Print full name" style="margin-top:4px;">
+          <input type="text" class="field-input" placeholder="Print full name" style="margin-top:4px;" aria-label="Employee 3 full name">
         </div>
         <div class="employee-sig-col">
           <span style="font-size:10px; font-weight:bold;">Signature (draw below):</span>
           <div class="sig-wrapper">
             <canvas class="sig-canvas" width="280" height="70"></canvas>
-            <button class="sig-clear" onclick="clearSig(this)">Clear</button>
+            <button class="sig-clear" onclick="clearSig(this)" aria-label="Clear employee 3 signature">Clear</button>
           </div>
         </div>
       </div>
     </div>
-    <button class="btn-add-employee" onclick="addEmployee()">+ Add Employee</button>
+    <button class="btn-add-employee" onclick="addEmployee()" aria-label="Add another employee">+ Add Employee</button>
   </div>
   </div><!-- end section-box -->
 
@@ -406,18 +406,18 @@
     <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
       <div style="flex:1; min-width:180px;">
         <strong>Name:</strong><br>
-        <input type="text" class="field-input" placeholder="Print full name" style="margin-top:4px;">
+        <input type="text" class="field-input" placeholder="Print full name" style="margin-top:4px;" aria-label="Supervisor full name">
       </div>
       <div>
         <strong>Signature (draw below):</strong>
         <div class="sig-wrapper">
           <canvas class="sig-canvas" width="320" height="80" id="supervisorSig"></canvas>
-          <button class="sig-clear" onclick="clearSig(this)">Clear</button>
+          <button class="sig-clear" onclick="clearSig(this)" aria-label="Clear supervisor signature">Clear</button>
         </div>
       </div>
       <div style="min-width:120px;">
         <strong>Date:</strong><br>
-        <input type="date" class="field-input" style="margin-top:4px;">
+        <input type="date" class="field-input" style="margin-top:4px;" aria-label="Supervisor signature date">
       </div>
     </div>
   </div>

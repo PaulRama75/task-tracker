@@ -1,14 +1,7 @@
 const { Pool } = require('pg');
+const config = require('./config');
 
-// Database configuration - update these for your environment
-const DB_CONFIG = {
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'task_tracker',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASS || 'postgres',
-  max: 10
-};
+const DB_CONFIG = config.db;
 
 const pool = new Pool(DB_CONFIG);
 
@@ -251,6 +244,40 @@ async function initDB() {
       )
     `);
 
+    // Sessions table (persistent session storage)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        token VARCHAR(64) PRIMARY KEY,
+        username VARCHAR(100) NOT NULL,
+        role VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        last_activity TIMESTAMP DEFAULT NOW(),
+        expires_at TIMESTAMP NOT NULL
+      )
+    `);
+
+    // Login attempts table (persistent brute force tracking)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS login_attempts (
+        key VARCHAR(255) PRIMARY KEY,
+        attempt_count INTEGER DEFAULT 0,
+        locked_until TIMESTAMP,
+        last_attempt TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Audit log table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id SERIAL PRIMARY KEY,
+        action VARCHAR(100) NOT NULL,
+        username VARCHAR(100),
+        ip_address VARCHAR(45),
+        details JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
     // Create indexes for performance
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sections_site ON sections(site_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_initials_site ON initials(site_id)`);
@@ -261,6 +288,11 @@ async function initDB() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_task_entries_row ON task_entries(row_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_billing_ts_site ON billing_timesheet(site_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_jsa_records_saved ON jsa_records(saved_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_username ON audit_log(username)`);
 
     await client.query('COMMIT');
     console.log('Database schema initialized successfully');
@@ -307,10 +339,10 @@ async function deleteUser(username) {
 async function getSites(appId) {
   if (appId) {
     const { rows } = await pool.query('SELECT id, name, app_id FROM sites WHERE app_id=$1 ORDER BY created_at', [appId]);
-    return rows;
+    return rows.map(r => ({ id: r.id, name: r.name, appId: r.app_id }));
   }
   const { rows } = await pool.query('SELECT id, name, app_id FROM sites ORDER BY created_at');
-  return rows;
+  return rows.map(r => ({ id: r.id, name: r.name, appId: r.app_id }));
 }
 
 async function createSite(id, name, appId) {
@@ -607,7 +639,8 @@ async function saveJsaRecord(siteName, descriptionOfWork, pdfBuffer) {
      RETURNING id, site_name, saved_at, file_size`,
     [siteName, descriptionOfWork || '', pdfBuffer, pdfBuffer.length]
   );
-  return result.rows[0];
+  const r = result.rows[0];
+  return { id: r.id, siteName: r.site_name, savedAt: r.saved_at, fileSize: r.file_size };
 }
 
 async function getJsaRecords() {
@@ -615,7 +648,7 @@ async function getJsaRecords() {
     `SELECT id, site_name, description_of_work, saved_at, file_size
      FROM jsa_records ORDER BY saved_at DESC`
   );
-  return rows;
+  return rows.map(r => ({ id: r.id, siteName: r.site_name, descriptionOfWork: r.description_of_work, savedAt: r.saved_at, fileSize: r.file_size }));
 }
 
 async function getJsaRecordPdf(id) {
@@ -623,7 +656,102 @@ async function getJsaRecordPdf(id) {
     'SELECT pdf_data, site_name, saved_at FROM jsa_records WHERE id = $1',
     [id]
   );
-  return rows[0] || null;
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return { pdfData: r.pdf_data, siteName: r.site_name, savedAt: r.saved_at };
+}
+
+// ========== PAGINATED QUERY OPERATIONS ==========
+async function getTrackerRowsPaginated(sectionId, offset, limit) {
+  const countRes = await pool.query(
+    'SELECT COUNT(*) FROM tracker_rows WHERE section_id=$1',
+    [sectionId]
+  );
+  const total = parseInt(countRes.rows[0].count, 10);
+
+  const rowRes = await pool.query(
+    'SELECT id, row_index, info_data FROM tracker_rows WHERE section_id=$1 ORDER BY row_index LIMIT $2 OFFSET $3',
+    [sectionId, limit, offset]
+  );
+
+  const rows = [];
+  for (const row of rowRes.rows) {
+    const teRes = await pool.query(
+      'SELECT task_name, date_val, initial FROM task_entries WHERE row_id=$1',
+      [row.id]
+    );
+    const tasks = {};
+    teRes.rows.forEach(te => {
+      tasks[te.task_name] = { date: te.date_val || '', initial: te.initial || '' };
+    });
+    rows.push({ _info: row.info_data || {}, _tasks: tasks, rowIndex: row.row_index });
+  }
+
+  return { rows, total };
+}
+
+async function getAuditLogPaginated(offset, limit, filters = {}) {
+  const conditions = [];
+  const params = [];
+  let paramIndex = 1;
+
+  if (filters.action) {
+    conditions.push(`action = $${paramIndex++}`);
+    params.push(filters.action);
+  }
+  if (filters.username) {
+    conditions.push(`username = $${paramIndex++}`);
+    params.push(filters.username);
+  }
+  if (filters.startDate) {
+    conditions.push(`created_at >= $${paramIndex++}`);
+    params.push(filters.startDate);
+  }
+  if (filters.endDate) {
+    conditions.push(`created_at <= $${paramIndex++}`);
+    params.push(filters.endDate);
+  }
+
+  const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+  const countRes = await pool.query(
+    `SELECT COUNT(*) FROM audit_log ${whereClause}`,
+    params
+  );
+  const total = parseInt(countRes.rows[0].count, 10);
+
+  const dataParams = [...params, limit, offset];
+  const rowRes = await pool.query(
+    `SELECT id, action, username, ip_address, details, created_at FROM audit_log ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+    dataParams
+  );
+
+  return {
+    rows: rowRes.rows.map(r => ({
+      id: r.id,
+      action: r.action,
+      username: r.username,
+      ipAddress: r.ip_address,
+      details: r.details,
+      createdAt: r.created_at
+    })),
+    total
+  };
+}
+
+async function getJsaRecordsPaginated(offset, limit) {
+  const countRes = await pool.query('SELECT COUNT(*) FROM jsa_records');
+  const total = parseInt(countRes.rows[0].count, 10);
+
+  const { rows } = await pool.query(
+    'SELECT id, site_name, description_of_work, saved_at, file_size FROM jsa_records ORDER BY saved_at DESC LIMIT $1 OFFSET $2',
+    [limit, offset]
+  );
+
+  return {
+    rows: rows.map(r => ({ id: r.id, siteName: r.site_name, descriptionOfWork: r.description_of_work, savedAt: r.saved_at, fileSize: r.file_size })),
+    total
+  };
 }
 
 // ========== MIGRATION: JSON → PostgreSQL ==========
@@ -687,5 +815,6 @@ module.exports = {
   createSection, deleteSection,
   getApps, createApp, updateApp, deleteApp,
   saveJsaRecord, getJsaRecords, getJsaRecordPdf,
+  getTrackerRowsPaginated, getAuditLogPaginated, getJsaRecordsPaginated,
   migrateFromJSON
 };

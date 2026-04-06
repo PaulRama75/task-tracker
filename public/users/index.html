@@ -101,12 +101,12 @@
 <div class="toolbar">
   <h1>&#128101; User Management</h1>
   <div class="spacer"></div>
-  <button class="btn-export" onclick="exportUsers()">&#128229; Export Excel</button>
-  <label class="btn-import">
+  <button class="btn-export" onclick="exportUsers()" aria-label="Export users as Excel">&#128229; Export Excel</button>
+  <label class="btn-import" aria-label="Import users from Excel">
     &#128228; Import Excel
-    <input type="file" id="importFile" accept=".xlsx,.xls,.csv" onchange="handleImport(this)">
+    <input type="file" id="importFile" accept=".xlsx,.xls,.csv" onchange="handleImport(this)" aria-label="Select Excel file to import">
   </label>
-  <button class="btn-add" onclick="openAddModal()">+ Add User</button>
+  <button class="btn-add" onclick="openAddModal()" aria-label="Add new user">+ Add User</button>
 </div>
 
 <div class="container">
@@ -130,7 +130,7 @@
   </div>
 
   <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="Search by username, role, site, or app..." oninput="filterUsers()">
+    <input type="text" id="searchInput" placeholder="Search by username, role, site, or app..." oninput="filterUsers()" aria-label="Search users">
   </div>
 
   <div id="tableContainer">
@@ -143,20 +143,20 @@
   <div class="modal">
     <div class="modal-header">
       <h3 id="modalTitle">Add User</h3>
-      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close user modal">&times;</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label>Username</label>
-        <input type="text" id="modalUsername" placeholder="Enter username">
+        <label for="modalUsername">Username</label>
+        <input type="text" id="modalUsername" placeholder="Enter username" aria-label="Username">
       </div>
       <div class="form-group" id="passwordGroup">
-        <label>Password</label>
-        <input type="password" id="modalPassword" placeholder="Enter password (min 6 chars)">
+        <label for="modalPassword">Password</label>
+        <input type="password" id="modalPassword" placeholder="Enter password (min 6 chars)" aria-label="Password">
       </div>
       <div class="form-group">
-        <label>Role</label>
-        <select id="modalRole">
+        <label for="modalRole">Role</label>
+        <select id="modalRole" aria-label="User role">
           <option value="user">User</option>
           <option value="admin">Admin</option>
           <option value="superadmin">Super Admin</option>
@@ -172,8 +172,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" id="modalSaveBtn" onclick="saveUser()">Save</button>
+      <button class="btn-cancel" onclick="closeModal()" aria-label="Cancel">Cancel</button>
+      <button class="btn-save" id="modalSaveBtn" onclick="saveUser()" aria-label="Save user">Save</button>
     </div>
   </div>
 </div>
@@ -183,7 +183,7 @@
   <div class="modal" style="width:700px">
     <div class="modal-header">
       <h3>Import Users from Excel</h3>
-      <button class="modal-close" onclick="closeImportModal()">&times;</button>
+      <button class="modal-close" onclick="closeImportModal()" aria-label="Close import modal">&times;</button>
     </div>
     <div class="modal-body">
       <p style="margin-bottom:10px;font-size:12px;color:#666;">Review the users below before importing. Existing users will be <strong>updated</strong>, new users will be <strong>created</strong>.</p>
@@ -191,8 +191,8 @@
       <p style="margin-top:10px;font-size:11px;color:#999;" id="importSummary"></p>
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeImportModal()">Cancel</button>
-      <button class="btn-save" onclick="confirmImport()">Import Users</button>
+      <button class="btn-cancel" onclick="closeImportModal()" aria-label="Cancel import">Cancel</button>
+      <button class="btn-save" onclick="confirmImport()" aria-label="Confirm import users">Import Users</button>
     </div>
   </div>
 </div>
@@ -202,21 +202,21 @@
   <div class="modal" style="width:380px">
     <div class="modal-header">
       <h3>Change Password</h3>
-      <button class="modal-close" onclick="closePwdModal()">&times;</button>
+      <button class="modal-close" onclick="closePwdModal()" aria-label="Close password modal">&times;</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label>Username</label>
-        <input type="text" id="pwdUsername" disabled>
+        <label for="pwdUsername">Username</label>
+        <input type="text" id="pwdUsername" disabled aria-label="Username">
       </div>
       <div class="form-group">
-        <label>New Password</label>
-        <input type="password" id="pwdNewPassword" placeholder="Min 6 characters">
+        <label for="pwdNewPassword">New Password</label>
+        <input type="password" id="pwdNewPassword" placeholder="Min 6 characters" aria-label="New password">
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="closePwdModal()">Cancel</button>
-      <button class="btn-save" onclick="changePassword()">Update Password</button>
+      <button class="btn-cancel" onclick="closePwdModal()" aria-label="Cancel password change">Cancel</button>
+      <button class="btn-save" onclick="changePassword()" aria-label="Update password">Update Password</button>
     </div>
   </div>
 </div>
