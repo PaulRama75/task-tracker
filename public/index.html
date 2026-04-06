@@ -70,18 +70,20 @@ input:focus,select:focus{border-color:var(--accent)}
 .weight-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:6px}
 .weight-bar-fill{height:100%;border-radius:3px;transition:width .3s}
 .mapping-ok{color:var(--success)}.mapping-miss{color:var(--danger)}
-.form-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);transition:background .15s}
+.editor-sticky{position:sticky;top:0;z-index:5;background:var(--bg);padding-bottom:4px}
+.editor-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.form-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);transition:background .15s}
 .form-row:hover{background:var(--surface2)}
-.form-row:last-child{border-bottom:none}
-.form-row .task-label{min-width:220px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px}
+.form-row .task-label{flex:1;min-width:0;font-size:11px;font-weight:500;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .form-row .task-weight{min-width:60px;font-size:11px;color:var(--text-dim)}
 .form-row .task-mins{min-width:50px;font-size:11px;color:var(--text-dim)}
-.form-row .form-fields{display:flex;gap:10px;align-items:center;flex:1}
-.form-row .form-fields input{padding:8px 12px;font-size:13px;width:130px}
-.form-row .form-fields select{padding:8px 12px;font-size:13px;width:100px}
-.form-row .status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.form-row .form-fields{display:flex;gap:4px;align-items:center;flex-shrink:0}
+.form-row .form-fields input{padding:5px 6px;font-size:11px;width:85px}
+.form-row .form-fields select{padding:5px 4px;font-size:11px;width:80px}
+.form-row .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .form-row .status-dot.done{background:var(--success)}.form-row .status-dot.empty{background:var(--border)}
 .editor-info-item{font-size:12px}.editor-info-item .info-label{color:var(--text-dim);margin-bottom:2px}.editor-info-item .info-val{font-weight:600;font-size:14px}
+.editor-form-grid .form-row{border-right:1px solid var(--border)}
 .dropdown-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;transition:background .1s}
 .dropdown-item:hover{background:var(--surface2)}.dropdown-item.dd-selected{background:rgba(33,150,243,.1);border-left:3px solid var(--accent)}
 .dropdown-item .dd-main{font-weight:500}.dropdown-item .dd-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
@@ -171,11 +173,15 @@ input:focus,select:focus{border-color:var(--accent)}
 .sidebar-footer{padding:8px;border-top:1px solid var(--border)}
 .sidebar-footer .btn{width:100%;justify-content:center;font-size:12px}
 .sidebar.collapsed .sidebar-footer .btn span{display:none}
-.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .main-area .tabs{flex-shrink:0}
 .main-area .site-bar{flex-shrink:0}
 .main-area .section-bar{flex-shrink:0}
-.main-area .content{flex:1;overflow-y:auto}
+.main-area .content{flex:1;overflow-y:auto;min-height:0}
+#taskTrackerApp{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+#safetyAppFrame{flex:1;min-height:0}
+#usersAppFrame{flex:1;min-height:0}
+#customAppPlaceholder{flex:1;min-height:0}
 /* App placeholder page */
 .app-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-dim);gap:16px}
 .app-placeholder .placeholder-icon{font-size:64px;opacity:.3}
@@ -439,50 +445,50 @@ input:focus,select:focus{border-color:var(--accent)}
 
 <!-- ============ EDITOR TAB ============ -->
 <div id="tab-editor" class="tab-content">
-  <div class="card">
-    <div class="card-title">Asset Editor</div>
-    <div class="filters">
-      <div style="position:relative;flex:1;max-width:600px">
-        <input id="editorSearch" placeholder="Type to search or click to browse all assets..." style="width:100%;padding:10px 40px 10px 14px;font-size:14px" oninput="editorSearchRows()" onfocus="editorShowDropdown()" autocomplete="off">
-        <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;font-size:12px">&#9660;</span>
+  <div class="editor-sticky">
+  <div class="card" style="margin-bottom:8px;padding:12px 16px">
+    <div class="filters" style="gap:8px">
+      <span class="card-title" style="margin:0;font-size:13px;white-space:nowrap">Asset Editor</span>
+      <span id="editorColLabel" style="font-size:11px;color:var(--text-dim);white-space:nowrap"></span>
+      <div style="position:relative;flex:1;max-width:500px">
+        <input id="editorSearch" placeholder="Select or search asset..." style="width:100%;padding:8px 32px 8px 10px;font-size:13px" oninput="editorSearchRows()" onfocus="editorShowDropdown()" autocomplete="off">
+        <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;font-size:11px">&#9660;</span>
         <div id="editorDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:400px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:0 0 8px 8px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
       </div>
       <select id="editorAssetSelect" style="display:none"><option value=""></option></select>
-      <button class="btn btn-outline btn-sm" onclick="editorPrev()">Prev</button>
-      <button class="btn btn-outline btn-sm" onclick="editorNext()">Next</button>
-      <span id="editorNav" style="font-size:12px;color:var(--text-dim)"></span>
+      <button class="btn btn-outline btn-sm" onclick="editorPrev()">&#9664;</button>
+      <button class="btn btn-outline btn-sm" onclick="editorNext()">&#9654;</button>
+      <span id="editorNav" style="font-size:11px;color:var(--text-dim)"></span>
     </div>
   </div>
-  <div class="card" id="editorQuickBar" style="display:none">
+  <div class="card" id="editorInfoCard" style="display:none;margin-bottom:8px;padding:10px 16px">
     <div class="flex-between">
-      <div style="display:flex;align-items:center;gap:12px">
-        <span style="font-size:13px;font-weight:500">Quick Assign:</span>
-        <select id="editorGlobalInitial" style="padding:8px 12px;font-size:13px;width:200px">
-          <option value="">-- Select Person --</option>
-        </select>
-        <button class="btn btn-primary btn-sm" onclick="editorApplyToEmpty()">Apply to Empty Tasks</button>
-        <button class="btn btn-outline btn-sm" onclick="editorApplyToAll()">Apply to All Tasks</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="card-title" style="margin:0;font-size:14px" id="editorAssetTitle">Asset Details</div>
+        <button class="btn btn-outline btn-sm" onclick="toggleEditorInfo()" id="editorInfoToggle" style="padding:2px 8px;font-size:10px">▼ Details</button>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="btn btn-success btn-sm" onclick="editorFillAllToday()">Set All Empty Dates to Today</button>
-      </div>
-    </div>
-  </div>
-  <div class="card" id="editorInfoCard" style="display:none">
-    <div class="flex-between mb-12">
-      <div class="card-title" style="margin:0" id="editorAssetTitle">Asset Details</div>
       <div style="display:flex;gap:8px">
         <span class="badge badge-done" id="editorBadge"></span>
       </div>
     </div>
-    <div class="grid-4 mb-12" id="editorInfoGrid"></div>
+    <div class="grid-4" id="editorInfoGrid" style="margin:0;display:none;margin-top:8px"></div>
+  </div>
   </div>
   <div class="card" id="editorFormCard" style="display:none">
-    <div class="card-title flex-between">
-      Task Completion Form
-      <button class="btn btn-success btn-sm" onclick="editorSaveAll()">Save All Changes</button>
+    <div class="flex-between" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0">Task Completion Form</div>
+      <div id="editorQuickBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:500;color:var(--text-dim)">Quick:</span>
+        <select id="editorGlobalInitial" style="padding:5px 8px;font-size:11px;width:150px">
+          <option value="">-- Select Person --</option>
+        </select>
+        <button class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorApplyToEmpty()">Apply Empty</button>
+        <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorApplyToAll()">Apply All</button>
+        <button class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorFillAllToday()">All Dates Today</button>
+        <button class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px" onclick="editorSaveAll()">Save All</button>
+      </div>
     </div>
-    <div id="editorFormBody"></div>
+    <div class="editor-form-grid" id="editorFormBody"></div>
   </div>
   <div id="editorEmpty" class="card"><div class="empty"><p>Search or select an asset above to edit its task completions</p></div></div>
 </div>
@@ -607,10 +613,10 @@ input:focus,select:focus{border-color:var(--accent)}
   </div>
 </div>
 <div id="safetyAppFrame" style="display:none">
-  <iframe id="safetyIframe" src="/safety/" style="width:100%;height:calc(100vh - 48px);border:none;"></iframe>
+  <iframe id="safetyIframe" src="/safety/" style="width:100%;height:100%;border:none;"></iframe>
 </div>
 <div id="usersAppFrame" style="display:none">
-  <iframe id="usersIframe" src="/users/" style="width:100%;height:calc(100vh - 48px);border:none;"></iframe>
+  <iframe id="usersIframe" src="/users/" style="width:100%;height:100%;border:none;"></iframe>
 </div>
 </div><!-- /main-area -->
 </div><!-- /app-layout -->
@@ -1537,7 +1543,7 @@ function renderTracker() {
   const pageRows = filtered.slice(start, start + state.pageSize);
   document.getElementById('pageInfo').textContent = `Page ${state.page + 1} of ${totalPages}`;
 
-  const displayInfo = infoCols.slice(0, 8);
+  const displayInfo = infoCols;
   const frozenCount = Math.min(2, displayInfo.length);
   const colW1 = 160, colW2 = 140;
   const frozenLefts = [0, colW1];
@@ -1555,7 +1561,12 @@ function renderTracker() {
     const rowIdx = rows.indexOf(r);
     let html = displayInfo.map((c, i) => {
       const frozen = i < frozenCount;
-      return `<td${frozen ? ` class="frozen" style="left:${frozenLefts[i]}px;min-width:${i === 0 ? colW1 : colW2}px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis${i === frozenCount - 1 ? ';border-right:2px solid var(--border)' : ''}"` : ' style="font-size:11px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis"'} title="${esc(r._info[c.name])}">${esc(r._info[c.name])}</td>`;
+      const val = esc(r._info[c.name]);
+      const colName = c.name;
+      if (i === 0) {
+        return `<td${frozen ? ` class="frozen" style="left:${frozenLefts[i]}px;min-width:${colW1}px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"` : ''} title="${val}"><a href="#" onclick="openEditorForRow(${rowIdx});return false;" style="color:var(--accent);text-decoration:none;font-weight:600">${val}</a></td>`;
+      }
+      return `<td${frozen ? ` class="frozen" style="left:${frozenLefts[i]}px;min-width:${i === 0 ? colW1 : colW2}px${i === frozenCount - 1 ? ';border-right:2px solid var(--border)' : ''}"` : ''} title="${val}"><input type="text" value="${val}" style="width:100%;padding:2px 4px;font-size:10px;border:1px solid transparent;background:transparent;color:var(--text)" onfocus="this.style.borderColor='var(--accent)';this.style.background='var(--surface2)'" onblur="this.style.borderColor='transparent';this.style.background='transparent';updateInfoCell(${rowIdx},'${esc(colName)}',this.value)"></td>`;
     }).join('');
     taskCols.forEach(tc => {
       const t = r._tasks[tc.task] || { date: '', initial: '' };
@@ -1573,6 +1584,14 @@ function updateCell(rowIdx, taskName, field, value) {
   if (!rows[rowIdx]) return;
   if (!rows[rowIdx]._tasks[taskName]) rows[rowIdx]._tasks[taskName] = { date: '', initial: '' };
   rows[rowIdx]._tasks[taskName][field] = value;
+  saveState();
+}
+
+function updateInfoCell(rowIdx, colName, value) {
+  const rows = sec().rows || [];
+  if (!rows[rowIdx]) return;
+  if (rows[rowIdx]._info[colName] === value) return;
+  rows[rowIdx]._info[colName] = value;
   saveState();
 }
 
@@ -1987,32 +2006,52 @@ function editorPopulateSelect() {
 
 function editorShowDropdown() { editorSearchRows(); }
 
+function openEditorForRow(rowIdx) {
+  switchTab('editor');
+  editorLoadAsset(rowIdx);
+}
+
+function editorGetFirstColName() {
+  const infoCols = sec().infoCols || [];
+  return infoCols.length > 0 ? infoCols[0].name.replace(/\r?\n/g, ' ') : 'Asset';
+}
+
+function editorGetFirstColVal(r) {
+  const infoCols = sec().infoCols || [];
+  if (infoCols.length > 0) return r._info[infoCols[0].name] || '';
+  const vals = Object.values(r._info).filter(Boolean);
+  return vals[0] || '';
+}
+
 function editorSearchRows() {
   const q = (document.getElementById('editorSearch').value || '').toLowerCase().trim();
   const dd = document.getElementById('editorDropdown');
   dd.style.display = 'block';
   const rows = sec().rows || [];
   const taskCols = sec().taskCols || [];
+  const colName = editorGetFirstColName();
+  document.getElementById('editorColLabel').textContent = colName + ':';
   const matches = [];
   rows.forEach((r, i) => {
     if (!q) { matches.push(i); return; }
+    const firstVal = editorGetFirstColVal(r).toLowerCase();
     const infoStr = Object.values(r._info).join(' ').toLowerCase();
-    if (infoStr.includes(q)) matches.push(i);
+    if (firstVal.includes(q) || infoStr.includes(q)) matches.push(i);
   });
   if (matches.length === 0) { dd.innerHTML = '<div style="padding:14px;color:var(--text-dim);font-size:13px">No assets found</div>'; return; }
   const limit = q ? 50 : 100;
   dd.innerHTML = (q ? '' : `<div style="padding:8px 14px;font-size:11px;color:var(--text-dim);border-bottom:1px solid var(--border)">${matches.length} assets total${matches.length > limit ? ' (showing first ' + limit + ')' : ''}</div>`) +
     matches.slice(0, limit).map(i => {
       const r = rows[i];
+      const firstVal = editorGetFirstColVal(r);
       const vals = Object.entries(r._info).filter(([, v]) => v);
-      const main = vals.slice(0, 2).map(([, v]) => v).join(' - ');
-      const sub = vals.slice(2, 5).map(([k, v]) => k.substring(0, 15) + ': ' + v).join(' | ');
+      const sub = vals.slice(1, 4).map(([k, v]) => v).join(' | ');
       const doneCnt = taskCols.filter(tc => r._tasks[tc.task] && r._tasks[tc.task].date).length;
       const pct = taskCols.length > 0 ? Math.round(doneCnt / taskCols.length * 100) : 0;
       const selected = i === editorIdx;
       return `<div class="dropdown-item${selected ? ' dd-selected' : ''}" onclick="editorSelectFromDropdown(${i})">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="dd-main">${esc(main)}</div>
+          <div class="dd-main">${esc(firstVal)}</div>
           <div style="display:flex;align-items:center;gap:6px">
             <div class="progress" style="width:60px;height:4px"><div class="progress-fill" style="width:${pct}%;background:${pct === 100 ? 'var(--success)' : 'var(--accent)'}"></div></div>
             <span style="font-size:10px;color:${pct === 100 ? 'var(--success)' : 'var(--text-dim)'}">${pct}%</span>
@@ -2028,8 +2067,7 @@ function editorSelectFromDropdown(idx) {
   document.getElementById('editorDropdown').style.display = 'none';
   const rows = sec().rows || [];
   const r = rows[idx];
-  const label = Object.values(r._info).filter(Boolean).slice(0, 2).join(' - ');
-  document.getElementById('editorSearch').value = label;
+  document.getElementById('editorSearch').value = editorGetFirstColVal(r);
   editorLoadAsset(idx);
 }
 
@@ -2044,7 +2082,6 @@ function editorLoadAsset(idx) {
   const rows = sec().rows || [];
   const taskCols = sec().taskCols || [];
   if (isNaN(idx) || idx < 0 || idx >= rows.length) {
-    document.getElementById('editorQuickBar').style.display = 'none';
     document.getElementById('editorInfoCard').style.display = 'none';
     document.getElementById('editorFormCard').style.display = 'none';
     document.getElementById('editorEmpty').style.display = '';
@@ -2052,7 +2089,6 @@ function editorLoadAsset(idx) {
   }
   editorIdx = idx;
   document.getElementById('editorEmpty').style.display = 'none';
-  document.getElementById('editorQuickBar').style.display = '';
   document.getElementById('editorInfoCard').style.display = '';
   document.getElementById('editorFormCard').style.display = '';
   const gSel = document.getElementById('editorGlobalInitial');
@@ -2064,11 +2100,13 @@ function editorLoadAsset(idx) {
   document.getElementById('editorNav').textContent = (idx + 1) + ' of ' + rows.length;
 
   const r = rows[idx];
+  document.getElementById('editorSearch').value = editorGetFirstColVal(r);
+  document.getElementById('editorColLabel').textContent = editorGetFirstColName() + ':';
   document.getElementById('editorInfoGrid').innerHTML = Object.entries(r._info).filter(([, v]) => v).map(([k, v]) =>
     `<div class="editor-info-item"><div class="info-label">${esc(k.replace(/\r?\n/g, ' ').substring(0, 30))}</div><div class="info-val">${esc(v)}</div></div>`
   ).join('');
 
-  const mainInfo = Object.values(r._info).filter(Boolean).slice(0, 2).join(' - ');
+  const mainInfo = editorGetFirstColVal(r) || Object.values(r._info).filter(Boolean).slice(0, 2).join(' - ');
   document.getElementById('editorAssetTitle').textContent = mainInfo || 'Asset ' + (idx + 1);
 
   const doneCnt = taskCols.filter(tc => r._tasks[tc.task] && r._tasks[tc.task].date).length;
@@ -2203,6 +2241,18 @@ function editorClearTask(taskIdx) {
   document.getElementById('einit-' + taskIdx).value = '';
   editorFieldChanged(taskIdx);
   editorLoadAsset(editorIdx);
+}
+
+function toggleEditorInfo() {
+  const grid = document.getElementById('editorInfoGrid');
+  const btn = document.getElementById('editorInfoToggle');
+  if (grid.style.display === 'none') {
+    grid.style.display = '';
+    btn.textContent = '▲ Hide';
+  } else {
+    grid.style.display = 'none';
+    btn.textContent = '▼ Details';
+  }
 }
 
 function editorSaveAll() {
