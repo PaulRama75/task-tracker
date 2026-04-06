@@ -5,6 +5,15 @@ const { auditLog } = require('../middleware/audit');
 const { authRequired, superAdminRequired } = require('./auth');
 const appState = require('../shared/appState');
 
+// Get ALL sites across all apps (for user access assignment)
+router.get('/all-sites', authRequired, asyncHandler(async (req, res) => {
+  if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  const allSites = await db.getSites();
+  res.json(allSites);
+}));
+
 router.get('/sites', authRequired, (req, res) => {
   const sites = appState.getSites();
   const activeSiteId = appState.getActiveSiteId();

@@ -181,6 +181,7 @@ input:focus,select:focus{border-color:var(--accent)}
 #taskTrackerApp{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
 #safetyAppFrame{flex:1;min-height:0}
 #usersAppFrame{flex:1;min-height:0}
+#reportsAppFrame{flex:1;min-height:0}
 #customAppPlaceholder{flex:1;min-height:0}
 /* App placeholder page */
 .app-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-dim);gap:16px}
@@ -618,6 +619,9 @@ input:focus,select:focus{border-color:var(--accent)}
 <div id="usersAppFrame" style="display:none">
   <iframe id="usersIframe" src="/users/" style="width:100%;height:100%;border:none;"></iframe>
 </div>
+<div id="reportsAppFrame" style="display:none">
+  <iframe id="reportsIframe" src="/reports/" style="width:100%;height:100%;border:none;"></iframe>
+</div>
 </div><!-- /main-area -->
 </div><!-- /app-layout -->
 </div><!-- /appContainer -->
@@ -652,6 +656,7 @@ input:focus,select:focus{border-color:var(--accent)}
 let authToken = sessionStorage.getItem('authToken') || '';
 window.authToken = authToken; // expose for iframes
 let currentUser = null; // { username, role }
+window.currentUser = currentUser; // expose for iframes
 
 function authHeaders() {
   return { 'Authorization': 'Bearer ' + authToken };
@@ -683,6 +688,10 @@ async function doLogin() {
       window.authToken = authToken;
       sessionStorage.setItem('authToken', authToken);
       currentUser = { username: data.username, role: data.role, allowedSites: data.allowedSites || [], allowedApps: data.allowedApps || [] };
+      window.currentUser = currentUser;
+      // Force Reports iframe to reload with new user credentials
+      const rIframe = document.getElementById('reportsIframe');
+      if (rIframe) rIframe.src = '/reports/';
       showApp();
     } else {
       errEl.textContent = data.error || 'Login failed';
@@ -694,7 +703,11 @@ function doLogout() {
   fetch('/api/logout', { method: 'POST', headers: authHeaders() }).catch(() => {});
   authToken = '';
   currentUser = null;
+  window.currentUser = null;
   sessionStorage.removeItem('authToken');
+  // Clear Reports iframe session
+  const rIframe = document.getElementById('reportsIframe');
+  if (rIframe) rIframe.src = 'about:blank';
   document.getElementById('appContainer').style.display = 'none';
   document.getElementById('loginOverlay').style.display = 'flex';
   document.getElementById('loginPass').value = '';
@@ -707,6 +720,7 @@ async function checkSession() {
     const res = await fetch('/api/me', { headers: authHeaders() });
     if (res.ok) {
       currentUser = await res.json();
+      window.currentUser = currentUser;
       showApp();
     } else {
       document.getElementById('loginOverlay').style.display = 'flex';
@@ -808,14 +822,19 @@ function closeUserModal() {
 
 async function refreshUserList() {
   try {
-    const res = await authFetch('/api/users');
+    const [res, allSitesRes] = await Promise.all([
+      authFetch('/api/users'),
+      authFetch('/api/all-sites')
+    ]);
     const usersList = await res.json();
+    let allSitesLookup = [];
+    try { allSitesLookup = await allSitesRes.json(); } catch(e) { allSitesLookup = sitesList; }
     const list = document.getElementById('userList');
     const isSuperAdmin = currentUser.role === 'superadmin';
     list.innerHTML = usersList.map(u => {
       const roleLabel = u.role === 'superadmin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'User';
       const sitesLabel = (u.allowedSites && u.allowedSites.length > 0)
-        ? u.allowedSites.map(sid => { const s = sitesList.find(ss => ss.id === sid); return s ? s.name : sid; }).join(', ')
+        ? u.allowedSites.map(sid => { const s = allSitesLookup.find(ss => ss.id === sid); return s ? s.name : sid; }).join(', ')
         : 'All Sites';
       const appsLabel = (u.allowedApps && u.allowedApps.length > 0)
         ? u.allowedApps.map(aid => { const a = appModules.find(aa => aa.id === aid); return a ? a.name : 'App #' + aid; }).join(', ')
@@ -907,14 +926,21 @@ function openSiteAccessModal(username) {
   openAccessModal(username);
 }
 
-function openAccessModal(username) {
+async function openAccessModal(username) {
   const user = (window._usersList || []).find(u => u.username === username);
   if (!user) return;
   const currentSites = user.allowedSites || [];
   const currentApps = (user.allowedApps || []).map(Number);
   const assignableApps = appModules.filter(a => !a.isBuiltin);
 
-  const sitesHtml = sitesList.map(s => {
+  // Fetch ALL sites across all apps (not just the current app's sites)
+  let allSitesForAccess = [];
+  try {
+    const res = await authFetch('/api/all-sites');
+    if (res.ok) allSitesForAccess = await res.json();
+  } catch(e) { allSitesForAccess = sitesList; }
+
+  const sitesHtml = allSitesForAccess.map(s => {
     const checked = currentSites.includes(s.id) ? ' checked' : '';
     return `<label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0">
       <input type="checkbox" value="${esc(s.id)}" class="site-access-cb"${checked}>${esc(s.name)}
@@ -2637,7 +2663,8 @@ const APP_ICONS = {
   tool: '&#128295;',
   star: '&#11088;',
   bolt: '&#9889;',
-  users: '&#128101;'
+  users: '&#128101;',
+  report: '&#128221;'
 };
 
 function getAppIcon(icon) {
@@ -2683,8 +2710,9 @@ async function switchApp(appId) {
     const appName = app2 ? app2.name.toLowerCase() : '';
     if (appName === 'safety' && document.getElementById('safetyAppFrame').style.display !== 'none') return;
     if (appName === 'users' && document.getElementById('usersAppFrame').style.display !== 'none') return;
+    if (appName === 'reports' && document.getElementById('reportsAppFrame').style.display !== 'none') return;
     if (appName === 'task tracker' && document.getElementById('taskTrackerApp').style.display !== 'none') return;
-    if (!['safety','users','task tracker'].includes(appName) && document.getElementById('customAppPlaceholder').style.display !== 'none') return;
+    if (!['safety','users','reports','task tracker'].includes(appName) && document.getElementById('customAppPlaceholder').style.display !== 'none') return;
   }
   activeAppId = appId;
   const app = appModules.find(a => a.id === appId);
@@ -2705,6 +2733,7 @@ async function switchApp(appId) {
     customPlaceholder.style.display = 'none';
     safetyFrame.style.display = '';
     usersFrame.style.display = 'none';
+    document.getElementById('reportsAppFrame').style.display = 'none';
     const iframe = document.getElementById('safetyIframe');
     iframe.src = '/safety/';
     toast('Switched to Safety', 'success');
@@ -2717,9 +2746,24 @@ async function switchApp(appId) {
     customPlaceholder.style.display = 'none';
     safetyFrame.style.display = 'none';
     usersFrame.style.display = '';
+    document.getElementById('reportsAppFrame').style.display = 'none';
     const iframe = document.getElementById('usersIframe');
     iframe.src = '/users/';
     toast('Switched to Users', 'success');
+    return;
+  }
+
+  // Check if this is Reports app
+  if (app && app.name.toLowerCase() === 'reports') {
+    trackerApp.style.display = 'none';
+    customPlaceholder.style.display = 'none';
+    safetyFrame.style.display = 'none';
+    usersFrame.style.display = 'none';
+    const reportsFrame = document.getElementById('reportsAppFrame');
+    reportsFrame.style.display = '';
+    const iframe = document.getElementById('reportsIframe');
+    iframe.src = '/reports/?_=' + Date.now();
+    toast('Switched to Reports', 'success');
     return;
   }
 
@@ -2729,6 +2773,7 @@ async function switchApp(appId) {
     customPlaceholder.style.display = 'none';
     safetyFrame.style.display = 'none';
     usersFrame.style.display = 'none';
+    document.getElementById('reportsAppFrame').style.display = 'none';
 
     // Call server to switch app — loads that app's sites & state
     try {
@@ -2768,6 +2813,7 @@ async function switchApp(appId) {
   trackerApp.style.display = 'none';
   safetyFrame.style.display = 'none';
   usersFrame.style.display = 'none';
+  document.getElementById('reportsAppFrame').style.display = 'none';
   customPlaceholder.style.display = '';
   document.getElementById('placeholderTitle').textContent = app ? app.name : 'Application';
   document.getElementById('placeholderIcon').innerHTML = app ? getAppIcon(app.icon) : '&#128194;';

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Inspection Report</title>
+    <link rel="stylesheet" href="css/report.css">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <h2>Tower Inspection Report System</h2>
+            <p>Fixed Equipment Reliability</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-name">Inspector Name</label>
+                    <input type="text" id="login-name" required placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label for="login-role">Role</label>
+                    <select id="login-role">
+                        <option value="Inspector">Inspector</option>
+                        <option value="Engineer">Engineer</option>
+                        <option value="Supervisor">Supervisor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="login-cert">API Certification #</label>
+                    <input type="text" id="login-cert" placeholder="Optional">
+                </div>
+                <button type="submit" class="btn btn-primary">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Top Bar -->
+    <div id="top-bar" class="top-bar hidden">
+        <div class="top-bar-left">
+            <span class="logo">Fixed Equipment Reliability</span>
+            <select id="site-selector" class="site-select">
+                <option value="">-- All Sites --</option>
+            </select>
+            <select id="report-selector" class="report-select">
+                <option value="">-- Select Report --</option>
+            </select>
+            <button id="btn-new-report" class="btn btn-sm">+ New Report</button>
+            <button id="btn-library" class="btn btn-sm">Library</button>
+            <button id="btn-import-portal" class="btn btn-sm">Import Data</button>
+        </div>
+        <div class="top-bar-center">
+            <div id="lock-status" class="lock-status"></div>
+        </div>
+        <div class="top-bar-right">
+            <button id="btn-lock" class="btn btn-sm btn-success hidden">Claim Edit Lock</button>
+            <button id="btn-unlock" class="btn btn-sm btn-warning hidden">Release Lock</button>
+            <button id="btn-pdf" class="btn btn-sm btn-primary hidden">Generate PDF</button>
+            <button id="btn-admin" class="btn btn-sm btn-outline hidden">Admin</button>
+            <span id="user-info" class="user-info"></span>
+            <button id="btn-logout" class="btn btn-sm btn-outline">Logout</button>
+        </div>
+    </div>
+
+    <!-- Report Content -->
+    <div id="report-container" class="report-container hidden">
+        <div id="report-content" class="report-content">
+
+            <!-- Page Header -->
+            <div class="report-header">
+                <h1 id="report-title">INSPECTION REPORT</h1>
+                <p class="report-subtitle">MPC - Robinson, IL</p>
+            </div>
+
+            <!-- Section: Equipment Info - always inline editable -->
+            <section class="report-section" data-section="header">
+                <div class="section-view">
+                    <table class="info-table" id="header-table">
+                        <tr>
+                            <td class="label">Unit #</td>
+                            <td class="value" data-field="unit_number"></td>
+                            <td class="label">Equipment #</td>
+                            <td class="value" data-field="equipment_number"></td>
+                        </tr>
+                        <tr>
+                            <td class="label">NB / Serial #</td>
+                            <td class="value" data-field="nb_serial_number"></td>
+                            <td class="label">Project / Turnaround</td>
+                            <td class="value" data-field="project_name"></td>
+                        </tr>
+                    </table>
+                    <div id="equipment-table-container"></div>
+                </div>
+            </section>
+
+            <!-- Section: 510 Inspector Info (after equipment header) -->
+            <div id="ext510-inspector-container" class="hidden"></div>
+
+            <!-- Section: Orientation & Data Plate -->
+            <section class="report-section" data-section="orientation_photos">
+                <div class="section-view">
+                    <div class="orient-dataplate-grid">
+                        <div class="orient-photo-box">
+                            <div class="orient-photo-label">Orientation</div>
+                            <div class="orient-photo-img" id="orientation-img">
+                                <span class="orient-placeholder">No photo</span>
+                            </div>
+                            <input type="file" id="orient-file" accept="image/*" class="photo-file-input hidden">
+                        </div>
+                        <div class="orient-photo-box">
+                            <div class="orient-photo-label">Data Plate</div>
+                            <div class="orient-photo-img" id="dataplate-img">
+                                <span class="orient-placeholder">No photo</span>
+                            </div>
+                            <input type="file" id="dataplate-file" accept="image/*" class="photo-file-input hidden">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: 510 Summary & Recommendations (after photos) -->
+            <div id="ext510-narrative-container" class="hidden"></div>
+
+            <!-- Section: Inspection Type -->
+            <section class="report-section" data-section="inspection_type">
+                <div class="section-view">
+                    <div class="inspection-type-row">
+                        <label><span class="checkbox" data-field="internal_inspection"></span> INTERNAL INSPECTION</label>
+                        <label><span class="checkbox" data-field="external_inspection_check"></span> EXTERNAL INSPECTION</label>
+                    </div>
+                    <table class="info-table inspector-table">
+                        <thead>
+                            <tr><th>Inspector(s)</th><th>API Certification #</th><th>Date</th></tr>
+                        </thead>
+                        <tbody data-field="inspectors"></tbody>
+                    </table>
+                    <div id="inspector-edit-area" class="hidden">
+                        <div id="inspectors-edit-list"></div>
+                        <button type="button" class="btn btn-sm" id="btn-add-inspector">+ Add Inspector</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Checklist Section (510 EXT reports) -->
+            <div id="checklist-section-container" class="hidden"></div>
+
+            <!-- Dynamic Narrative Sections (generated by JS based on report type) -->
+            <div id="narrative-sections-container"></div>
+
+            <!-- Section: Photos -->
+            <section class="report-section page-break" data-section="photos">
+                <div class="section-view">
+                    <h3>INSPECTION PHOTOS</h3>
+                    <div id="photo-grid" class="photo-grid"></div>
+                    <div id="photo-upload-area" class="hidden" style="margin-top:12px;">
+                        <input type="file" id="photo-upload" multiple accept="image/*" style="display:none;">
+                        <button id="btn-choose-photos" class="btn btn-sm" type="button">+ Add Photos</button>
+                        <span id="photo-file-count" style="font-size:12px;color:#888;margin-left:8px;"></span>
+                        <div id="photo-preview" class="photo-preview"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Save Buttons -->
+            <div id="save-bar" class="save-bar hidden">
+                <button id="btn-save-all" class="btn btn-lg" style="background:#555;color:#fff;border-color:#555;">Save Draft</button>
+                <button id="btn-submit-review" class="btn btn-lg" style="background:#e67e22;color:#fff;border-color:#e67e22;">Submit for Review</button>
+                <button id="btn-approve-report" class="btn btn-lg" style="background:#27ae60;color:#fff;border-color:#27ae60;display:none;">Approve &amp; Final Save</button>
+                <button id="btn-reject-report" class="btn btn-lg" style="background:#e74c3c;color:#fff;border-color:#e74c3c;display:none;">Reject (Back to Draft)</button>
+                <button id="btn-final-save" class="btn btn-primary btn-lg" style="display:none;">Final Save &amp; Generate PDF</button>
+                <span id="save-status" class="save-status"></span>
+            </div>
+
+            <!-- Footer -->
+            <div class="report-footer">
+                <span>Fixed Equipment Reliability</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Report Modal -->
+    <div id="new-report-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Create New Inspection Report</h2>
+            <form id="new-report-form">
+                <div class="form-group">
+                    <label for="nr-site">Site</label>
+                    <select id="nr-site" required>
+                        <option value="">-- Select Site --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="nr-type">Report Type</label>
+                    <select id="nr-type" required>
+                        <option value="tower">Tower / Column</option>
+                        <option value="exchanger">Exchanger</option>
+                        <option value="aircooler">Air Cooler (Finfan)</option>
+                        <option value="drum">Drum</option>
+                        <option value="heater">Heater / Boiler</option>
+                        <option value="ext510">510 External Inspection</option>
+                        <option value="ext570">570 External Inspection</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="nr-equip-select">Equipment</label>
+                    <select id="nr-equip-select" required>
+                        <option value="">-- Select Equipment --</option>
+                    </select>
+                </div>
+                <div id="nr-add-new-fields" class="hidden">
+                    <div class="form-group"><label for="nr-unit">Unit #</label><input type="text" id="nr-unit"></div>
+                    <div class="form-group"><label for="nr-equipment">Equipment #</label><input type="text" id="nr-equipment" required></div>
+                </div>
+                <div id="nr-manual-fields" style="display:none;">
+                    <input type="hidden" id="nr-serial">
+                    <input type="hidden" id="nr-project">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Create Report</button>
+                    <button type="button" id="btn-cancel-new" class="btn btn-outline">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Library Dashboard -->
+    <div id="library-container" class="library-container hidden">
+        <div class="library-header">
+            <h2>Report Library</h2>
+            <div class="library-controls">
+                <div class="admin-tabs" style="margin-bottom:0;border-bottom:none;">
+                    <button class="admin-tab active lib-tab" data-libtab="progress">In Progress</button>
+                    <button class="admin-tab lib-tab" data-libtab="review">Review Queue <span id="review-count" class="review-count-badge"></span></button>
+                    <button class="admin-tab lib-tab" data-libtab="final">Final Reports</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- In Progress Tab -->
+        <div id="lib-tab-progress">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <input type="text" id="lib-search" placeholder="Search equipment / project..." class="lib-search">
+                <select id="lib-filter" class="lib-filter">
+                    <option value="">All Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="in_review">In Review</option>
+                    <option value="approved">Approved</option>
+                </select>
+            </div>
+            <table class="library-table">
+                <thead><tr><th>Equipment #</th><th>Project</th><th>Status</th><th>Last Editor</th><th>Last Modified</th><th>Actions</th></tr></thead>
+                <tbody id="lib-tbody"></tbody>
+            </table>
+        </div>
+
+        <!-- Review Queue Tab -->
+        <div id="lib-tab-review" class="hidden">
+            <table class="library-table">
+                <thead><tr><th>Equipment #</th><th>Project</th><th>Submitted By</th><th>Submitted Date</th><th>Actions</th></tr></thead>
+                <tbody id="review-tbody"></tbody>
+            </table>
+            <p id="review-empty" class="hidden" style="text-align:center;color:#aaa;padding:20px;">No reports pending review.</p>
+        </div>
+
+        <!-- Final Reports Tab -->
+        <div id="lib-tab-final" class="hidden">
+            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+                <input type="text" id="final-search" placeholder="Search final reports..." class="lib-search">
+                <button id="btn-download-selected" class="btn btn-sm btn-primary" disabled>Download Selected</button>
+                <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="final-select-all"> Select All</label>
+            </div>
+            <table class="library-table">
+                <thead><tr><th style="width:30px;"><input type="checkbox" id="final-select-all-head"></th><th>Equipment #</th><th>Project</th><th>Finalized By</th><th>Finalized Date</th><th>Actions</th></tr></thead>
+                <tbody id="final-tbody"></tbody>
+            </table>
+            <p id="final-empty" class="hidden" style="text-align:center;color:#aaa;padding:20px;">No final reports yet. Use "Final Save & Generate PDF" to finalize a report.</p>
+        </div>
+    </div>
+
+    <!-- Admin Modal -->
+    <div id="admin-modal" class="modal hidden">
+        <div class="modal-content modal-wide">
+            <div class="admin-header">
+                <h2>Admin Panel</h2>
+                <button id="btn-close-admin" class="btn btn-sm btn-outline" title="Close">&#10005; Close</button>
+            </div>
+            <div class="admin-tabs">
+                <button class="admin-tab active" data-tab="users">Users</button>
+                <button class="admin-tab" data-tab="sites">Sites</button>
+                <button class="admin-tab" data-tab="reports">Reports</button>
+            </div>
+            <div class="admin-tab-content" id="admin-tab-users">
+                <h3>Create User</h3>
+                <form id="admin-add-user" class="admin-form-row">
+                    <input type="text" id="au-name" placeholder="Name" required>
+                    <select id="au-role"><option>Inspector</option><option>Lead Inspector</option><option>Engineer</option><option>Supervisor</option></select>
+                    <input type="text" id="au-cert" placeholder="API Cert #">
+                    <label class="admin-check"><input type="checkbox" id="au-admin"> Admin</label>
+                    <button type="submit" class="btn btn-sm btn-primary">Add</button>
+                </form>
+                <table class="admin-table"><thead><tr><th>Name</th><th>Role</th><th>Cert</th><th>Admin</th><th>Sites</th><th></th></tr></thead><tbody id="admin-users-tbody"></tbody></table>
+            </div>
+            <div class="admin-tab-content hidden" id="admin-tab-sites">
+                <h3>Create Site</h3>
+                <form id="admin-add-site" class="admin-form-row">
+                    <input type="text" id="as-client" placeholder="Client Name" required>
+                    <input type="text" id="as-plant" placeholder="Plant Name" required>
+                    <input type="text" id="as-location" placeholder="Location (City, ST)">
+                    <button type="submit" class="btn btn-sm btn-primary">Add Site</button>
+                </form>
+                <div id="sites-list"></div>
+                <div style="text-align:right;padding:12px 0;">
+                    <button class="btn btn-primary" onclick="Admin.saveAllSites()">Save Site Settings</button>
+                </div>
+            </div>
+            <div class="admin-tab-content hidden" id="admin-tab-reports">
+                <table class="admin-table"><thead><tr><th>Equipment #</th><th>Project</th><th>Status</th><th>Action</th></tr></thead><tbody id="admin-reports-tbody"></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version History Modal -->
+    <div id="version-modal" class="modal hidden">
+        <div class="modal-content modal-wide">
+            <div class="admin-header">
+                <h2>Version History</h2>
+                <button id="btn-close-versions" class="btn btn-sm btn-outline">Close</button>
+            </div>
+            <div id="version-list" class="version-list"></div>
+        </div>
+    </div>
+
+    <!-- Import Equipment Master Data Modal -->
+    <div id="import-modal" class="modal hidden">
+        <div class="modal-content modal-wide" style="max-width:950px;">
+            <div class="admin-header">
+                <h2>Import Equipment Master Data</h2>
+                <button id="btn-close-import" class="btn btn-sm btn-outline">Close</button>
+            </div>
+            <p style="color:#888;font-size:13px;margin-bottom:12px;">Upload CSV or JSON with equipment data. Select a report type and site to assign, or include <strong>report_type</strong> and <strong>site_id</strong> columns in the file.</p>
+
+            <!-- Import Controls -->
+            <div style="display:flex;gap:10px;align-items:end;margin-bottom:14px;flex-wrap:wrap;">
+                <div class="form-group" style="margin:0;">
+                    <label>Default Report Type</label>
+                    <select id="import-type" style="padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                        <option value="">From File Column</option>
+                        <option value="tower">Tower / Column</option>
+                        <option value="exchanger">Exchanger</option>
+                        <option value="aircooler">Air Cooler (Finfan)</option>
+                        <option value="drum">Drum</option>
+                        <option value="heater">Heater / Boiler</option>
+                        <option value="ext510">510 External Inspection</option>
+                        <option value="ext570">570 External Inspection</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>Assign to Site</label>
+                    <select id="import-site" style="padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+                        <option value="">No Site / From File</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>File (CSV / JSON)</label>
+                    <input type="file" id="import-portal-file" accept=".csv,.json" style="font-size:13px;">
+                </div>
+                <button id="btn-run-import" class="btn btn-primary">Import</button>
+            </div>
+            <div id="import-preview" style="max-height:200px;overflow:auto;"></div>
+            <div id="import-result" style="margin-top:8px;"></div>
+
+            <hr style="margin:14px 0;border:none;border-top:1px solid #e0e0e0;">
+
+            <!-- Equipment Master List with filters -->
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+                <h3 style="font-size:14px;margin:0;">Equipment Master List</h3>
+                <span id="equip-count" style="font-size:12px;color:#888;"></span>
+                <button id="btn-export-equip" class="btn btn-sm btn-outline" title="Export filtered equipment to CSV">Export CSV</button>
+                <div style="margin-left:auto;display:flex;gap:8px;">
+                    <select id="equip-filter-type" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
+                        <option value="">All Types</option>
+                        <option value="tower">Tower</option>
+                        <option value="exchanger">Exchanger</option>
+                        <option value="aircooler">Air Cooler</option>
+                        <option value="drum">Drum</option>
+                        <option value="heater">Heater</option>
+                        <option value="ext510">510 EXT</option>
+                        <option value="ext570">570 EXT</option>
+                    </select>
+                    <select id="equip-filter-site" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
+                        <option value="">All Sites</option>
+                    </select>
+                    <input type="text" id="equip-filter-search" placeholder="Search..." style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;width:140px;">
+                </div>
+            </div>
+            <div id="equip-master-list" style="max-height:250px;overflow:auto;"></div>
+        </div>
+    </div>
+
+    <!-- Version Viewing Banner -->
+    <div id="version-banner" class="version-banner hidden">
+        <span id="version-banner-text"></span>
+        <button id="btn-back-current" class="btn btn-sm">Back to Current</button>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sections.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/library.js"></script>
+    <script src="js/pdf.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

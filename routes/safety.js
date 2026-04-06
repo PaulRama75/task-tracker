@@ -2,6 +2,7 @@ const router = require('express').Router();
 const path = require('path');
 const db = require('../db');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { authRequired } = require('./auth');
 
 // Serve safety pages
 router.get('/', (req, res) => {
@@ -17,7 +18,7 @@ router.get('/records', (req, res) => {
 });
 
 // API: Save JSA PDF record
-router.post('/api/save-jsa', asyncHandler(async (req, res) => {
+router.post('/api/save-jsa', authRequired, asyncHandler(async (req, res) => {
   const { siteName, descriptionOfWork, pdfBase64 } = req.body;
   if (!pdfBase64 || !siteName) {
     return res.status(400).json({ error: 'Missing required fields: siteName and pdfBase64' });
@@ -37,7 +38,7 @@ router.post('/api/save-jsa', asyncHandler(async (req, res) => {
 }));
 
 // API: List all saved JSA records
-router.get('/api/jsa-records', asyncHandler(async (req, res) => {
+router.get('/api/jsa-records', authRequired, asyncHandler(async (req, res) => {
   // Return plain array with snake_case keys for frontend compatibility
   const records = await db.getJsaRecords();
   res.json(records.map(r => ({
@@ -50,7 +51,7 @@ router.get('/api/jsa-records', asyncHandler(async (req, res) => {
 }));
 
 // API: Download a saved JSA PDF by ID
-router.get('/api/jsa-records/:id/pdf', asyncHandler(async (req, res) => {
+router.get('/api/jsa-records/:id/pdf', authRequired, asyncHandler(async (req, res) => {
   const row = await db.getJsaRecordPdf(req.params.id);
   if (!row) {
     return res.status(404).json({ error: 'Record not found' });

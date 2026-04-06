@@ -49,6 +49,7 @@ app.use('/api', require('./routes/export'));
 app.use('/api', require('./routes/state'));
 app.use('/safety', require('./routes/safety'));
 app.use('/users', require('./routes/usersApp'));
+app.use('/reports', require('./routes/reports'));
 
 // ========== GLOBAL ERROR HANDLER (must be last middleware) ==========
 app.use(globalErrorHandler);

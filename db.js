@@ -202,6 +202,16 @@ async function initDB() {
       await client.query(`UPDATE apps SET is_builtin = true WHERE LOWER(name)='users'`);
     }
 
+    // Seed Reports app if missing (not built-in so it can be assigned per user)
+    const reportsAppCheck = await client.query(`SELECT id FROM apps WHERE LOWER(name)='reports'`);
+    if (reportsAppCheck.rows.length === 0) {
+      const maxSortR = await client.query('SELECT COALESCE(MAX(sort_order), 0) + 1 as next FROM apps');
+      await client.query(`INSERT INTO apps (name, icon, sort_order, is_builtin) VALUES ('Reports', 'report', $1, false)`, [maxSortR.rows[0].next]);
+    } else {
+      // Ensure Reports is NOT built-in so it's assignable per user
+      await client.query(`UPDATE apps SET is_builtin = false WHERE LOWER(name)='reports'`);
+    }
+
     // Migration: ensure Safety is built-in and Task Tracker is assignable
     const safetyCheck = await client.query(`SELECT id FROM apps WHERE LOWER(name)='safety' AND is_builtin=true`);
     if (safetyCheck.rows.length === 0) {

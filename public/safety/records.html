@@ -103,11 +103,36 @@
 </div>
 
 <script>
+  function getToken() {
+    try { if (window.parent && window.parent.authToken) return window.parent.authToken; } catch(e) {}
+    try { const t = window.parent.sessionStorage.getItem('authToken'); if (t) return t; } catch(e) {}
+    try { return sessionStorage.getItem('authToken') || ''; } catch(e) {}
+    return '';
+  }
+  function authFetch(url, opts = {}) {
+    if (!opts.headers) opts.headers = {};
+    opts.headers['Authorization'] = 'Bearer ' + getToken();
+    return fetch(url, opts);
+  }
+
+  async function downloadPdf(id) {
+    try {
+      const res = await authFetch('/safety/api/jsa-records/' + id + '/pdf');
+      if (!res.ok) { alert('Download failed'); return; }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'JSA_' + id + '.pdf';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch(e) { alert('Download failed'); }
+  }
+
   let allRecords = [];
 
   async function loadRecords() {
     try {
-      const res = await fetch('/safety/api/jsa-records');
+      const res = await authFetch('/safety/api/jsa-records');
       allRecords = await res.json();
       updateStats();
       renderTable(allRecords);
@@ -173,7 +198,7 @@
           <span style="font-size:11px; color:#666;">${timeStr}</span>
         </td>
         <td><span class="badge badge-size">${sizeKB} KB</span></td>
-        <td><a href="/safety/api/jsa-records/${r.id}/pdf" class="dl-link">&#128229; Download</a></td>
+        <td><a href="#" onclick="downloadPdf(${r.id});return false;" class="dl-link">&#128229; Download</a></td>
       </tr>`;
     });
 
