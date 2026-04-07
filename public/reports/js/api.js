@@ -11,9 +11,14 @@ const API = (() => {
             return initial;
         }
         const data = JSON.parse(raw);
+        if (!data.users) data.users = [];
+        if (!data.reports) data.reports = [];
+        if (!data.locks) data.locks = {};
         if (!data.finalReports) data.finalReports = [];
         if (!data.sites) data.sites = [];
         if (!data.equipment) data.equipment = [];
+        if (!data.nextUserId) data.nextUserId = 1;
+        if (!data.nextReportId) data.nextReportId = 1;
         if (!data.nextSiteId) data.nextSiteId = 1;
         return data;
     }
