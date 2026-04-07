@@ -64,6 +64,7 @@ const App = (() => {
             // Hide login modal - auth comes from parent task-tracker
             $('#login-modal').classList.add('hidden');
             $('#top-bar').classList.remove('hidden');
+            $('#report-container').classList.remove('hidden');
             $('#user-info').textContent = 'Not authenticated';
         }
         bindEvents();
@@ -108,6 +109,7 @@ const App = (() => {
     function showApp(user) {
         $('#login-modal').classList.add('hidden');
         $('#top-bar').classList.remove('hidden');
+        $('#report-container').classList.remove('hidden');
         $('#user-info').textContent = `${user.name} (${user.role})`;
         $('#btn-admin').classList.toggle('hidden', !user.is_admin);
         $('#btn-import-portal').classList.toggle('hidden', !user.is_admin);
