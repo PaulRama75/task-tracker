@@ -5,9 +5,10 @@ const Auth = (() => {
     let parentSites = null; // sites from task-tracker DB
     let parentAllowedSites = null; // user's allowed site IDs
 
-    // Get auth token from parent task-tracker
+    // Get auth token from parent task-tracker or shared localStorage
     function getToken() {
-        try { if (window.parent && window.parent.authToken) return window.parent.authToken; } catch(e) {}
+        try { if (window.parent && window.parent !== window && window.parent.authToken) return window.parent.authToken; } catch(e) {}
+        try { const t = localStorage.getItem('authToken'); if (t) return t; } catch(e) {}
         try { const t = window.parent.sessionStorage.getItem('authToken'); if (t) return t; } catch(e) {}
         try { return sessionStorage.getItem('authToken') || ''; } catch(e) {}
         return '';
@@ -19,22 +20,35 @@ const Auth = (() => {
         return fetch(url, opts);
     }
 
-    // Try to get parent task-tracker user info (when running inside iframe)
+    // Try to get parent task-tracker user info (from parent window or localStorage)
     function getParentUser() {
+        // Try window.parent first
         try {
             if (window.parent && window.parent !== window && window.parent.currentUser) {
                 const pu = window.parent.currentUser;
-                return {
-                    name: pu.username,
-                    role: pu.role === 'superadmin' ? 'Supervisor' : pu.role === 'admin' ? 'Engineer' : 'Inspector',
-                    is_admin: pu.role === 'superadmin' || pu.role === 'admin',
-                    allowedSites: pu.allowedSites || [],
-                    parentRole: pu.role,
-                    from_parent: true
-                };
+                return mapParentUser(pu);
             }
         } catch (e) {}
+        // Fallback: read from shared localStorage
+        try {
+            const raw = localStorage.getItem('currentUser');
+            if (raw) {
+                const pu = JSON.parse(raw);
+                return mapParentUser(pu);
+            }
+        } catch(e) {}
         return null;
+    }
+
+    function mapParentUser(pu) {
+        return {
+            name: pu.username,
+            role: pu.role === 'superadmin' ? 'Supervisor' : pu.role === 'admin' ? 'Engineer' : 'Inspector',
+            is_admin: pu.role === 'superadmin' || pu.role === 'admin',
+            allowedSites: pu.allowedSites || [],
+            parentRole: pu.role,
+            from_parent: true
+        };
     }
 
     // Fetch sites from task-tracker DB

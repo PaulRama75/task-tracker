@@ -653,7 +653,7 @@ input:focus,select:focus{border-color:var(--accent)}
 
 <script>
 // ========== AUTH STATE ==========
-let authToken = sessionStorage.getItem('authToken') || '';
+let authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken') || '';
 window.authToken = authToken; // expose for iframes
 let currentUser = null; // { username, role }
 window.currentUser = currentUser; // expose for iframes
@@ -687,8 +687,10 @@ async function doLogin() {
       authToken = data.token;
       window.authToken = authToken;
       sessionStorage.setItem('authToken', authToken);
+      localStorage.setItem('authToken', authToken);
       currentUser = { username: data.username, role: data.role, allowedSites: data.allowedSites || [], allowedApps: data.allowedApps || [] };
       window.currentUser = currentUser;
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
       // Force Reports iframe to reload with new user credentials
       const rIframe = document.getElementById('reportsIframe');
       if (rIframe) rIframe.src = '/reports/';
@@ -705,6 +707,8 @@ function doLogout() {
   currentUser = null;
   window.currentUser = null;
   sessionStorage.removeItem('authToken');
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUser');
   // Clear Reports iframe session
   const rIframe = document.getElementById('reportsIframe');
   if (rIframe) rIframe.src = 'about:blank';
@@ -721,6 +725,7 @@ async function checkSession() {
     if (res.ok) {
       currentUser = await res.json();
       window.currentUser = currentUser;
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
       showApp();
     } else {
       document.getElementById('loginOverlay').style.display = 'flex';
