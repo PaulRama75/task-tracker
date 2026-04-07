@@ -251,7 +251,7 @@ input:focus,select:focus{border-color:var(--accent)}
     <h1 id="headerAppTitle"><span>Task</span> Tracker</h1>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
-    <span id="saveIndicator" style="font-size:11px;color:var(--text-dim);margin-right:8px">Loading...</span>
+    <span id="saveIndicator" style="font-size:11px;color:var(--text-dim);margin-right:8px"></span>
     <button class="btn btn-outline btn-sm" onclick="exportBackupJSON()" style="display:none" aria-label="Backup data as JSON">Backup JSON</button>
     <button class="btn btn-outline btn-sm" onclick="document.getElementById('importJSON').click()" style="display:none" aria-label="Restore data from JSON backup">Restore JSON</button>
     <input type="file" id="importJSON" accept=".json" style="display:none" onchange="importBackupJSON(event)" aria-label="Select JSON backup file">

@@ -137,6 +137,7 @@ body {
 .inline-input {
     width: 100%; padding: 3px 6px; border: 1px solid var(--gray-300);
     border-radius: 3px; font-size: 13px; background: #fffef5;
+    text-align: center;
 }
 .inline-input:focus { outline: 2px solid #333; border-color: #333; }
 .inline-textarea {
