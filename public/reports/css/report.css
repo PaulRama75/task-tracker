@@ -649,36 +649,25 @@ body {
 /* info-table rules consolidated above */
 
 /* ─── Quill Overrides ───────────────────────────────────────────────────── */
-.ql-toolbar .ql-stroke { stroke: #444; fill: none; }
-.ql-toolbar .ql-fill { fill: #444; stroke: none; }
-.ql-toolbar .ql-picker-label svg,
-.ql-toolbar button svg {
-    width: 18px !important;
-    height: 18px !important;
-}
-.ql-toolbar .ql-picker-label {
-    display: inline-flex;
-    align-items: center;
-}
-.ql-toolbar button {
-    width: 28px !important;
-    height: 24px !important;
-    padding: 3px 5px !important;
-}
-.ql-snow .ql-picker.ql-header .ql-picker-label::before,
-.ql-snow .ql-picker.ql-color .ql-picker-label::before {
-    line-height: 22px;
-}
 .ql-toolbar.ql-snow {
     border: 1px solid var(--gray-300) !important;
     background: var(--gray-50); border-radius: 4px 4px 0 0;
+    padding: 6px 8px !important;
 }
+.ql-toolbar.ql-snow:empty { display: none; }
+.ql-toolbar.ql-snow button { width: 28px; height: 24px; padding: 3px 5px; }
+.ql-toolbar.ql-snow button svg { width: 18px; height: 18px; }
+.ql-toolbar.ql-snow .ql-picker { height: 24px; }
+.ql-toolbar.ql-snow .ql-picker-label { padding: 2px 4px; }
+.ql-toolbar.ql-snow .ql-picker-label svg { width: 18px; height: 18px; }
 .ql-container.ql-snow {
     border: 1px solid var(--gray-300) !important;
     border-top: none !important;
     background: #fffef5; border-radius: 0 0 4px 4px;
     font-size: 13px; font-family: inherit;
 }
+/* Hide empty narrative wraps and any orphaned Quill containers */
+.narrative-wrap:empty { display: none; }
 .ql-editor { min-height: 80px; line-height: 1.7; }
 .ql-editor img { max-width: 100%; height: auto; border-radius: 4px; margin: 4px 0; }
 .ql-editor table { border-collapse: collapse; width: 100%; margin: 8px 0; }
