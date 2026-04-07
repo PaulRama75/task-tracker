@@ -2,7 +2,7 @@ const router = require('express').Router();
 const path = require('path');
 const db = require('../db');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { authRequired } = require('./auth');
+const { authRequired, superAdminRequired } = require('./auth');
 
 // Serve safety pages
 router.get('/', (req, res) => {
@@ -61,6 +61,21 @@ router.get('/api/jsa-records/:id/pdf', authRequired, asyncHandler(async (req, re
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(row.pdfData);
+}));
+
+// API: Get current user info (for role check)
+router.get('/api/me', authRequired, (req, res) => {
+  res.json({ username: req.user.username, role: req.user.role });
+});
+
+// API: Delete a JSA record (super admin only)
+router.delete('/api/jsa-records/:id', authRequired, superAdminRequired, asyncHandler(async (req, res) => {
+  const deleted = await db.deleteJsaRecord(req.params.id);
+  if (!deleted) {
+    return res.status(404).json({ error: 'Record not found' });
+  }
+  console.log(`JSA deleted: ID=${req.params.id} by ${req.user.username}`);
+  res.json({ success: true });
 }));
 
 module.exports = router;

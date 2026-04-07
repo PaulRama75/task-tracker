@@ -66,6 +66,8 @@
   /* Download link */
   .dl-link { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: #1a3a5c; color: #fff; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: 600; }
   .dl-link:hover { background: #0d2840; }
+  .del-link { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: #c62828; color: #fff; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; }
+  .del-link:hover { background: #b71c1c; }
 
   /* Empty state */
   .empty-state { text-align: center; padding: 60px 20px; color: #999; }
@@ -139,6 +141,7 @@
     <input type="checkbox" id="selectAll" class="row-check" onchange="toggleSelectAll(this.checked)">
     <span id="selectionCount">0 selected</span>
     <button class="btn-download" onclick="downloadSelected()" style="padding:5px 14px;font-size:12px;">Download Selected</button>
+    <button class="del-link" id="btnDeleteSelected" onclick="deleteSelected()" style="display:none;padding:5px 14px;font-size:12px;">Delete Selected</button>
   </div>
 
   <div id="tableContainer">
@@ -176,9 +179,35 @@
   let allRecords = [];
   let filteredRecords = [];
   let selectedIds = new Set();
+  let isSuperAdmin = false;
+
+  async function checkUserRole() {
+    try {
+      const res = await authFetch('/safety/api/me');
+      if (res.ok) {
+        const user = await res.json();
+        isSuperAdmin = user.role === 'superadmin';
+      }
+    } catch(e) {}
+    // Also check parent window
+    try {
+      if (window.parent && window.parent.currentUser) {
+        const pu = window.parent.currentUser;
+        if (pu.role === 'superadmin') isSuperAdmin = true;
+      }
+    } catch(e) {}
+    try {
+      const stored = localStorage.getItem('currentUser');
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u.role === 'superadmin') isSuperAdmin = true;
+      }
+    } catch(e) {}
+  }
 
   async function loadRecords() {
     try {
+      await checkUserRole();
       const res = await authFetch('/safety/api/jsa-records');
       allRecords = await res.json();
       updateStats();
@@ -263,6 +292,8 @@
       const checked = selectedIds.has(r.id) ? ' checked' : '';
       const selClass = selectedIds.has(r.id) ? ' selected' : '';
 
+      const delBtn = isSuperAdmin ? ' <button class="del-link" onclick="deleteRecord(' + r.id + ')">&#128465; Delete</button>' : '';
+
       html += '<tr class="' + selClass + '">' +
         '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + r.id + '"' + checked + ' onchange="toggleSelect(' + r.id + ', this.checked)"></td>' +
         '<td>' + r.id + '</td>' +
@@ -270,7 +301,7 @@
         '<td>' + escapeHtml(r.description_of_work || '-') + '</td>' +
         '<td><span class="badge badge-date">' + dateStr + '</span><br><span style="font-size:11px;color:#666;">' + timeStr + '</span></td>' +
         '<td><span class="badge badge-size">' + sizeKB + ' KB</span></td>' +
-        '<td><a href="#" onclick="downloadPdf(' + r.id + ');return false;" class="dl-link">&#128229; Download</a></td>' +
+        '<td><a href="#" onclick="downloadPdf(' + r.id + ');return false;" class="dl-link">&#128229; Download</a>' + delBtn + '</td>' +
         '</tr>';
     });
 
@@ -307,21 +338,58 @@
     const count = selectedIds.size;
     const btn = document.getElementById('btnDownloadSelected');
     const countEl = document.getElementById('selectionCount');
+    const delBtn = document.getElementById('btnDeleteSelected');
     btn.disabled = count === 0;
     btn.textContent = 'Download Selected (' + count + ')';
     if (countEl) countEl.textContent = count + ' selected';
+    if (delBtn) delBtn.style.display = (isSuperAdmin && count > 0) ? '' : 'none';
   }
 
   async function downloadSelected() {
     if (selectedIds.size === 0) return;
     const ids = [...selectedIds];
-    // Download one by one with small delay
     for (let i = 0; i < ids.length; i++) {
       await downloadPdf(ids[i]);
       if (ids.length > 1 && i < ids.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
+  }
+
+  async function deleteRecord(id) {
+    if (!confirm('Are you sure you want to permanently delete JSA record #' + id + '? This cannot be undone.')) return;
+    try {
+      const res = await authFetch('/safety/api/jsa-records/' + id, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Delete failed');
+        return;
+      }
+      allRecords = allRecords.filter(r => r.id !== id);
+      selectedIds.delete(id);
+      updateStats();
+      applyFilters();
+    } catch(e) { alert('Delete failed: ' + e.message); }
+  }
+
+  async function deleteSelected() {
+    if (selectedIds.size === 0) return;
+    if (!confirm('Are you sure you want to permanently delete ' + selectedIds.size + ' record(s)? This cannot be undone.')) return;
+    const ids = [...selectedIds];
+    let deleted = 0;
+    for (const id of ids) {
+      try {
+        const res = await authFetch('/safety/api/jsa-records/' + id, { method: 'DELETE' });
+        if (res.ok) {
+          allRecords = allRecords.filter(r => r.id !== id);
+          selectedIds.delete(id);
+          deleted++;
+        }
+      } catch(e) {}
+    }
+    updateStats();
+    applyFilters();
+    alert(deleted + ' record(s) deleted.');
   }
 
   function escapeHtml(str) {

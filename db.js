@@ -671,6 +671,11 @@ async function getJsaRecordPdf(id) {
   return { pdfData: r.pdf_data, siteName: r.site_name, savedAt: r.saved_at };
 }
 
+async function deleteJsaRecord(id) {
+  const { rowCount } = await pool.query('DELETE FROM jsa_records WHERE id = $1', [id]);
+  return rowCount > 0;
+}
+
 // ========== PAGINATED QUERY OPERATIONS ==========
 async function getTrackerRowsPaginated(sectionId, offset, limit) {
   const countRes = await pool.query(
@@ -824,7 +829,7 @@ module.exports = {
   getSectionId, saveSectionWeights, saveInitials,
   createSection, deleteSection,
   getApps, createApp, updateApp, deleteApp,
-  saveJsaRecord, getJsaRecords, getJsaRecordPdf,
+  saveJsaRecord, getJsaRecords, getJsaRecordPdf, deleteJsaRecord,
   getTrackerRowsPaginated, getAuditLogPaginated, getJsaRecordsPaginated,
   migrateFromJSON
 };
