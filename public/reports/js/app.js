@@ -1425,7 +1425,7 @@ const App = (() => {
             const filterSearch = $('#equip-filter-search') ? $('#equip-filter-search').value.toLowerCase() : '';
 
             if (filterType) all = all.filter(e => e.report_type === filterType);
-            if (filterSite) all = all.filter(e => e.site_id === parseSiteId(filterSite));
+            if (filterSite) all = all.filter(e => e.site_id && String(e.site_id) === String(parseSiteId(filterSite)));
             if (filterSearch) all = all.filter(e =>
                 (e.equipment_number || '').toLowerCase().includes(filterSearch) ||
                 (e.equipment_name || '').toLowerCase().includes(filterSearch) ||
@@ -1477,7 +1477,7 @@ const App = (() => {
             let all = API.getAllEquipment();
             const filterSearch = $('#equip-filter-search') ? $('#equip-filter-search').value.toLowerCase() : '';
             if (filterType) all = all.filter(e => e.report_type === filterType);
-            if (filterSite) all = all.filter(e => e.site_id === parseSiteId(filterSite));
+            if (filterSite) all = all.filter(e => e.site_id && String(e.site_id) === String(parseSiteId(filterSite)));
             if (filterSearch) all = all.filter(e =>
                 (e.equipment_number || '').toLowerCase().includes(filterSearch) ||
                 (e.equipment_name || '').toLowerCase().includes(filterSearch) ||
@@ -1626,7 +1626,12 @@ const App = (() => {
             // Use modal site selector if open, otherwise toolbar
             const nrSiteVal = $('#nr-site') ? $('#nr-site').value : '';
             const siteId = nrSiteVal ? parseSiteId(nrSiteVal) : getSelectedSiteId();
-            const equipment = API.getEquipment(type, siteId);
+            // Get equipment for this type - first try with site filter, then fallback to all sites
+            let equipment = API.getEquipment(type, siteId);
+            if (equipment.length === 0 && siteId) {
+                // No equipment for this site - show all equipment for this type (any site)
+                equipment = API.getEquipment(type, null);
+            }
             const select = $('#nr-equip-select');
             select.innerHTML = '<option value="">-- Select Equipment --</option>';
             equipment.forEach(e => {

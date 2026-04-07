@@ -740,7 +740,7 @@ const API = (() => {
             const data = getData();
             let list = data.equipment || [];
             if (reportType) list = list.filter(e => e.report_type === reportType);
-            if (siteId) list = list.filter(e => !e.site_id || e.site_id === siteId);
+            if (siteId) list = list.filter(e => !e.site_id || String(e.site_id) === String(siteId));
             return list;
         },
 
