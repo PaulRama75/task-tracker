@@ -228,7 +228,7 @@ body {
 .info-table .value { width: 30%; text-align: center; }
 .info-table th {
     background: var(--primary); color: var(--white);
-    font-weight: 600; font-size: 12px; text-align: left;
+    font-weight: 600; font-size: 12px; text-align: center;
 }
 
 /* ─── Narrative Text ────────────────────────────────────────────────────── */
@@ -718,10 +718,126 @@ body {
     display: inline-block !important;
     padding: 3px 5px !important;
 }
-.ql-snow .ql-toolbar .ql-picker-label,
-.ql-toolbar.ql-snow .ql-picker-label {
+/* Picker base styles (header, color, etc.) */
+.ql-snow .ql-picker {
+    position: relative !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    height: 24px !important;
+    color: #444 !important;
+    font-size: 13px !important;
+}
+.ql-snow .ql-picker-label {
     display: inline-flex !important;
     align-items: center !important;
+    cursor: pointer !important;
+    padding: 2px 4px !important;
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+}
+.ql-snow .ql-picker-label svg {
+    position: absolute !important;
+    right: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+}
+/* Header picker width */
+.ql-snow .ql-header.ql-picker {
+    width: 98px !important;
+}
+/* Color picker */
+.ql-snow .ql-color-picker {
+    width: 28px !important;
+}
+.ql-snow .ql-color-picker .ql-picker-label {
+    padding: 2px 4px !important;
+}
+.ql-snow .ql-color-picker .ql-picker-label svg {
+    right: 4px !important;
+    width: 18px !important;
+    height: 18px !important;
+}
+/* Color label line (the underline that shows current color) */
+.ql-snow .ql-color-label.ql-transparent {
+    opacity: 0.4 !important;
+}
+/* Picker dropdown options */
+.ql-snow .ql-picker-options {
+    display: none !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    padding: 4px 5px !important;
+    min-width: 100% !important;
+    white-space: normal !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+    top: 100% !important;
+    left: 0 !important;
+}
+.ql-snow .ql-picker.ql-expanded .ql-picker-options {
+    display: block !important;
+}
+.ql-snow .ql-picker.ql-expanded .ql-picker-label {
+    color: #06c !important;
+    z-index: 2 !important;
+}
+.ql-snow .ql-picker.ql-expanded .ql-picker-label .ql-stroke {
+    stroke: #06c !important;
+}
+/* Color picker option items (color swatches) */
+.ql-snow .ql-color-picker .ql-picker-options {
+    width: 152px !important;
+    padding: 3px 5px !important;
+}
+.ql-snow .ql-color-picker .ql-picker-item {
+    width: 16px !important;
+    height: 16px !important;
+    border: 1px solid transparent !important;
+    border-radius: 2px !important;
+    margin: 2px !important;
+    display: inline-block !important;
+    float: left !important;
+    cursor: pointer !important;
+}
+.ql-snow .ql-color-picker .ql-picker-item:hover {
+    border-color: #000 !important;
+}
+/* Header picker option items */
+.ql-snow .ql-header .ql-picker-item::before,
+.ql-snow .ql-header .ql-picker-label::before {
+    content: 'Normal' !important;
+}
+.ql-snow .ql-header .ql-picker-item[data-value="1"]::before,
+.ql-snow .ql-header .ql-picker-label[data-value="1"]::before {
+    content: 'Heading 1' !important;
+    font-size: 18px !important;
+}
+.ql-snow .ql-header .ql-picker-item[data-value="2"]::before,
+.ql-snow .ql-header .ql-picker-label[data-value="2"]::before {
+    content: 'Heading 2' !important;
+    font-size: 14px !important;
+}
+.ql-snow .ql-header .ql-picker-item[data-value="3"]::before,
+.ql-snow .ql-header .ql-picker-label[data-value="3"]::before {
+    content: 'Heading 3' !important;
+    font-size: 13px !important;
+}
+.ql-snow .ql-header .ql-picker-item {
+    display: block !important;
+    cursor: pointer !important;
+    padding: 5px 10px !important;
+    width: auto !important;
+    height: auto !important;
+}
+.ql-snow .ql-header .ql-picker-item:hover {
+    background: #f0f0f0 !important;
+}
+.ql-snow .ql-header .ql-picker-options {
+    width: auto !important;
+    min-width: 120px !important;
 }
 .ql-snow .ql-toolbar .ql-formats,
 .ql-toolbar.ql-snow .ql-formats {
