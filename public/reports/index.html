@@ -260,18 +260,22 @@
                     <option value="approved">Approved</option>
                 </select>
             </div>
+            <div class="library-table-wrap">
             <table class="library-table">
                 <thead><tr><th>Equipment #</th><th>Project</th><th>Status</th><th>Last Editor</th><th>Last Modified</th><th>Actions</th></tr></thead>
                 <tbody id="lib-tbody"></tbody>
             </table>
+            </div>
         </div>
 
         <!-- Review Queue Tab -->
         <div id="lib-tab-review" class="hidden">
+            <div class="library-table-wrap">
             <table class="library-table">
                 <thead><tr><th>Equipment #</th><th>Project</th><th>Submitted By</th><th>Submitted Date</th><th>Actions</th></tr></thead>
                 <tbody id="review-tbody"></tbody>
             </table>
+            </div>
             <p id="review-empty" class="hidden" style="text-align:center;color:#aaa;padding:20px;">No reports pending review.</p>
         </div>
 
@@ -282,10 +286,12 @@
                 <button id="btn-download-selected" class="btn btn-sm btn-primary" disabled>Download Selected</button>
                 <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="final-select-all"> Select All</label>
             </div>
+            <div class="library-table-wrap">
             <table class="library-table">
                 <thead><tr><th style="width:30px;"><input type="checkbox" id="final-select-all-head"></th><th>Equipment #</th><th>Project</th><th>Finalized By</th><th>Finalized Date</th><th>Actions</th></tr></thead>
                 <tbody id="final-tbody"></tbody>
             </table>
+            </div>
             <p id="final-empty" class="hidden" style="text-align:center;color:#aaa;padding:20px;">No final reports yet. Use "Final Save & Generate PDF" to finalize a report.</p>
         </div>
     </div>

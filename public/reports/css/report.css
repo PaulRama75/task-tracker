@@ -1131,3 +1131,212 @@ body {
     .cl-comment { border: none !important; padding: 0 !important; background: transparent !important; }
 }
 .ext510-page-break-before { page-break-before: always; break-before: page; }
+
+/* ─── Mobile / Tablet Responsive ───────────────────────────────────────── */
+
+/* Tablet (768px and below) */
+@media screen and (max-width: 768px) {
+    /* Top bar — stack and wrap */
+    .top-bar {
+        flex-wrap: wrap;
+        padding: 8px 10px;
+        gap: 6px;
+    }
+    .top-bar-left {
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;
+    }
+    .top-bar-right {
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;
+        justify-content: flex-end;
+    }
+    .logo { font-size: 13px; }
+    .site-select, .report-select {
+        font-size: 11px;
+        max-width: 140px;
+    }
+
+    /* Report content */
+    .report-content { padding: 8px; }
+    .report-section { margin-bottom: 8px; }
+    .section-view { padding: 10px 12px; }
+    .section-view h3 {
+        font-size: 12px;
+        padding: 5px 10px;
+        margin-left: -12px;
+        margin-right: -12px;
+        margin-top: -10px;
+    }
+
+    /* Equipment table */
+    .info-table { font-size: 11px; }
+    .info-table td, .info-table th { padding: 4px 6px; }
+    .info-table .label { white-space: normal; width: 25%; }
+    .info-table .value { width: 25%; }
+    .inline-input { font-size: 12px; padding: 4px 4px; }
+
+    /* Photo grid — 2 columns on tablet */
+    .photo-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    .photo-card img { height: 150px; }
+
+    /* Photo drop zone — larger touch target */
+    .photo-drop-zone {
+        padding: 20px 12px;
+    }
+    .drop-zone-content p { font-size: 14px; }
+
+    /* Photo upload buttons — larger for touch */
+    #photo-upload-area .btn {
+        padding: 10px 16px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+
+    /* Quill toolbar — wrap properly */
+    .ql-toolbar.ql-snow {
+        padding: 4px 6px !important;
+    }
+    .ql-snow .ql-toolbar button,
+    .ql-toolbar.ql-snow button {
+        width: 32px !important;
+        height: 32px !important;
+        padding: 5px !important;
+    }
+    .ql-snow .ql-toolbar svg,
+    .ql-toolbar.ql-snow svg {
+        width: 18px !important;
+        height: 18px !important;
+    }
+    .ql-snow .ql-header.ql-picker {
+        width: 80px !important;
+    }
+
+    /* Save bar */
+    .save-bar {
+        flex-wrap: wrap;
+        padding: 12px;
+        gap: 8px;
+    }
+    .btn-lg { padding: 10px 24px; font-size: 14px; }
+
+    /* Lock bar */
+    .lock-bar {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 12px;
+    }
+
+    /* Photo delete — always visible on touch */
+    .photo-card .photo-delete {
+        display: flex;
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+
+    /* Modal */
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+        margin: 5vh auto;
+    }
+
+    /* Report header */
+    .report-header { padding: 12px; }
+    .ext510-header-block { flex-direction: column; gap: 8px; }
+    .ext510-title-area h1 { font-size: 16px; }
+    .ext510-meta-area { font-size: 10px; }
+
+    /* Library table — horizontal scroll */
+    .library-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+
+/* Phone (480px and below) */
+@media screen and (max-width: 480px) {
+    /* Top bar — more compact */
+    .top-bar { padding: 6px 8px; }
+    .logo { font-size: 12px; }
+    .site-select, .report-select {
+        font-size: 10px;
+        max-width: 120px;
+        padding: 3px 4px;
+    }
+    .top-bar .btn-sm { font-size: 10px; padding: 3px 6px; }
+
+    /* Content */
+    .report-content { padding: 4px; }
+    .section-view { padding: 8px 8px; }
+    .section-view h3 {
+        font-size: 11px;
+        padding: 4px 8px;
+        margin-left: -8px;
+        margin-right: -8px;
+        margin-top: -8px;
+    }
+
+    /* Equipment table — stack labels + values */
+    .info-table td, .info-table th { padding: 3px 4px; font-size: 10px; }
+    .inline-input { font-size: 11px; padding: 3px 2px; }
+
+    /* Photo grid — single column */
+    .photo-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .photo-card img { height: 200px; }
+
+    /* Photo upload — full width buttons */
+    #photo-upload-area .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 16px;
+        font-size: 15px;
+        min-height: 48px;
+    }
+    .photo-drop-zone { padding: 24px 12px; }
+    .drop-zone-content svg { width: 48px; height: 48px; }
+    .drop-zone-content p { font-size: 15px; }
+
+    /* Quill — bigger touch targets */
+    .ql-snow .ql-toolbar button,
+    .ql-toolbar.ql-snow button {
+        width: 36px !important;
+        height: 36px !important;
+        padding: 6px !important;
+    }
+    .ql-snow .ql-toolbar .ql-formats,
+    .ql-toolbar.ql-snow .ql-formats {
+        margin-right: 6px !important;
+    }
+    .ql-editor { min-height: 100px; font-size: 14px; }
+
+    /* Save buttons full width */
+    .save-bar {
+        flex-direction: column;
+        padding: 10px;
+    }
+    .save-bar .btn-lg {
+        width: 100%;
+        padding: 12px;
+        font-size: 15px;
+    }
+
+    /* Modal full screen on phone */
+    .modal-content {
+        width: 100%;
+        max-height: 100vh;
+        margin: 0;
+        border-radius: 0;
+    }
+
+    /* Header */
+    .ext510-header-block { padding: 8px; }
+    .ext510-title-area h1 { font-size: 14px; }
+    .ext510-equip-id { font-size: 12px; padding: 4px 8px; }
+}
