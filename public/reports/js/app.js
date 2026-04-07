@@ -227,6 +227,14 @@ const App = (() => {
         $('#report-container').classList.remove('hidden');
         $('#library-container').classList.add('hidden');
 
+        // Auto-claim edit lock when in iframe mode (before rendering)
+        if (Auth.isInIframe() && !Auth.hasLock(currentReport)) {
+            try {
+                Auth.acquireLock(currentReport.id);
+                currentReport = API.getReport(currentReport.id);
+            } catch(e) { console.warn('Auto-lock failed:', e); }
+        }
+
         // Set title based on report type
         const config = API.getReportTypeConfig(currentReport.report_type || 'tower');
         const eqNumTitle = currentReport.equipment_number || 'Report';
@@ -287,17 +295,6 @@ const App = (() => {
         renderNarrativeSections();
         renderPhotos();
         renderRejectionBanner();
-        // Auto-claim edit lock when in iframe mode
-        if (Auth.isInIframe() && currentReport && !Auth.hasLock(currentReport)) {
-            try {
-                Auth.acquireLock(currentReport.id);
-                currentReport = API.getReport(currentReport.id); // refresh lock state
-                // Re-render sections with lock
-                renderHeaderSection();
-                renderNarrativeSections();
-                renderPhotos();
-            } catch(e) { console.warn('Auto-lock failed:', e); }
-        }
         updateLockUI();
     }
 
@@ -815,8 +812,6 @@ const App = (() => {
     // ─── Render: Narrative Sections (Quill) ───────────────────────────────
     function renderNarrativeSections() {
         const hasLock = !viewingVersion && Auth.hasLock(currentReport);
-        // Always allow editing in iframe mode (auth comes from parent)
-        const canEdit = hasLock || (!viewingVersion && Auth.isInIframe());
         const config = API.getReportTypeConfig(currentReport.report_type || 'tower');
         const keys = config.narrativeSections.map(s => s.key);
 
@@ -835,7 +830,7 @@ const App = (() => {
             if (!wrap) return;
             const htmlContent = toHtml(data.content || '');
 
-            if (canEdit) {
+            if (hasLock) {
                 // Create Quill editor
                 wrap.innerHTML = `<div id="quill-${key}"></div>`;
                 const quill = new Quill(`#quill-${key}`, {
