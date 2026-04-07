@@ -376,13 +376,16 @@ input:focus,select:focus{border-color:var(--accent)}
         <button class="btn btn-outline btn-sm" id="btnExportCSV" onclick="exportFile('/api/export/' + encodeURIComponent(state.activeSection) + '/tracker.csv','tracker-export.csv')" aria-label="Export tracker as CSV">Export CSV</button>
       </div>
     </div>
-    <div class="filters">
+    <div class="filters" style="flex-wrap:wrap;gap:6px 10px;">
       <input id="searchCircuit" placeholder="Search circuit/asset..." style="width:200px" oninput="renderTracker()" aria-label="Search circuit or asset">
       <select id="filterPerson" onchange="renderTracker()" aria-label="Filter by person"><option value="">All People</option></select>
       <select id="filterTask" onchange="renderTracker()" aria-label="Filter by task"><option value="">All Tasks</option></select>
       <select id="filterStatus" onchange="renderTracker()" aria-label="Filter by status">
         <option value="">All Status</option><option value="done">Completed</option><option value="empty">Not Done</option>
       </select>
+      <label style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:4px;">From: <input type="date" id="filterDateFrom" onchange="renderTracker()" style="font-size:11px;padding:2px 4px;"></label>
+      <label style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:4px;">To: <input type="date" id="filterDateTo" onchange="renderTracker()" style="font-size:11px;padding:2px 4px;"></label>
+      <button class="btn btn-outline btn-sm" onclick="clearTrackerFilters()" style="font-size:10px;" aria-label="Clear all filters">Clear Filters</button>
       <span id="trackerCount" style="font-size:12px;color:var(--text-dim)"></span>
     </div>
     <div class="tracker-wrap" id="trackerWrap">
@@ -1567,6 +1570,24 @@ function showMappingStatus() {
 }
 
 // ========== TRACKER TAB ==========
+function clearTrackerFilters() {
+  document.getElementById('searchCircuit').value = '';
+  document.getElementById('filterPerson').value = '';
+  document.getElementById('filterTask').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterDateFrom').value = '';
+  document.getElementById('filterDateTo').value = '';
+  window._colFilters = {};
+  state.page = 0;
+  renderTracker();
+}
+
+if (!window._colFilters) window._colFilters = {};
+function setColFilter(colName, value) {
+  window._colFilters[colName] = value.toLowerCase().trim();
+  state.page = 0;
+  renderTracker();
+}
 function populateFilters() {
   const fp = document.getElementById('filterPerson');
   const ft = document.getElementById('filterTask');
@@ -1593,8 +1614,21 @@ function renderTracker() {
   const fTask = document.getElementById('filterTask').value;
   const fStatus = document.getElementById('filterStatus').value;
 
+  const fDateFrom = document.getElementById('filterDateFrom').value;
+  const fDateTo = document.getElementById('filterDateTo').value;
+
+  const colFilters = window._colFilters || {};
+  const hasColFilters = Object.values(colFilters).some(v => v);
+
   let filtered = rows.filter(r => {
     if (search) { const infoVals = Object.values(r._info).join(' ').toLowerCase(); if (!infoVals.includes(search)) return false; }
+    if (hasColFilters) {
+      for (const [col, val] of Object.entries(colFilters)) {
+        if (!val) continue;
+        const cellVal = (r._info[col] || '').toLowerCase();
+        if (!cellVal.includes(val)) return false;
+      }
+    }
     if (fPerson) { const hasP = Object.values(r._tasks).some(t => t.initial.toUpperCase() === fPerson.toUpperCase()); if (!hasP) return false; }
     if (fTask) {
       const t = r._tasks[fTask];
@@ -1605,6 +1639,12 @@ function renderTracker() {
     if (fStatus && !fTask) {
       if (fStatus === 'done') { if (!Object.values(r._tasks).some(t => t.date)) return false; }
       if (fStatus === 'empty') { if (!Object.values(r._tasks).some(t => !t.date)) return false; }
+    }
+    if (fDateFrom || fDateTo) {
+      const dates = Object.values(r._tasks).map(t => t.date).filter(Boolean);
+      if (!dates.length) return false;
+      if (fDateFrom) { if (!dates.some(d => d >= fDateFrom)) return false; }
+      if (fDateTo) { if (!dates.some(d => d <= fDateTo)) return false; }
     }
     return true;
   });
@@ -1626,9 +1666,11 @@ function renderTracker() {
     const frozen = i < frozenCount;
     return `<th${frozen ? ` class="frozen" style="left:${frozenLefts[i]}px;min-width:${i === 0 ? colW1 : colW2}px${i === frozenCount - 1 ? ';border-right:2px solid var(--accent)' : ''}"` : ` style="min-width:100px"`}>${esc(c.name.replace(/\r?\n/g, ' ').substring(0, 25))}</th>`;
   }).join('')}${taskCols.map(tc => `<th style="min-width:140px;text-align:center" colspan="2">${esc(tc.task)}</th>`).join('')}</tr>
-  <tr>${displayInfo.map((c, i) => {
+  <tr class="filter-row">${displayInfo.map((c, i) => {
     const frozen = i < frozenCount;
-    return `<th${frozen ? ` class="frozen" style="left:${frozenLefts[i]}px;min-width:${i === 0 ? colW1 : colW2}px${i === frozenCount - 1 ? ';border-right:2px solid var(--accent)' : ''}"` : ''}></th>`;
+    const colName = c.name.replace(/"/g, '&quot;');
+    const val = (window._colFilters && window._colFilters[c.name]) || '';
+    return `<th${frozen ? ` class="frozen" style="left:${frozenLefts[i]}px;min-width:${i === 0 ? colW1 : colW2}px${i === frozenCount - 1 ? ';border-right:2px solid var(--accent)' : ''}"` : ''} style="padding:2px 3px;"><input type="text" placeholder="Filter..." value="${esc(val)}" style="width:100%;padding:2px 4px;font-size:10px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;border-radius:3px;" oninput="setColFilter('${colName}',this.value)"></th>`;
   }).join('')}${taskCols.map(() => '<th style="font-size:10px;text-align:center;min-width:80px">Date</th><th style="font-size:10px;text-align:center;min-width:60px">Init</th>').join('')}</tr>`;
 
   body.innerHTML = pageRows.map(r => {

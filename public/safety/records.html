@@ -15,30 +15,48 @@
   .toolbar a, .toolbar button { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; text-decoration: none; display: inline-block; }
   .btn-new { background: #2e7d32; }
   .btn-new:hover { background: #1b5e20; }
+  .btn-download { background: #f57c00; }
+  .btn-download:hover { background: #e65100; }
+  .btn-download:disabled { background: #999; cursor: not-allowed; }
 
   /* Container */
   .container { max-width: 1100px; margin: 12px auto; background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); overflow: hidden; }
 
   /* Stats bar */
-  .stats-bar { display: flex; gap: 20px; padding: 14px 20px; background: #f5f8fb; border-bottom: 2px solid #1a3a5c; }
+  .stats-bar { display: flex; gap: 20px; padding: 14px 20px; background: #f5f8fb; border-bottom: 2px solid #1a3a5c; flex-wrap: wrap; }
   .stat-item { text-align: center; }
   .stat-value { font-size: 22px; font-weight: bold; color: #1a3a5c; }
   .stat-label { font-size: 11px; color: #666; }
 
-  /* Search */
-  .search-bar { padding: 12px 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 10px; align-items: center; }
-  .search-bar input { flex: 1; padding: 8px 12px; border: 2px solid #c8d6e5; border-radius: 4px; font-size: 13px; font-family: inherit; }
-  .search-bar input:focus { outline: none; border-color: #1a3a5c; }
+  /* Filter bar */
+  .filter-bar { padding: 12px 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filter-bar input, .filter-bar select { padding: 7px 10px; border: 2px solid #c8d6e5; border-radius: 4px; font-size: 12px; font-family: inherit; }
+  .filter-bar input:focus, .filter-bar select:focus { outline: none; border-color: #1a3a5c; }
+  .filter-bar input[type="text"] { flex: 1; min-width: 150px; }
+  .filter-bar input[type="date"] { width: 140px; }
+  .filter-bar select { min-width: 130px; }
+  .filter-bar label { font-size: 11px; color: #666; display: flex; align-items: center; gap: 4px; }
+  .btn-clear { padding: 7px 14px; border: 1px solid #c8d6e5; border-radius: 4px; background: #fff; font-size: 12px; cursor: pointer; color: #666; }
+  .btn-clear:hover { background: #f0f0f0; }
+
+  /* Selection bar */
+  .selection-bar { padding: 8px 20px; background: #fff3e0; border-bottom: 1px solid #ffe0b2; display: flex; align-items: center; gap: 12px; }
+  .selection-bar.hidden { display: none; }
+  .selection-bar span { font-size: 13px; font-weight: 600; color: #e65100; }
 
   /* Table */
   .records-table { width: 100%; border-collapse: collapse; }
   .records-table th { background: #1a3a5c; color: #fff; padding: 10px 14px; text-align: left; font-size: 12px; letter-spacing: 0.3px; }
-  .records-table th:first-child { text-align: center; width: 60px; }
+  .records-table th:first-child { text-align: center; width: 40px; }
   .records-table td { padding: 10px 14px; border-bottom: 1px solid #e8ecf0; font-size: 12px; }
   .records-table tr:hover td { background: #eaf0f7; }
   .records-table tr:nth-child(even) td { background: #f9fbfd; }
   .records-table tr:nth-child(even):hover td { background: #eaf0f7; }
-  .records-table td:first-child { text-align: center; font-weight: bold; color: #1a3a5c; }
+  .records-table tr.selected td { background: #fff3e0 !important; }
+  .records-table td:nth-child(2) { font-weight: bold; color: #1a3a5c; text-align: center; }
+
+  /* Checkbox */
+  .row-check { width: 16px; height: 16px; cursor: pointer; }
 
   /* Status badges */
   .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: bold; }
@@ -58,10 +76,23 @@
   /* Loading */
   .loading { text-align: center; padding: 40px; color: #666; }
 
+  @media screen and (max-width: 600px) {
+    .toolbar { padding: 10px 12px; }
+    .toolbar h1 { font-size: 14px; }
+    .filter-bar { flex-direction: column; gap: 8px; }
+    .filter-bar input[type="text"] { width: 100%; }
+    .filter-bar input[type="date"] { width: 100%; }
+    .filter-bar select { width: 100%; }
+    .records-table th, .records-table td { padding: 6px 8px; font-size: 11px; }
+    .stats-bar { gap: 10px; padding: 10px 12px; }
+    .stat-value { font-size: 18px; }
+  }
+
   @media print {
-    .toolbar, .search-bar { display: none; }
+    .toolbar, .filter-bar, .selection-bar { display: none; }
     .container { box-shadow: none; margin: 0; }
     .dl-link { display: none; }
+    .row-check { display: none; }
   }
 </style>
 </head>
@@ -70,6 +101,7 @@
 <div class="toolbar">
   <h1>FER JSA - Saved Records</h1>
   <div class="spacer"></div>
+  <button class="btn-download" id="btnDownloadSelected" disabled onclick="downloadSelected()">Download Selected (0)</button>
   <a href="/safety/form.html" class="btn-new" aria-label="Create new JSA form">+ New JSA Form</a>
 </div>
 
@@ -93,8 +125,20 @@
     </div>
   </div>
 
-  <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="Search by site name or description..." oninput="filterRecords()" aria-label="Search JSA records">
+  <div class="filter-bar">
+    <input type="text" id="searchInput" placeholder="Search by site or description..." oninput="applyFilters()" aria-label="Search">
+    <select id="filterSite" onchange="applyFilters()" aria-label="Filter by site">
+      <option value="">All Sites</option>
+    </select>
+    <label>From: <input type="date" id="filterDateFrom" onchange="applyFilters()"></label>
+    <label>To: <input type="date" id="filterDateTo" onchange="applyFilters()"></label>
+    <button class="btn-clear" onclick="clearFilters()">Clear Filters</button>
+  </div>
+
+  <div class="selection-bar hidden" id="selectionBar">
+    <input type="checkbox" id="selectAll" class="row-check" onchange="toggleSelectAll(this.checked)">
+    <span id="selectionCount">0 selected</span>
+    <button class="btn-download" onclick="downloadSelected()" style="padding:5px 14px;font-size:12px;">Download Selected</button>
   </div>
 
   <div id="tableContainer">
@@ -105,6 +149,7 @@
 <script>
   function getToken() {
     try { if (window.parent && window.parent.authToken) return window.parent.authToken; } catch(e) {}
+    try { const t = localStorage.getItem('authToken'); if (t) return t; } catch(e) {}
     try { const t = window.parent.sessionStorage.getItem('authToken'); if (t) return t; } catch(e) {}
     try { return sessionStorage.getItem('authToken') || ''; } catch(e) {}
     return '';
@@ -125,21 +170,31 @@
       a.download = 'JSA_' + id + '.pdf';
       a.click();
       URL.revokeObjectURL(a.href);
-    } catch(e) { alert('Download failed'); }
+    } catch(e) { alert('Download failed: ' + e.message); }
   }
 
   let allRecords = [];
+  let filteredRecords = [];
+  let selectedIds = new Set();
 
   async function loadRecords() {
     try {
       const res = await authFetch('/safety/api/jsa-records');
       allRecords = await res.json();
       updateStats();
-      renderTable(allRecords);
+      populateSiteFilter();
+      applyFilters();
     } catch (err) {
       document.getElementById('tableContainer').innerHTML =
         '<div class="empty-state"><div class="icon">&#9888;</div><p>Failed to load records</p></div>';
     }
+  }
+
+  function populateSiteFilter() {
+    const sites = [...new Set(allRecords.map(r => r.site_name))].sort();
+    const sel = document.getElementById('filterSite');
+    sel.innerHTML = '<option value="">All Sites</option>' +
+      sites.map(s => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('');
   }
 
   function updateStats() {
@@ -157,66 +212,116 @@
     document.getElementById('uniqueSites').textContent = sites;
   }
 
+  function applyFilters() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const site = document.getElementById('filterSite').value;
+    const dateFrom = document.getElementById('filterDateFrom').value;
+    const dateTo = document.getElementById('filterDateTo').value;
+
+    filteredRecords = allRecords.filter(r => {
+      if (q && !r.site_name.toLowerCase().includes(q) &&
+          !(r.description_of_work && r.description_of_work.toLowerCase().includes(q))) return false;
+      if (site && r.site_name !== site) return false;
+      if (dateFrom && r.saved_at.slice(0, 10) < dateFrom) return false;
+      if (dateTo && r.saved_at.slice(0, 10) > dateTo) return false;
+      return true;
+    });
+
+    renderTable(filteredRecords);
+  }
+
+  function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('filterSite').value = '';
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value = '';
+    applyFilters();
+  }
+
   function renderTable(records) {
     const container = document.getElementById('tableContainer');
+    const selBar = document.getElementById('selectionBar');
 
     if (records.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="icon">&#128196;</div>
-          <p>No JSA records found</p>
-          <a href="/safety/form.html">+ Create New JSA Form</a>
-        </div>`;
+      selBar.classList.add('hidden');
+      container.innerHTML = '<div class="empty-state"><div class="icon">&#128196;</div><p>No JSA records found</p><a href="/safety/form.html">+ Create New JSA Form</a></div>';
       return;
     }
 
-    let html = `<table class="records-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Site Name</th>
-          <th>Description of Work</th>
-          <th>Date & Time</th>
-          <th>Size</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>`;
+    selBar.classList.remove('hidden');
+
+    let html = '<table class="records-table"><thead><tr>' +
+      '<th><input type="checkbox" class="row-check" id="headerCheck" onchange="toggleSelectAll(this.checked)"></th>' +
+      '<th>ID</th><th>Site Name</th><th>Description of Work</th><th>Date & Time</th><th>Size</th><th>Action</th>' +
+      '</tr></thead><tbody>';
 
     records.forEach(r => {
       const d = new Date(r.saved_at);
       const dateStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
       const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const sizeKB = (r.file_size / 1024).toFixed(1);
+      const checked = selectedIds.has(r.id) ? ' checked' : '';
+      const selClass = selectedIds.has(r.id) ? ' selected' : '';
 
-      html += `<tr>
-        <td>${r.id}</td>
-        <td><strong>${escapeHtml(r.site_name)}</strong></td>
-        <td>${escapeHtml(r.description_of_work || '-')}</td>
-        <td>
-          <span class="badge badge-date">${dateStr}</span><br>
-          <span style="font-size:11px; color:#666;">${timeStr}</span>
-        </td>
-        <td><span class="badge badge-size">${sizeKB} KB</span></td>
-        <td><a href="#" onclick="downloadPdf(${r.id});return false;" class="dl-link">&#128229; Download</a></td>
-      </tr>`;
+      html += '<tr class="' + selClass + '">' +
+        '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + r.id + '"' + checked + ' onchange="toggleSelect(' + r.id + ', this.checked)"></td>' +
+        '<td>' + r.id + '</td>' +
+        '<td><strong>' + escapeHtml(r.site_name) + '</strong></td>' +
+        '<td>' + escapeHtml(r.description_of_work || '-') + '</td>' +
+        '<td><span class="badge badge-date">' + dateStr + '</span><br><span style="font-size:11px;color:#666;">' + timeStr + '</span></td>' +
+        '<td><span class="badge badge-size">' + sizeKB + ' KB</span></td>' +
+        '<td><a href="#" onclick="downloadPdf(' + r.id + ');return false;" class="dl-link">&#128229; Download</a></td>' +
+        '</tr>';
     });
 
     html += '</tbody></table>';
     container.innerHTML = html;
+    updateSelectionUI();
   }
 
-  function filterRecords() {
-    const q = document.getElementById('searchInput').value.toLowerCase().trim();
-    if (!q) {
-      renderTable(allRecords);
-      return;
+  function toggleSelect(id, checked) {
+    if (checked) { selectedIds.add(id); } else { selectedIds.delete(id); }
+    // Update row highlight
+    const row = document.querySelector('input[data-id="' + id + '"]');
+    if (row) row.closest('tr').classList.toggle('selected', checked);
+    updateSelectionUI();
+  }
+
+  function toggleSelectAll(checked) {
+    const checkboxes = document.querySelectorAll('.records-table .row-check[data-id]');
+    checkboxes.forEach(cb => {
+      const id = parseInt(cb.dataset.id);
+      cb.checked = checked;
+      if (checked) { selectedIds.add(id); } else { selectedIds.delete(id); }
+      cb.closest('tr').classList.toggle('selected', checked);
+    });
+    // Sync header checkboxes
+    const headerCheck = document.getElementById('headerCheck');
+    const selectAll = document.getElementById('selectAll');
+    if (headerCheck) headerCheck.checked = checked;
+    if (selectAll) selectAll.checked = checked;
+    updateSelectionUI();
+  }
+
+  function updateSelectionUI() {
+    const count = selectedIds.size;
+    const btn = document.getElementById('btnDownloadSelected');
+    const countEl = document.getElementById('selectionCount');
+    btn.disabled = count === 0;
+    btn.textContent = 'Download Selected (' + count + ')';
+    if (countEl) countEl.textContent = count + ' selected';
+  }
+
+  async function downloadSelected() {
+    if (selectedIds.size === 0) return;
+    const ids = [...selectedIds];
+    // Download one by one with small delay
+    for (let i = 0; i < ids.length; i++) {
+      await downloadPdf(ids[i]);
+      if (ids.length > 1 && i < ids.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
-    const filtered = allRecords.filter(r =>
-      r.site_name.toLowerCase().includes(q) ||
-      (r.description_of_work && r.description_of_work.toLowerCase().includes(q))
-    );
-    renderTable(filtered);
   }
 
   function escapeHtml(str) {
