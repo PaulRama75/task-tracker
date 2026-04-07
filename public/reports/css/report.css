@@ -149,6 +149,37 @@ body {
 .inline-textarea:focus { outline: 2px solid #333; border-color: #333; }
 .narrative-wrap { min-height: 40px; }
 
+/* ─── Photo Drop Zone ──────────────────────────────────────────────────── */
+.photo-drop-zone {
+    border: 2px dashed var(--gray-300);
+    border-radius: 8px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--gray-50);
+}
+.photo-drop-zone:hover {
+    border-color: #666;
+    background: #f5f5f0;
+}
+.photo-drop-zone.drag-over {
+    border-color: #f0a500;
+    background: #fffbea;
+    box-shadow: 0 0 0 3px rgba(240,165,0,0.15);
+}
+.drop-zone-content p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #888;
+}
+.drop-zone-content svg {
+    opacity: 0.5;
+}
+.photo-drop-zone.drag-over .drop-zone-content svg {
+    opacity: 0.8;
+}
+
 /* ─── Import Bar ────────────────────────────────────────────────────────── */
 .import-bar {
     display: flex; align-items: center; padding: 10px 0; margin-bottom: 8px;

@@ -1687,17 +1687,44 @@ const App = (() => {
             e.target.value = '';
         });
 
-        // Photo upload
-        $('#btn-choose-photos').addEventListener('click', () => $('#photo-upload').click());
-        $('#photo-upload').addEventListener('change', async () => {
-            const files = $('#photo-upload').files; const user = Auth.getUser();
-            if (!files.length || !user || !currentReport) return;
-            for (const file of Array.from(files)) {
+        // Photo upload — shared handler for file input and drag-drop
+        async function handlePhotoFiles(files) {
+            const user = Auth.getUser();
+            if (!files || !files.length || !user || !currentReport) return;
+            const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+            if (!imageFiles.length) { toast('No image files found', 'error'); return; }
+            for (const file of imageFiles) {
                 const compressed = await compressImage(file, 800, 600, 0.7);
                 API.addPhoto(currentReport.id, { filename: file.name, dataUrl: compressed, caption: '', uploaded_by: user.id });
             }
             currentReport = API.getReport(currentReport.id); renderPhotos();
-            $('#photo-upload').value = ''; toast(`${files.length} photo(s) added!`, 'success');
+            toast(`${imageFiles.length} photo(s) added!`, 'success');
+        }
+
+        // Browse files button
+        $('#btn-choose-photos').addEventListener('click', () => $('#photo-upload').click());
+        $('#photo-upload').addEventListener('change', async () => {
+            await handlePhotoFiles($('#photo-upload').files);
+            $('#photo-upload').value = '';
+        });
+
+        // Camera button
+        $('#btn-camera').addEventListener('click', () => $('#photo-camera').click());
+        $('#photo-camera').addEventListener('change', async () => {
+            await handlePhotoFiles($('#photo-camera').files);
+            $('#photo-camera').value = '';
+        });
+
+        // Drag and drop zone
+        const dropZone = $('#photo-drop-zone');
+        dropZone.addEventListener('click', () => $('#photo-upload').click());
+        dropZone.addEventListener('dragenter', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); });
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            await handlePhotoFiles(e.dataTransfer.files);
         });
 
 
