@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FER Ladder Inspection</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; background: #f0f0f0; }
+  .page-container { max-width: 1000px; margin: 10px auto; background: #fff; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+
+  /* Print wrap */
+  .print-wrap { width: 100%; border-collapse: collapse; }
+  .print-wrap td, .print-wrap th { border: none; padding: 0; }
+  thead.print-header { display: none; }
+  thead.print-header td { text-align: center; padding: 4px 0 6px; }
+
+  /* Top toolbar */
+  .toolbar { max-width: 1000px; margin: 10px auto 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 16px; background: #1a3a5c; border-radius: 6px; }
+  .toolbar button, .toolbar a { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; text-decoration: none; display: inline-block; }
+  .btn-download { background: #2e7d32; }
+  .btn-download:hover { background: #1b5e20; }
+  .btn-print { background: #1565c0; }
+  .btn-print:hover { background: #0d47a1; }
+  .toolbar .spacer { flex: 1; }
+
+  /* Logo & Header */
+  .logo-header { text-align: center; margin-bottom: 6px; }
+  .logo-header img { height: 70px; }
+  .report-title { text-align: center; font-size: 18px; font-weight: bold; color: #1a3a5c; margin-bottom: 2px; text-transform: uppercase; }
+  .report-subtitle { text-align: center; font-size: 13px; color: #e57373; font-weight: bold; margin-bottom: 10px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  td, th { border: 1px solid #1a3a5c; padding: 4px 6px; vertical-align: top; }
+  th { background: #1a3a5c; color: #fff; font-size: 11px; text-align: center; }
+
+  /* Header fields table */
+  .header-table { border: 2px solid #1a3a5c; }
+  .header-table td { background: #f5f8fb; }
+  .header-table td strong { color: #1a3a5c; }
+
+  /* Form inputs */
+  .field-input { border: none; border-bottom: 1px solid #1a3a5c; width: 100%; font-size: 11px; font-family: inherit; padding: 2px 4px; background: transparent; }
+  .field-input:focus { outline: none; border-bottom: 2px solid #e57373; background: #e8f0fe; }
+  textarea.field-input { border: 1px solid #1a3a5c; resize: vertical; min-height: 80px; background: #fafcff; }
+
+  /* Section boxes */
+  .section-box { border: 2px solid #1a3a5c; border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
+  .section-box-red { border: 2px solid #e57373; border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
+  .section-header { background: #e57373; color: #fff; font-weight: bold; text-align: center; padding: 6px; font-size: 12px; letter-spacing: 0.5px; border-bottom: 2px solid #ef9a9a; }
+  .section-header-blue { background: #1a3a5c; color: #fff; font-weight: bold; text-align: center; padding: 6px; font-size: 12px; border-bottom: 2px solid #0d2137; }
+  .section-header-dark { background: #263238; color: #fff; font-weight: bold; text-align: center; padding: 6px; font-size: 12px; border-bottom: 2px solid #000; }
+
+  /* Sub-headers in checklist */
+  .sub-header-row td { background: #1a3a5c; color: #fff; font-weight: bold; font-size: 11px; padding: 5px 8px; }
+  .sub-desc { font-size: 10px; color: #666; font-style: italic; padding: 2px 8px; background: #f5f8fb; }
+
+  /* Checklist table */
+  .checklist-table { border: 2px solid #1a3a5c; }
+  .checklist-table td { background: #fafcff; font-size: 11px; }
+  .checklist-table tr:nth-child(even) td { background: #f5f8fb; }
+  .checklist-table input[type="radio"] { width: 16px; height: 16px; cursor: pointer; accent-color: #1a3a5c; }
+  .checklist-table .comment-input { border: none; border-bottom: 1px solid #ccc; width: 100%; font-size: 10px; font-family: inherit; padding: 2px 4px; background: transparent; }
+  .checklist-table .comment-input:focus { outline: none; border-bottom: 2px solid #1a3a5c; background: #e8f0fe; }
+
+  /* Quarter colors */
+  .quarter-colors { display: flex; gap: 16px; justify-content: center; padding: 8px 0; flex-wrap: wrap; }
+  .quarter-badge { display: inline-block; padding: 4px 14px; border-radius: 12px; font-size: 11px; font-weight: bold; color: #fff; }
+
+  /* Signature canvas */
+  .sig-wrapper { display: inline-block; position: relative; }
+  .sig-canvas { border: 1px solid #999; border-radius: 3px; cursor: crosshair; background: #fff; touch-action: none; }
+  .sig-clear { position: absolute; top: 2px; right: 4px; font-size: 10px; background: #e53935; color: #fff; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; }
+
+  /* Result section */
+  .result-section { display: flex; align-items: center; gap: 20px; padding: 12px 16px; background: #fce4ec; border: 2px solid #e57373; margin-bottom: 10px; border-radius: 4px; }
+  .result-section label { font-size: 13px; font-weight: bold; }
+  .result-section input[type="radio"] { width: 18px; height: 18px; accent-color: #1a3a5c; }
+
+  /* Overview text */
+  .overview-text { padding: 12px 16px; font-size: 11px; line-height: 1.6; color: #333; }
+  .overview-text strong { color: #1a3a5c; }
+
+  /* Ladder block */
+  .ladder-block { border: 2px solid #1a3a5c; border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
+  .ladder-block-header { background: #37474f; color: #fff; font-weight: bold; padding: 6px 12px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .ladder-block-header .remove-ladder { background: #e53935; color: #fff; border: none; border-radius: 3px; padding: 2px 10px; cursor: pointer; font-size: 11px; font-weight: bold; }
+  .ladder-info { padding: 8px 12px; background: #f5f8fb; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .ladder-info label { font-weight: bold; color: #1a3a5c; }
+  .ladder-info .field-input { width: 180px; }
+  .ladder-radio-group { display: flex; gap: 14px; align-items: center; }
+  .ladder-radio-group label { font-weight: normal; color: #000; }
+  .ladder-radio-group input[type="radio"] { width: 15px; height: 15px; accent-color: #1a3a5c; cursor: pointer; }
+
+  .btn-add-ladder { display: block; margin: 0 auto 10px; padding: 8px 24px; background: #1a3a5c; color: #fff; border: none; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
+  .btn-add-ladder:hover { background: #0d2137; }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .page-container { margin: 0; padding: 10px 8px; }
+    .toolbar { flex-direction: column; gap: 6px; padding: 8px; border-radius: 0; }
+    .toolbar button, .toolbar a { width: 100%; text-align: center; padding: 10px; font-size: 14px; }
+    .report-title { font-size: 15px; }
+    .header-table td { display: block; width: 100% !important; border-bottom: none; }
+    .header-table tr { display: flex; flex-wrap: wrap; }
+    .header-table td:nth-child(odd) { width: 30% !important; flex: 0 0 30%; }
+    .header-table td:nth-child(even) { width: 70% !important; flex: 0 0 70%; border-bottom: 1px solid #1a3a5c; }
+    .checklist-table { font-size: 10px; }
+    .checklist-table td, .checklist-table th { padding: 3px 4px; }
+    .ladder-info { flex-direction: column; }
+    .ladder-info .field-input { width: 100% !important; }
+    .quarter-colors { flex-direction: column; align-items: center; }
+    .sig-canvas { width: 100% !important; max-width: 320px; }
+    .sig-wrapper { width: 100%; }
+  }
+
+  @media print {
+    .toolbar { display: none !important; }
+    body { background: #fff; }
+    .page-container { box-shadow: none; margin: 0; padding: 10px; }
+    thead.print-header { display: table-header-group; }
+    .sig-clear { display: none; }
+    .logo-header { display: none; }
+    .btn-add-ladder { display: none !important; }
+    .remove-ladder { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <a href="/safety/" style="background:#546e7a;">&#8592; Forms Library</a>
+  <button class="btn-download" onclick="downloadPDF()">&#128229; Download PDF</button>
+  <button class="btn-print" onclick="printForm()">&#128424; Print</button>
+  <a href="/safety/records?type=ladder" style="background:#ef6c00;">&#128196; Saved Records</a>
+  <div class="spacer"></div>
+</div>
+
+<div class="page-container" id="reportForm">
+  <table class="print-wrap">
+    <thead class="print-header"><tr><td><img src="/images/fer-logo.jpg" alt="FER Logo" style="height:55px;"></td></tr></thead>
+    <tbody><tr><td>
+
+  <div class="logo-header"><img src="/images/fer-logo.jpg" alt="FER Logo" style="height:70px;"></div>
+  <div class="report-title" style="margin-bottom:10px;">Ladder Inspection</div>
+
+  <!-- HEADER FIELDS -->
+  <table class="header-table">
+    <tr>
+      <td style="width:15%;"><strong>Project:</strong></td>
+      <td style="width:35%;"><input type="text" class="field-input" id="project" placeholder="Enter project name"></td>
+      <td style="width:15%;"><strong>Location:</strong></td>
+      <td style="width:35%;"><input type="text" class="field-input" id="location" placeholder="Enter location"></td>
+    </tr>
+    <tr>
+      <td><strong>Inspected By:</strong></td>
+      <td><input type="text" class="field-input" id="inspectedBy" placeholder="Enter inspector name"></td>
+      <td><strong>Date:</strong></td>
+      <td><input type="date" class="field-input" id="inspectionDate"></td>
+    </tr>
+  </table>
+
+  <!-- LADDER INSPECTION OVERVIEW -->
+  <div class="section-box">
+    <div class="section-header-blue">LADDER INSPECTION OVERVIEW</div>
+    <div class="overview-text">
+      <p>This checklist is designed to ensure ladder requirements are met and documented.</p>
+      <div class="quarter-colors" style="margin: 10px 0;">
+        <span class="quarter-badge" style="background:#e53935;">1st Quarter &mdash; Red</span>
+        <span class="quarter-badge" style="background:#fbc02d; color:#333;">2nd Quarter &mdash; Yellow</span>
+        <span class="quarter-badge" style="background:#1565c0;">3rd Quarter &mdash; Blue</span>
+        <span class="quarter-badge" style="background:#2e7d32;">4th Quarter &mdash; Green</span>
+      </div>
+      <p><strong>Note:</strong> Ladders with defects which cannot be immediately corrected shall be removed from service and tagged danger &mdash; do not use until repaired or replaced.</p>
+    </div>
+  </div>
+
+  <!-- LADDER INSPECTION CHECKLIST -->
+  <div class="section-box">
+    <div class="section-header-blue">LADDER INSPECTION CHECKLIST</div>
+  </div>
+
+  <div id="ladderContainer">
+    <!-- Ladder blocks will be inserted here -->
+  </div>
+
+  <button class="btn-add-ladder" onclick="addLadderBlock()">+ Add Another Ladder</button>
+
+  <!-- INSPECTOR SIGNATURE -->
+  <div class="section-box" style="border-color:#263238;">
+    <div class="section-header-dark">Inspector Signature</div>
+    <div style="padding:10px; background:#f5f8fb;">
+      <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+        <div style="flex:1; min-width:180px;">
+          <strong>Inspector Name:</strong><br>
+          <input type="text" class="field-input" id="sigName" placeholder="Print full name" style="margin-top:4px;">
+        </div>
+        <div>
+          <strong>Signature (draw below):</strong>
+          <div class="sig-wrapper">
+            <canvas class="sig-canvas" width="320" height="80" id="inspectorSig"></canvas>
+            <button class="sig-clear" onclick="clearSig(this)">Clear</button>
+          </div>
+        </div>
+        <div style="min-width:120px;">
+          <strong>Date:</strong><br>
+          <input type="date" class="field-input" id="sigDate" style="margin-top:4px;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BANNER -->
+  <div class="section-header" style="margin-top:10px; border-radius:4px;">REMOVE DEFECTIVE LADDERS FROM SERVICE IMMEDIATELY</div>
+
+    </td></tr></tbody>
+  </table>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  // ===== LADDER BLOCK TEMPLATE =====
+  let ladderCount = 0;
+
+  const checklistItems = [
+    'Foot Pads',
+    'Loose steps or rungs',
+    'Damaged or slippery steps or rungs',
+    'Cracked, split, bent, or broken side rails',
+    'Loose screws, nuts, bolts, or reinforcing rods',
+    'Loose, damaged, missing shoes or anti-slip bases',
+    'Loose, missing or defective extension locks',
+    'Frayed or missing pull rope',
+    'Loose and/or bent spreaders and outriggers',
+    'Defective spreader locks',
+    'Loose hinges',
+    'Loose or missing truss blocks or steel reinforcing rods'
+  ];
+
+  function createLadderBlock(num) {
+    const block = document.createElement('div');
+    block.className = 'ladder-block';
+    block.setAttribute('data-ladder', num);
+
+    let checklistRows = '';
+    checklistItems.forEach((item, idx) => {
+      const safeName = 'ladder' + num + '_item' + idx;
+      checklistRows += `
+        <tr>
+          <td>${item}</td>
+          <td style="text-align:center;"><input type="radio" name="${safeName}" value="pass"></td>
+          <td style="text-align:center;"><input type="radio" name="${safeName}" value="fail"></td>
+          <td><input type="text" class="comment-input" placeholder="Comments..."></td>
+        </tr>`;
+    });
+
+    block.innerHTML = `
+      <div class="ladder-block-header">
+        <span>Ladder #${num}</span>
+        ${num > 1 ? '<button class="remove-ladder" onclick="removeLadderBlock(this)">Remove</button>' : ''}
+      </div>
+      <div class="ladder-info">
+        <div>
+          <label>Ladder Serial Number:</label>
+          <input type="text" class="field-input ladder-serial" placeholder="Enter serial number">
+        </div>
+        <div>
+          <label>Ladder Height:</label>
+          <input type="text" class="field-input" placeholder="Enter height">
+        </div>
+        <div>
+          <label>Type of Ladder:</label>
+          <div class="ladder-radio-group">
+            <label><input type="radio" name="ladderType${num}" value="step"> Step Ladder</label>
+            <label><input type="radio" name="ladderType${num}" value="extension"> Extension Ladder</label>
+          </div>
+        </div>
+      </div>
+      <table class="checklist-table" style="margin-bottom:0;">
+        <thead>
+          <tr>
+            <th style="width:35%;">Item</th>
+            <th style="width:8%;">Pass</th>
+            <th style="width:8%;">Fail</th>
+            <th style="width:49%;">Comments</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${checklistRows}
+        </tbody>
+      </table>
+      <div style="padding:8px; background:#f5f8fb;">
+        <strong style="color:#1a3a5c;">Additional Comments:</strong>
+        <input type="text" class="field-input" placeholder="Enter additional comments for this ladder..." style="margin-top:4px;">
+      </div>
+    `;
+
+    return block;
+  }
+
+  function addLadderBlock() {
+    ladderCount++;
+    const container = document.getElementById('ladderContainer');
+    container.appendChild(createLadderBlock(ladderCount));
+  }
+
+  function removeLadderBlock(btn) {
+    const block = btn.closest('.ladder-block');
+    block.remove();
+    renumberLadders();
+  }
+
+  function renumberLadders() {
+    const blocks = document.querySelectorAll('.ladder-block');
+    blocks.forEach((block, idx) => {
+      const num = idx + 1;
+      block.setAttribute('data-ladder', num);
+      block.querySelector('.ladder-block-header span').textContent = 'Ladder #' + num;
+      // Keep remove button only for ladders after the first
+      const removeBtn = block.querySelector('.remove-ladder');
+      if (num === 1 && removeBtn) removeBtn.remove();
+      if (num > 1 && !removeBtn) {
+        const header = block.querySelector('.ladder-block-header');
+        const btn = document.createElement('button');
+        btn.className = 'remove-ladder';
+        btn.textContent = 'Remove';
+        btn.onclick = function() { removeLadderBlock(this); };
+        header.appendChild(btn);
+      }
+    });
+  }
+
+  // Initialize with one ladder block
+  addLadderBlock();
+
+  // ===== SIGNATURE PAD =====
+  function initSignaturePad(canvas) {
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let lastX, lastY;
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      if (e.touches) {
+        return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY };
+      }
+      return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      drawing = true;
+      const pos = getPos(e);
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function draw(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function stopDraw() { drawing = false; }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseleave', stopDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDraw);
+  }
+
+  document.querySelectorAll('.sig-canvas').forEach(initSignaturePad);
+
+  function clearSig(btn) {
+    const canvas = btn.parentElement.querySelector('.sig-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // ===== PDF GENERATION =====
+  function getSiteName() {
+    const project = document.getElementById('project').value.trim();
+    return project || 'Unknown_Project';
+  }
+
+  function getDescriptionOfWork() {
+    const firstSerial = document.querySelector('.ladder-serial');
+    const serialVal = firstSerial ? firstSerial.value.trim() : '';
+    return 'Ladder: ' + (serialVal || 'N/A');
+  }
+
+  async function generatePDF() {
+    const form = document.getElementById('reportForm');
+    const btns = form.querySelectorAll('.sig-clear, .remove-ladder, .btn-add-ladder');
+    btns.forEach(b => b.style.display = 'none');
+    const addBtn = document.querySelector('.btn-add-ladder');
+    if (addBtn) addBtn.style.display = 'none';
+
+    const canvases = form.querySelectorAll('.sig-canvas');
+    const swaps = [];
+    canvases.forEach(canvas => {
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      img.style.width = canvas.width + 'px';
+      img.style.height = canvas.height + 'px';
+      img.style.border = '1px solid #999';
+      canvas.style.display = 'none';
+      canvas.parentElement.insertBefore(img, canvas);
+      swaps.push({ img, canvas });
+    });
+
+    try {
+      const canvas = await html2canvas(form, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'letter');
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 8;
+      const contentW = pageW - margin * 2;
+      const imgH = (canvas.height / canvas.width) * contentW;
+
+      let yOffset = 0;
+      const usableH = pageH - margin * 2;
+      while (yOffset < imgH) {
+        if (yOffset > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', margin, margin - yOffset, contentW, imgH);
+        yOffset += usableH;
+      }
+
+      return pdf;
+    } finally {
+      swaps.forEach(({ img, canvas }) => {
+        canvas.style.display = '';
+        img.remove();
+      });
+      btns.forEach(b => b.style.display = '');
+      if (addBtn) addBtn.style.display = '';
+    }
+  }
+
+  async function saveToDB(pdf) {
+    const pdfBase64 = pdf.output('datauristring').split(',')[1];
+    const siteName = getSiteName();
+    const descriptionOfWork = getDescriptionOfWork();
+
+    const res = await fetch('/safety/api/forms/ladder/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName, descriptionOfWork, pdfBase64 })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Save failed');
+    return data.record;
+  }
+
+  async function downloadPDF() {
+    const btn = document.querySelector('.btn-download');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '&#9203; Generating PDF...';
+    btn.disabled = true;
+
+    try {
+      const pdf = await generatePDF();
+      btn.innerHTML = '&#9203; Saving to database...';
+      const record = await saveToDB(pdf);
+
+      const siteName = getSiteName().replace(/[^a-zA-Z0-9]/g, '_');
+      const dateStr = new Date(record.savedAt).toISOString().slice(0, 10);
+      pdf.save(`Ladder_Inspection_${siteName}_${dateStr}.pdf`);
+
+      btn.innerHTML = '&#10004; Saved! (ID: ' + record.id + ')';
+      setTimeout(() => { btn.innerHTML = origText; }, 3000);
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Error: ' + err.message);
+      btn.innerHTML = origText;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function printForm() {
+    const btn = document.querySelector('.btn-print');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '&#9203; Saving...';
+    btn.disabled = true;
+
+    try {
+      const pdf = await generatePDF();
+      const record = await saveToDB(pdf);
+
+      const canvases = document.querySelectorAll('.sig-canvas');
+      const images = [];
+      canvases.forEach(canvas => {
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/png');
+        img.style.width = canvas.width + 'px';
+        img.style.height = canvas.height + 'px';
+        img.style.border = '1px solid #999';
+        canvas.style.display = 'none';
+        canvas.parentElement.insertBefore(img, canvas);
+        images.push({ img, canvas });
+      });
+      window.print();
+      setTimeout(() => {
+        images.forEach(({ img, canvas }) => { canvas.style.display = ''; img.remove(); });
+      }, 1000);
+
+      btn.innerHTML = '&#10004; Saved & Printed (ID: ' + record.id + ')';
+      setTimeout(() => { btn.innerHTML = origText; }, 3000);
+    } catch (err) {
+      console.error('Print error:', err);
+      window.print();
+      btn.innerHTML = origText;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Auto-fill today's date
+  document.getElementById('inspectionDate').valueAsDate = new Date();
+  document.getElementById('sigDate').valueAsDate = new Date();
+</script>
+</body>
+</html>

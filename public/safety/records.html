@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FER JSA - Saved Records</title>
+<title>FER Safety Forms - Saved Records</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; background: #f0f0f0; }
@@ -13,14 +13,20 @@
   .toolbar h1 { color: #fff; font-size: 18px; margin: 0; }
   .toolbar .spacer { flex: 1; }
   .toolbar a, .toolbar button { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; text-decoration: none; display: inline-block; }
-  .btn-new { background: #2e7d32; }
-  .btn-new:hover { background: #1b5e20; }
+  .btn-library { background: #546e7a; }
+  .btn-library:hover { background: #455a64; }
   .btn-download { background: #f57c00; }
   .btn-download:hover { background: #e65100; }
   .btn-download:disabled { background: #999; cursor: not-allowed; }
 
+  /* Filter tabs */
+  .filter-bar { max-width: 1100px; margin: 6px auto 0; display: flex; gap: 4px; padding: 8px 20px; background: #fff; border-radius: 6px 6px 0 0; box-shadow: 0 2px 8px rgba(0,0,0,0.12); border-bottom: 2px solid #1a3a5c; flex-wrap: wrap; }
+  .filter-tab { padding: 7px 16px; border: 2px solid #c8d6e5; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; background: #f5f8fb; color: #333; text-decoration: none; display: inline-block; transition: all 0.15s; }
+  .filter-tab:hover { background: #e3edf7; border-color: #1a3a5c; }
+  .filter-tab.active { background: #1a3a5c; color: #fff; border-color: #1a3a5c; }
+
   /* Container */
-  .container { max-width: 1100px; margin: 12px auto; background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); overflow: hidden; }
+  .container { max-width: 1100px; margin: 0 auto 12px; background: #fff; border-radius: 0 0 6px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); overflow: hidden; }
 
   /* Stats bar */
   .stats-bar { display: flex; gap: 20px; padding: 14px 20px; background: #f5f8fb; border-bottom: 2px solid #1a3a5c; flex-wrap: wrap; }
@@ -28,21 +34,20 @@
   .stat-value { font-size: 22px; font-weight: bold; color: #1a3a5c; }
   .stat-label { font-size: 11px; color: #666; }
 
-  /* Filter bar */
-  .filter-bar { padding: 12px 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .filter-bar input, .filter-bar select { padding: 7px 10px; border: 2px solid #c8d6e5; border-radius: 4px; font-size: 12px; font-family: inherit; }
-  .filter-bar input:focus, .filter-bar select:focus { outline: none; border-color: #1a3a5c; }
-  .filter-bar input[type="text"] { flex: 1; min-width: 150px; }
-  .filter-bar input[type="date"] { width: 140px; }
-  .filter-bar select { min-width: 130px; }
-  .filter-bar label { font-size: 11px; color: #666; display: flex; align-items: center; gap: 4px; }
-  .btn-clear { padding: 7px 14px; border: 1px solid #c8d6e5; border-radius: 4px; background: #fff; font-size: 12px; cursor: pointer; color: #666; }
-  .btn-clear:hover { background: #f0f0f0; }
+  /* Search / Filter bar */
+  .search-bar { padding: 12px 20px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search-bar input[type="text"] { flex: 1; min-width: 150px; padding: 8px 12px; border: 2px solid #c8d6e5; border-radius: 4px; font-size: 13px; font-family: inherit; }
+  .search-bar input:focus, .search-bar select:focus { outline: none; border-color: #1a3a5c; }
 
   /* Selection bar */
-  .selection-bar { padding: 8px 20px; background: #fff3e0; border-bottom: 1px solid #ffe0b2; display: flex; align-items: center; gap: 12px; }
+  .selection-bar { padding: 8px 20px; background: #fff3e0; border-bottom: 1px solid #ffe0b2; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .selection-bar.hidden { display: none; }
   .selection-bar span { font-size: 13px; font-weight: 600; color: #e65100; }
+  .sel-btn { padding: 5px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; color: #fff; }
+  .sel-btn-download { background: #1a3a5c; }
+  .sel-btn-download:hover { background: #0d2840; }
+  .sel-btn-delete { background: #c62828; }
+  .sel-btn-delete:hover { background: #b71c1c; }
 
   /* Table */
   .records-table { width: 100%; border-collapse: collapse; }
@@ -53,18 +58,27 @@
   .records-table tr:nth-child(even) td { background: #f9fbfd; }
   .records-table tr:nth-child(even):hover td { background: #eaf0f7; }
   .records-table tr.selected td { background: #fff3e0 !important; }
-  .records-table td:nth-child(2) { font-weight: bold; color: #1a3a5c; text-align: center; }
 
   /* Checkbox */
-  .row-check { width: 16px; height: 16px; cursor: pointer; }
+  .row-check { width: 16px; height: 16px; cursor: pointer; accent-color: #ef6c00; }
 
-  /* Status badges */
+  /* Badges */
   .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: bold; }
   .badge-size { background: #e3f2fd; color: #1565c0; }
   .badge-date { background: #f5f8fb; color: #333; border: 1px solid #c8d6e5; }
+  .badge-jsa { background: #e3f2fd; color: #1565c0; }
+  .badge-harness { background: #fce4ec; color: #c62828; }
+  .badge-vehicle { background: #e8f5e9; color: #2e7d32; }
+  .badge-observation { background: #fff3e0; color: #e65100; }
+  .badge-trailer { background: #efebe9; color: #4e342e; }
+  .badge-ladder { background: #e0f2f1; color: #00695c; }
+  .badge-incident { background: #fce4ec; color: #ad1457; }
+  .badge-witness { background: #f3e5f5; color: #6a1b9a; }
+  .badge-workplace { background: #e0f7fa; color: #00838f; }
+  .badge-meeting { background: #e8eaf6; color: #283593; }
 
   /* Download link */
-  .dl-link { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: #1a3a5c; color: #fff; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .dl-link { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: #1a3a5c; color: #fff; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; }
   .dl-link:hover { background: #0d2840; }
   .del-link { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: #c62828; color: #fff; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; }
   .del-link:hover { background: #b71c1c; }
@@ -78,22 +92,30 @@
   /* Loading */
   .loading { text-align: center; padding: 40px; color: #666; }
 
-  @media screen and (max-width: 600px) {
-    .toolbar { padding: 10px 12px; }
-    .toolbar h1 { font-size: 14px; }
-    .filter-bar { flex-direction: column; gap: 8px; }
-    .filter-bar input[type="text"] { width: 100%; }
-    .filter-bar input[type="date"] { width: 100%; }
-    .filter-bar select { width: 100%; }
-    .records-table th, .records-table td { padding: 6px 8px; font-size: 11px; }
-    .stats-bar { gap: 10px; padding: 10px 12px; }
-    .stat-value { font-size: 18px; }
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .container { margin: 10px; }
+    .toolbar { flex-direction: column; gap: 6px; padding: 8px; }
+    .toolbar h1 { font-size: 16px; }
+    .toolbar .spacer { display: none; }
+    .toolbar button, .toolbar a { width: 100%; text-align: center; padding: 10px; font-size: 14px; }
+    .filter-bar { gap: 4px; }
+    .filter-tab { font-size: 11px; padding: 6px 10px; }
+    .search-bar { flex-direction: column; }
+    .search-bar input, .search-bar select { width: 100% !important; min-width: 0 !important; }
+    .search-bar label { width: 100%; }
+    .search-bar label input { flex: 1; width: 100% !important; }
+    .stats-bar { flex-direction: column; gap: 4px; font-size: 11px; }
+    .records-table { font-size: 10px; }
+    .records-table th, .records-table td { padding: 4px 6px; }
+    .selection-bar { flex-direction: column; gap: 6px; }
+    .selection-bar button { width: 100%; }
   }
 
   @media print {
-    .toolbar, .filter-bar, .selection-bar { display: none; }
+    .toolbar, .search-bar, .filter-bar, .selection-bar { display: none !important; }
     .container { box-shadow: none; margin: 0; }
-    .dl-link { display: none; }
+    .dl-link, .del-link { display: none; }
     .row-check { display: none; }
   }
 </style>
@@ -101,10 +123,24 @@
 <body>
 
 <div class="toolbar">
-  <h1>FER JSA - Saved Records</h1>
+  <h1>FER Safety Forms - Saved Records</h1>
   <div class="spacer"></div>
   <button class="btn-download" id="btnDownloadSelected" disabled onclick="downloadSelected()">Download Selected (0)</button>
-  <a href="/safety/form.html" class="btn-new" aria-label="Create new JSA form">+ New JSA Form</a>
+  <a href="/safety/" class="btn-library">Forms Library</a>
+</div>
+
+<div class="filter-bar" id="filterBar">
+  <a class="filter-tab active" data-type="" onclick="setFilter('')">All</a>
+  <a class="filter-tab" data-type="jsa" onclick="setFilter('jsa')">JSA</a>
+  <a class="filter-tab" data-type="harness" onclick="setFilter('harness')">Harness</a>
+  <a class="filter-tab" data-type="vehicle" onclick="setFilter('vehicle')">Vehicle</a>
+  <a class="filter-tab" data-type="observation" onclick="setFilter('observation')">Observation</a>
+  <a class="filter-tab" data-type="trailer" onclick="setFilter('trailer')">Trailer</a>
+  <a class="filter-tab" data-type="ladder" onclick="setFilter('ladder')">Ladder</a>
+  <a class="filter-tab" data-type="incident" onclick="setFilter('incident')">Incident</a>
+  <a class="filter-tab" data-type="witness" onclick="setFilter('witness')">Witness</a>
+  <a class="filter-tab" data-type="workplace" onclick="setFilter('workplace')">Workplace</a>
+  <a class="filter-tab" data-type="meeting" onclick="setFilter('meeting')">Meeting</a>
 </div>
 
 <div class="container">
@@ -127,21 +163,21 @@
     </div>
   </div>
 
-  <div class="filter-bar">
-    <input type="text" id="searchInput" placeholder="Search by site or description..." oninput="applyFilters()" aria-label="Search">
-    <select id="filterSite" onchange="applyFilters()" aria-label="Filter by site">
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search by site name, description, or form type..." oninput="filterRecords()">
+    <select id="filterSite" onchange="filterRecords()" style="min-width:130px; padding:8px 10px; border:2px solid #c8d6e5; border-radius:4px; font-size:12px; font-family:inherit;">
       <option value="">All Sites</option>
     </select>
-    <label>From: <input type="date" id="filterDateFrom" onchange="applyFilters()"></label>
-    <label>To: <input type="date" id="filterDateTo" onchange="applyFilters()"></label>
-    <button class="btn-clear" onclick="clearFilters()">Clear Filters</button>
+    <label style="font-size:11px; color:#666; display:flex; align-items:center; gap:4px;">From: <input type="date" id="filterDateFrom" onchange="filterRecords()" style="padding:7px 10px; border:2px solid #c8d6e5; border-radius:4px; font-size:12px; font-family:inherit; width:140px;"></label>
+    <label style="font-size:11px; color:#666; display:flex; align-items:center; gap:4px;">To: <input type="date" id="filterDateTo" onchange="filterRecords()" style="padding:7px 10px; border:2px solid #c8d6e5; border-radius:4px; font-size:12px; font-family:inherit; width:140px;"></label>
+    <button onclick="clearFilters()" style="padding:7px 14px; border:1px solid #c8d6e5; border-radius:4px; background:#fff; font-size:12px; cursor:pointer; color:#666;">Clear Filters</button>
   </div>
 
   <div class="selection-bar hidden" id="selectionBar">
     <input type="checkbox" id="selectAll" class="row-check" onchange="toggleSelectAll(this.checked)">
     <span id="selectionCount">0 selected</span>
-    <button class="btn-download" onclick="downloadSelected()" style="padding:5px 14px;font-size:12px;">Download Selected</button>
-    <button class="del-link" id="btnDeleteSelected" onclick="deleteSelected()" style="display:none;padding:5px 14px;font-size:12px;">Delete Selected</button>
+    <button class="sel-btn sel-btn-download" onclick="downloadSelected()">Download Selected</button>
+    <button class="sel-btn sel-btn-delete" id="btnDeleteSelected" onclick="deleteSelected()" style="display:none;">Delete Selected</button>
   </div>
 
   <div id="tableContainer">
@@ -152,67 +188,85 @@
 <script>
   function getToken() {
     try { if (window.parent && window.parent.authToken) return window.parent.authToken; } catch(e) {}
-    try { const t = localStorage.getItem('authToken'); if (t) return t; } catch(e) {}
-    try { const t = window.parent.sessionStorage.getItem('authToken'); if (t) return t; } catch(e) {}
+    try { var t = localStorage.getItem('authToken'); if (t) return t; } catch(e) {}
+    try { var t = window.parent.sessionStorage.getItem('authToken'); if (t) return t; } catch(e) {}
     try { return sessionStorage.getItem('authToken') || ''; } catch(e) {}
     return '';
   }
-  function authFetch(url, opts = {}) {
+  function authFetch(url, opts) {
+    if (!opts) opts = {};
     if (!opts.headers) opts.headers = {};
     opts.headers['Authorization'] = 'Bearer ' + getToken();
     return fetch(url, opts);
   }
 
-  async function downloadPdf(id) {
-    try {
-      const res = await authFetch('/safety/api/jsa-records/' + id + '/pdf');
-      if (!res.ok) { alert('Download failed'); return; }
-      const blob = await res.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'JSA_' + id + '.pdf';
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch(e) { alert('Download failed: ' + e.message); }
-  }
+  var allRecords = [];
+  var currentFilter = '';
+  var selectedRecords = new Set(); // stores "formType:id" keys
+  var isSuperAdmin = false;
 
-  let allRecords = [];
-  let filteredRecords = [];
-  let selectedIds = new Set();
-  let isSuperAdmin = false;
+  var FORM_TYPES = ['jsa', 'harness', 'vehicle', 'observation', 'trailer', 'ladder', 'incident', 'witness', 'workplace', 'meeting'];
+  var BADGE_CLASS = { jsa: 'badge-jsa', harness: 'badge-harness', vehicle: 'badge-vehicle', observation: 'badge-observation', trailer: 'badge-trailer', ladder: 'badge-ladder', incident: 'badge-incident', witness: 'badge-witness', workplace: 'badge-workplace', meeting: 'badge-meeting' };
+  var FORM_LABELS = { jsa: 'JSA', harness: 'Harness', vehicle: 'Vehicle', observation: 'Observation', trailer: 'Trailer', ladder: 'Ladder', incident: 'Incident', witness: 'Witness', workplace: 'Workplace', meeting: 'Meeting' };
 
+  // ===== USER ROLE CHECK =====
   async function checkUserRole() {
     try {
-      const res = await authFetch('/safety/api/me');
+      var res = await authFetch('/safety/api/me');
       if (res.ok) {
-        const user = await res.json();
+        var user = await res.json();
         isSuperAdmin = user.role === 'superadmin';
       }
     } catch(e) {}
-    // Also check parent window
     try {
       if (window.parent && window.parent.currentUser) {
-        const pu = window.parent.currentUser;
+        var pu = window.parent.currentUser;
         if (pu.role === 'superadmin') isSuperAdmin = true;
       }
     } catch(e) {}
     try {
-      const stored = localStorage.getItem('currentUser');
+      var stored = localStorage.getItem('currentUser');
       if (stored) {
-        const u = JSON.parse(stored);
+        var u = JSON.parse(stored);
         if (u.role === 'superadmin') isSuperAdmin = true;
       }
     } catch(e) {}
   }
 
+  // ===== RECORDS LOADING =====
+  function getInitialFilter() {
+    var params = new URLSearchParams(window.location.search);
+    var type = (params.get('type') || '').toLowerCase();
+    if (FORM_TYPES.indexOf(type) !== -1) return type;
+    return '';
+  }
+
+  function setFilter(type) {
+    currentFilter = type;
+    var url = new URL(window.location);
+    if (type) { url.searchParams.set('type', type); } else { url.searchParams.delete('type'); }
+    window.history.replaceState({}, '', url);
+    document.querySelectorAll('.filter-tab').forEach(function(tab) {
+      tab.classList.toggle('active', tab.getAttribute('data-type') === type);
+    });
+    filterRecords();
+  }
+
   async function loadRecords() {
     try {
       await checkUserRole();
-      const res = await authFetch('/safety/api/jsa-records');
-      allRecords = await res.json();
-      updateStats();
+      var fetches = FORM_TYPES.map(function(type) {
+        return authFetch('/safety/api/forms/' + type + '/records')
+          .then(function(res) { return res.ok ? res.json() : []; })
+          .then(function(records) { return records.map(function(r) { return Object.assign({}, r, { form_type: type }); }); })
+          .catch(function() { return []; });
+      });
+      var results = await Promise.all(fetches);
+      allRecords = results.flat();
+      allRecords.sort(function(a, b) { return new Date(b.saved_at) - new Date(a.saved_at); });
+      updateStats(allRecords);
       populateSiteFilter();
-      applyFilters();
+      filterRecords();
     } catch (err) {
       document.getElementById('tableContainer').innerHTML =
         '<div class="empty-state"><div class="icon">&#9888;</div><p>Failed to load records</p></div>';
@@ -220,43 +274,12 @@
   }
 
   function populateSiteFilter() {
-    const sites = [...new Set(allRecords.map(r => r.site_name))].sort();
-    const sel = document.getElementById('filterSite');
+    var sites = {};
+    allRecords.forEach(function(r) { if (r.site_name) sites[r.site_name] = true; });
+    var sorted = Object.keys(sites).sort();
+    var sel = document.getElementById('filterSite');
     sel.innerHTML = '<option value="">All Sites</option>' +
-      sites.map(s => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('');
-  }
-
-  function updateStats() {
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
-    const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
-
-    const today = allRecords.filter(r => r.saved_at.slice(0, 10) === todayStr).length;
-    const week = allRecords.filter(r => new Date(r.saved_at) >= weekAgo).length;
-    const sites = new Set(allRecords.map(r => r.site_name)).size;
-
-    document.getElementById('totalCount').textContent = allRecords.length;
-    document.getElementById('todayCount').textContent = today;
-    document.getElementById('weekCount').textContent = week;
-    document.getElementById('uniqueSites').textContent = sites;
-  }
-
-  function applyFilters() {
-    const q = document.getElementById('searchInput').value.toLowerCase().trim();
-    const site = document.getElementById('filterSite').value;
-    const dateFrom = document.getElementById('filterDateFrom').value;
-    const dateTo = document.getElementById('filterDateTo').value;
-
-    filteredRecords = allRecords.filter(r => {
-      if (q && !r.site_name.toLowerCase().includes(q) &&
-          !(r.description_of_work && r.description_of_work.toLowerCase().includes(q))) return false;
-      if (site && r.site_name !== site) return false;
-      if (dateFrom && r.saved_at.slice(0, 10) < dateFrom) return false;
-      if (dateTo && r.saved_at.slice(0, 10) > dateTo) return false;
-      return true;
-    });
-
-    renderTable(filteredRecords);
+      sorted.map(function(s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join('');
   }
 
   function clearFilters() {
@@ -264,45 +287,212 @@
     document.getElementById('filterSite').value = '';
     document.getElementById('filterDateFrom').value = '';
     document.getElementById('filterDateTo').value = '';
-    applyFilters();
+    filterRecords();
   }
 
+  function getFilteredRecords() {
+    var records = allRecords;
+    if (currentFilter) records = records.filter(function(r) { return r.form_type === currentFilter; });
+    var q = document.getElementById('searchInput').value.toLowerCase().trim();
+    if (q) {
+      records = records.filter(function(r) {
+        return (r.site_name && r.site_name.toLowerCase().indexOf(q) !== -1) ||
+          (r.description_of_work && r.description_of_work.toLowerCase().indexOf(q) !== -1) ||
+          (r.form_type && r.form_type.toLowerCase().indexOf(q) !== -1);
+      });
+    }
+    var site = document.getElementById('filterSite').value;
+    if (site) records = records.filter(function(r) { return r.site_name === site; });
+    var dateFrom = document.getElementById('filterDateFrom').value;
+    if (dateFrom) records = records.filter(function(r) { return r.saved_at && r.saved_at.slice(0, 10) >= dateFrom; });
+    var dateTo = document.getElementById('filterDateTo').value;
+    if (dateTo) records = records.filter(function(r) { return r.saved_at && r.saved_at.slice(0, 10) <= dateTo; });
+    return records;
+  }
+
+  function updateStats(records) {
+    var now = new Date();
+    var todayStr = now.toISOString().slice(0, 10);
+    var weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+    var today = records.filter(function(r) { return r.saved_at && r.saved_at.slice(0, 10) === todayStr; }).length;
+    var week = records.filter(function(r) { return r.saved_at && new Date(r.saved_at) >= weekAgo; }).length;
+    var sites = new Set(records.map(function(r) { return r.site_name; }).filter(Boolean)).size;
+    document.getElementById('totalCount').textContent = records.length;
+    document.getElementById('todayCount').textContent = today;
+    document.getElementById('weekCount').textContent = week;
+    document.getElementById('uniqueSites').textContent = sites;
+  }
+
+  function filterRecords() {
+    var filtered = getFilteredRecords();
+    updateStats(filtered);
+    renderTable(filtered);
+  }
+
+  // ===== SELECTION =====
+  function getRecordKey(r) { return r.form_type + ':' + r.id; }
+
+  function toggleRecordSelect(formType, id, checked) {
+    var key = formType + ':' + id;
+    if (checked) { selectedRecords.add(key); } else { selectedRecords.delete(key); }
+    var row = document.querySelector('tr[data-key="' + key + '"]');
+    if (row) row.classList.toggle('selected', checked);
+    updateSelectionUI();
+  }
+
+  function toggleSelectAll(checked) {
+    var filtered = getFilteredRecords();
+    filtered.forEach(function(r) {
+      var key = getRecordKey(r);
+      if (checked) { selectedRecords.add(key); } else { selectedRecords.delete(key); }
+    });
+    document.querySelectorAll('.row-chk').forEach(function(chk) { chk.checked = checked; });
+    document.querySelectorAll('.records-table tbody tr').forEach(function(row) { row.classList.toggle('selected', checked); });
+    var headerChk = document.getElementById('headerChk');
+    if (headerChk) headerChk.checked = checked;
+    var selectAll = document.getElementById('selectAll');
+    if (selectAll) selectAll.checked = checked;
+    updateSelectionUI();
+  }
+
+  function updateSelectionUI() {
+    var count = selectedRecords.size;
+    var btn = document.getElementById('btnDownloadSelected');
+    var countEl = document.getElementById('selectionCount');
+    var delBtn = document.getElementById('btnDeleteSelected');
+    btn.disabled = count === 0;
+    btn.textContent = 'Download Selected (' + count + ')';
+    if (countEl) countEl.textContent = count + ' selected';
+    if (delBtn) delBtn.style.display = (isSuperAdmin && count > 0) ? '' : 'none';
+  }
+
+  // ===== DOWNLOAD =====
+  async function downloadPdf(formType, id) {
+    try {
+      var res = await authFetch('/safety/api/forms/' + formType + '/records/' + id + '/pdf');
+      if (!res.ok) { alert('Download failed'); return; }
+      var blob = await res.blob();
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = formType.toUpperCase() + '_' + id + '.pdf';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch(e) { alert('Download failed: ' + e.message); }
+  }
+
+  async function downloadSelected() {
+    if (selectedRecords.size === 0) return;
+    var entries = Array.from(selectedRecords).map(function(key) {
+      var parts = key.split(':');
+      return { formType: parts[0], id: parts[1] };
+    });
+    for (var i = 0; i < entries.length; i++) {
+      await downloadPdf(entries[i].formType, entries[i].id);
+      if (i < entries.length - 1) {
+        await new Promise(function(r) { setTimeout(r, 400); });
+      }
+    }
+  }
+
+  // ===== DELETE =====
+  async function deleteRecord(formType, id) {
+    if (!confirm('Are you sure you want to permanently delete ' + formType.toUpperCase() + ' record #' + id + '? This cannot be undone.')) return;
+    try {
+      var res = await authFetch('/safety/api/forms/' + formType + '/records/' + id, { method: 'DELETE' });
+      if (!res.ok) {
+        var data = await res.json().catch(function() { return {}; });
+        alert(data.error || 'Delete failed');
+        return;
+      }
+      allRecords = allRecords.filter(function(r) { return !(r.form_type === formType && r.id === id); });
+      selectedRecords.delete(formType + ':' + id);
+      updateStats(allRecords);
+      populateSiteFilter();
+      filterRecords();
+    } catch(e) { alert('Delete failed: ' + e.message); }
+  }
+
+  async function deleteSelected() {
+    if (selectedRecords.size === 0) return;
+    if (!confirm('Are you sure you want to permanently delete ' + selectedRecords.size + ' record(s)? This cannot be undone.')) return;
+
+    // Group by form type for bulk delete
+    var grouped = {};
+    selectedRecords.forEach(function(key) {
+      var parts = key.split(':');
+      var formType = parts[0];
+      var id = parseInt(parts[1]);
+      if (!grouped[formType]) grouped[formType] = [];
+      grouped[formType].push(id);
+    });
+
+    var totalDeleted = 0;
+    try {
+      for (var formType in grouped) {
+        var res = await authFetch('/safety/api/forms/' + formType + '/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: grouped[formType] })
+        });
+        var data = await res.json();
+        if (data.success) totalDeleted += data.deleted;
+      }
+      selectedRecords.clear();
+      document.getElementById('selectAll').checked = false;
+      await loadRecords();
+      alert(totalDeleted + ' record(s) deleted successfully.');
+    } catch (err) {
+      alert('Error deleting records: ' + err.message);
+    }
+  }
+
+  // ===== RENDER =====
   function renderTable(records) {
-    const container = document.getElementById('tableContainer');
-    const selBar = document.getElementById('selectionBar');
+    var container = document.getElementById('tableContainer');
+    var selBar = document.getElementById('selectionBar');
 
     if (records.length === 0) {
       selBar.classList.add('hidden');
-      container.innerHTML = '<div class="empty-state"><div class="icon">&#128196;</div><p>No JSA records found</p><a href="/safety/form.html">+ Create New JSA Form</a></div>';
+      var typeLabel = currentFilter ? FORM_LABELS[currentFilter] : '';
+      container.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="icon">&#128196;</div>' +
+          '<p>No ' + (typeLabel || '') + ' records found</p>' +
+          '<a href="/safety/">Go to Forms Library</a>' +
+        '</div>';
       return;
     }
 
     selBar.classList.remove('hidden');
 
-    let html = '<table class="records-table"><thead><tr>' +
-      '<th><input type="checkbox" class="row-check" id="headerCheck" onchange="toggleSelectAll(this.checked)"></th>' +
-      '<th>ID</th><th>Site Name</th><th>Description of Work</th><th>Date & Time</th><th>Size</th><th>Action</th>' +
+    var html = '<table class="records-table"><thead><tr>' +
+      '<th><input type="checkbox" class="row-check" id="headerChk" onchange="toggleSelectAll(this.checked)"></th>' +
+      '<th>ID</th><th>Form Type</th><th>Site Name</th><th>Description of Work</th><th>Date &amp; Time</th><th>Size</th><th>Action</th>' +
       '</tr></thead><tbody>';
 
-    records.forEach(r => {
-      const d = new Date(r.saved_at);
-      const dateStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-      const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const sizeKB = (r.file_size / 1024).toFixed(1);
-      const checked = selectedIds.has(r.id) ? ' checked' : '';
-      const selClass = selectedIds.has(r.id) ? ' selected' : '';
+    records.forEach(function(r) {
+      var d = new Date(r.saved_at);
+      var dateStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      var timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      var sizeKB = r.file_size ? (r.file_size / 1024).toFixed(1) : '0.0';
+      var badgeClass = BADGE_CLASS[r.form_type] || 'badge-jsa';
+      var label = FORM_LABELS[r.form_type] || r.form_type;
+      var key = getRecordKey(r);
+      var isSelected = selectedRecords.has(key);
 
-      const delBtn = isSuperAdmin ? ' <button class="del-link" onclick="deleteRecord(' + r.id + ')">&#128465; Delete</button>' : '';
+      var delBtn = isSuperAdmin ? ' <button class="del-link" onclick="deleteRecord(\'' + r.form_type + '\',' + r.id + ')">&#128465; Delete</button>' : '';
 
-      html += '<tr class="' + selClass + '">' +
-        '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + r.id + '"' + checked + ' onchange="toggleSelect(' + r.id + ', this.checked)"></td>' +
-        '<td>' + r.id + '</td>' +
-        '<td><strong>' + escapeHtml(r.site_name) + '</strong></td>' +
+      html += '<tr data-key="' + key + '"' + (isSelected ? ' class="selected"' : '') + '>' +
+        '<td style="text-align:center;"><input type="checkbox" class="row-chk" data-key="' + key + '"' + (isSelected ? ' checked' : '') +
+        ' onchange="toggleRecordSelect(\'' + r.form_type + '\',' + r.id + ',this.checked)"></td>' +
+        '<td style="text-align:center; font-weight:bold; color:#1a3a5c;">' + r.id + '</td>' +
+        '<td><span class="badge ' + badgeClass + '">' + escapeHtml(label) + '</span></td>' +
+        '<td><strong>' + escapeHtml(r.site_name || '-') + '</strong></td>' +
         '<td>' + escapeHtml(r.description_of_work || '-') + '</td>' +
         '<td><span class="badge badge-date">' + dateStr + '</span><br><span style="font-size:11px;color:#666;">' + timeStr + '</span></td>' +
         '<td><span class="badge badge-size">' + sizeKB + ' KB</span></td>' +
-        '<td><a href="#" onclick="downloadPdf(' + r.id + ');return false;" class="dl-link">&#128229; Download</a>' + delBtn + '</td>' +
-        '</tr>';
+        '<td><button class="dl-link" onclick="downloadPdf(\'' + r.form_type + '\',' + r.id + ')">&#128229; Download</button>' + delBtn + '</td>' +
+      '</tr>';
     });
 
     html += '</tbody></table>';
@@ -310,95 +500,17 @@
     updateSelectionUI();
   }
 
-  function toggleSelect(id, checked) {
-    if (checked) { selectedIds.add(id); } else { selectedIds.delete(id); }
-    // Update row highlight
-    const row = document.querySelector('input[data-id="' + id + '"]');
-    if (row) row.closest('tr').classList.toggle('selected', checked);
-    updateSelectionUI();
-  }
-
-  function toggleSelectAll(checked) {
-    const checkboxes = document.querySelectorAll('.records-table .row-check[data-id]');
-    checkboxes.forEach(cb => {
-      const id = parseInt(cb.dataset.id);
-      cb.checked = checked;
-      if (checked) { selectedIds.add(id); } else { selectedIds.delete(id); }
-      cb.closest('tr').classList.toggle('selected', checked);
-    });
-    // Sync header checkboxes
-    const headerCheck = document.getElementById('headerCheck');
-    const selectAll = document.getElementById('selectAll');
-    if (headerCheck) headerCheck.checked = checked;
-    if (selectAll) selectAll.checked = checked;
-    updateSelectionUI();
-  }
-
-  function updateSelectionUI() {
-    const count = selectedIds.size;
-    const btn = document.getElementById('btnDownloadSelected');
-    const countEl = document.getElementById('selectionCount');
-    const delBtn = document.getElementById('btnDeleteSelected');
-    btn.disabled = count === 0;
-    btn.textContent = 'Download Selected (' + count + ')';
-    if (countEl) countEl.textContent = count + ' selected';
-    if (delBtn) delBtn.style.display = (isSuperAdmin && count > 0) ? '' : 'none';
-  }
-
-  async function downloadSelected() {
-    if (selectedIds.size === 0) return;
-    const ids = [...selectedIds];
-    for (let i = 0; i < ids.length; i++) {
-      await downloadPdf(ids[i]);
-      if (ids.length > 1 && i < ids.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    }
-  }
-
-  async function deleteRecord(id) {
-    if (!confirm('Are you sure you want to permanently delete JSA record #' + id + '? This cannot be undone.')) return;
-    try {
-      const res = await authFetch('/safety/api/jsa-records/' + id, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || 'Delete failed');
-        return;
-      }
-      allRecords = allRecords.filter(r => r.id !== id);
-      selectedIds.delete(id);
-      updateStats();
-      applyFilters();
-    } catch(e) { alert('Delete failed: ' + e.message); }
-  }
-
-  async function deleteSelected() {
-    if (selectedIds.size === 0) return;
-    if (!confirm('Are you sure you want to permanently delete ' + selectedIds.size + ' record(s)? This cannot be undone.')) return;
-    const ids = [...selectedIds];
-    let deleted = 0;
-    for (const id of ids) {
-      try {
-        const res = await authFetch('/safety/api/jsa-records/' + id, { method: 'DELETE' });
-        if (res.ok) {
-          allRecords = allRecords.filter(r => r.id !== id);
-          selectedIds.delete(id);
-          deleted++;
-        }
-      } catch(e) {}
-    }
-    updateStats();
-    applyFilters();
-    alert(deleted + ' record(s) deleted.');
-  }
-
   function escapeHtml(str) {
-    const div = document.createElement('div');
+    var div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
   }
 
-  // Load on page ready
+  // Initialize
+  currentFilter = getInitialFilter();
+  document.querySelectorAll('.filter-tab').forEach(function(tab) {
+    tab.classList.toggle('active', tab.getAttribute('data-type') === currentFilter);
+  });
   loadRecords();
 </script>
 </body>

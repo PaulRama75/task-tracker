@@ -241,18 +241,25 @@ async function initDB() {
       }
     }
 
-    // JSA Records table (for Safety app)
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS jsa_records (
-        id SERIAL PRIMARY KEY,
-        site_name VARCHAR(255) NOT NULL,
-        description_of_work TEXT,
-        saved_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        pdf_data BYTEA NOT NULL,
-        file_size INTEGER,
-        created_by VARCHAR(255) DEFAULT 'system'
-      )
-    `);
+    // Safety form record tables (JSA + 9 other form types)
+    const SAFETY_FORM_TABLES = [
+      'jsa_records', 'harness_records', 'vehicle_records', 'observation_records',
+      'trailer_records', 'witness_records', 'ladder_records', 'incident_records',
+      'workplace_records', 'meeting_records'
+    ];
+    for (const tbl of SAFETY_FORM_TABLES) {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS ${tbl} (
+          id SERIAL PRIMARY KEY,
+          site_name VARCHAR(255) NOT NULL,
+          description_of_work TEXT,
+          saved_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          pdf_data BYTEA NOT NULL,
+          file_size INTEGER,
+          created_by VARCHAR(255) DEFAULT 'system'
+        )
+      `);
+    }
 
     // Sessions table (persistent session storage)
     await client.query(`
@@ -297,7 +304,9 @@ async function initDB() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_tracker_rows_section ON tracker_rows(section_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_task_entries_row ON task_entries(row_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_billing_ts_site ON billing_timesheet(site_id)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_jsa_records_saved ON jsa_records(saved_at DESC)`);
+    for (const tbl of SAFETY_FORM_TABLES) {
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_${tbl}_saved ON ${tbl}(saved_at DESC)`);
+    }
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action)`);
@@ -676,6 +685,86 @@ async function deleteJsaRecord(id) {
   return rowCount > 0;
 }
 
+// ========== GENERIC SAFETY FORM OPERATIONS ==========
+const SAFETY_FORM_TYPES = {
+  jsa: { table: 'jsa_records', label: 'Job Safety Analysis', prefix: 'JSA' },
+  harness: { table: 'harness_records', label: 'Harness Inspection', prefix: 'HARNESS' },
+  vehicle: { table: 'vehicle_records', label: 'Vehicle Inspection', prefix: 'VEHICLE' },
+  observation: { table: 'observation_records', label: 'Observation Form', prefix: 'OBS' },
+  trailer: { table: 'trailer_records', label: 'Trailer Inspection', prefix: 'TRAILER' },
+  witness: { table: 'witness_records', label: 'Witness Statement', prefix: 'WITNESS' },
+  ladder: { table: 'ladder_records', label: 'Ladder Inspection', prefix: 'LADDER' },
+  incident: { table: 'incident_records', label: 'Incident Report', prefix: 'INCIDENT' },
+  workplace: { table: 'workplace_records', label: 'Workplace Inspection', prefix: 'WORKPLACE' },
+  meeting: { table: 'meeting_records', label: 'Safety Meeting Sign-In', prefix: 'MEETING' }
+};
+
+function getFormType(key) {
+  return SAFETY_FORM_TYPES[key] || null;
+}
+
+async function saveFormRecord(formType, siteName, descriptionOfWork, pdfBuffer) {
+  const form = SAFETY_FORM_TYPES[formType];
+  if (!form) throw new Error('Invalid form type: ' + formType);
+  const result = await pool.query(
+    `INSERT INTO ${form.table} (site_name, description_of_work, pdf_data, file_size)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, site_name, saved_at, file_size`,
+    [siteName, descriptionOfWork || '', pdfBuffer, pdfBuffer.length]
+  );
+  const r = result.rows[0];
+  return { id: r.id, siteName: r.site_name, savedAt: r.saved_at, fileSize: r.file_size };
+}
+
+async function getFormRecords(formType) {
+  const form = SAFETY_FORM_TYPES[formType];
+  if (!form) throw new Error('Invalid form type: ' + formType);
+  const { rows } = await pool.query(
+    `SELECT id, site_name, description_of_work, saved_at, file_size
+     FROM ${form.table} ORDER BY saved_at DESC`
+  );
+  return rows.map(r => ({ id: r.id, site_name: r.site_name, description_of_work: r.description_of_work, saved_at: r.saved_at, file_size: r.file_size }));
+}
+
+async function getFormRecordPdf(formType, id) {
+  const form = SAFETY_FORM_TYPES[formType];
+  if (!form) throw new Error('Invalid form type: ' + formType);
+  const { rows } = await pool.query(
+    `SELECT pdf_data, site_name, saved_at FROM ${form.table} WHERE id = $1`,
+    [id]
+  );
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return { pdfData: r.pdf_data, siteName: r.site_name, savedAt: r.saved_at, prefix: form.prefix };
+}
+
+async function deleteFormRecord(formType, id) {
+  const form = SAFETY_FORM_TYPES[formType];
+  if (!form) throw new Error('Invalid form type: ' + formType);
+  const { rowCount } = await pool.query(`DELETE FROM ${form.table} WHERE id = $1`, [id]);
+  return rowCount > 0;
+}
+
+async function bulkDeleteFormRecords(formType, ids) {
+  const form = SAFETY_FORM_TYPES[formType];
+  if (!form) throw new Error('Invalid form type: ' + formType);
+  const placeholders = ids.map((_, i) => '$' + (i + 1)).join(',');
+  const result = await pool.query(
+    `DELETE FROM ${form.table} WHERE id IN (${placeholders}) RETURNING id`,
+    ids
+  );
+  return result.rowCount;
+}
+
+async function getFormStats() {
+  const stats = {};
+  for (const [key, form] of Object.entries(SAFETY_FORM_TYPES)) {
+    const result = await pool.query(`SELECT COUNT(*) as count FROM ${form.table}`);
+    stats[key] = parseInt(result.rows[0].count);
+  }
+  return stats;
+}
+
 // ========== PAGINATED QUERY OPERATIONS ==========
 async function getTrackerRowsPaginated(sectionId, offset, limit) {
   const countRes = await pool.query(
@@ -830,6 +919,7 @@ module.exports = {
   createSection, deleteSection,
   getApps, createApp, updateApp, deleteApp,
   saveJsaRecord, getJsaRecords, getJsaRecordPdf, deleteJsaRecord,
+  SAFETY_FORM_TYPES, getFormType, saveFormRecord, getFormRecords, getFormRecordPdf, deleteFormRecord, bulkDeleteFormRecords, getFormStats,
   getTrackerRowsPaginated, getAuditLogPaginated, getJsaRecordsPaginated,
   migrateFromJSON
 };

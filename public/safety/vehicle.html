@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FER Monthly Vehicle Inspection</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; background: #f0f0f0; }
+  .page-container { max-width: 1000px; margin: 10px auto; background: #fff; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+
+  .logo-header { text-align: center; margin-bottom: 6px; }
+  .logo-header img { height: 70px; }
+
+  /* Repeating logo table for print */
+  .print-wrap { width: 100%; border-collapse: collapse; }
+  .print-wrap td, .print-wrap th { border: none; padding: 0; }
+  thead.print-header { display: none; }
+  thead.print-header td { text-align: center; padding: 4px 0 6px; }
+  thead.print-header img { height: 55px; }
+
+  /* Top toolbar */
+  .toolbar { max-width: 1000px; margin: 10px auto 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 16px; background: #1a3a5c; border-radius: 6px; }
+  .toolbar button { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; }
+  .btn-download { background: #2e7d32; }
+  .btn-download:hover { background: #1b5e20; }
+  .btn-print { background: #1565c0; }
+  .btn-print:hover { background: #0d47a1; }
+  .toolbar .timestamp { color: #ccc; font-size: 12px; margin-left: auto; }
+  .toolbar .timestamp-print { display: none; }
+
+  /* Header */
+  .report-title { text-align: center; font-size: 18px; font-weight: bold; color: #1a3a5c; margin-bottom: 2px; text-transform: uppercase; }
+  .report-subtitle { text-align: center; font-size: 13px; color: #e57373; font-weight: bold; margin-bottom: 10px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  td, th { border: 1px solid #1a3a5c; padding: 4px 6px; vertical-align: top; }
+  th { background: #1a3a5c; color: #fff; font-size: 11px; text-align: center; }
+
+  /* Header fields table */
+  .header-table { border: 2px solid #1a3a5c; }
+  .header-table td { background: #f5f8fb; }
+  .header-table td strong { color: #1a3a5c; }
+
+  /* Form inputs */
+  .field-input { border: none; border-bottom: 1px solid #1a3a5c; width: 100%; font-size: 11px; font-family: inherit; padding: 2px 4px; background: transparent; }
+  .field-input:focus { outline: none; border-bottom: 2px solid #e57373; background: #e8f0fe; }
+  textarea.field-input { border: 1px solid #1a3a5c; resize: vertical; min-height: 60px; background: #fafcff; }
+
+  /* Section boxes */
+  .section-box { border: 2px solid #1a3a5c; border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
+  .section-box-red { border: 2px solid #e57373; border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
+
+  /* Section headers */
+  .section-header { background: #e57373; color: #fff; font-weight: bold; text-align: center; padding: 6px; font-size: 12px; letter-spacing: 0.5px; border-bottom: 2px solid #ef9a9a; }
+  .section-header-blue { background: #1a3a5c; color: #fff; font-weight: bold; text-align: center; padding: 6px; font-size: 12px; border-bottom: 2px solid #0d2137; }
+
+  /* Radio group styling */
+  .radio-group label { margin-right: 10px; font-size: 11px; cursor: pointer; }
+  .radio-group input[type="radio"] { accent-color: #1a3a5c; cursor: pointer; }
+
+  /* Inspection table */
+  .inspect-table { border: 2px solid #1a3a5c; }
+  .inspect-table td { background: #fafcff; font-size: 11px; }
+  .inspect-table td:first-child { background: #f5f8fb; font-weight: bold; min-width: 200px; }
+  .inspect-table td.radio-cell { text-align: center; white-space: nowrap; width: 60px; }
+  .inspect-table td.comment-cell { min-width: 180px; }
+  .inspect-table td.comment-cell input { width: 100%; }
+
+  /* Photo grid */
+  .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+  .photo-box { border: 1px solid #1a3a5c; border-radius: 4px; padding: 8px; background: #f5f8fb; text-align: center; }
+  .photo-box label { display: block; font-weight: bold; color: #1a3a5c; margin-bottom: 4px; font-size: 10.5px; }
+  .photo-box .required-star { color: #e57373; font-weight: bold; }
+  .photo-box input[type="file"] { font-size: 10px; margin-bottom: 4px; width: 100%; }
+  .photo-preview { max-width: 100%; max-height: 150px; display: none; border: 1px solid #ccc; border-radius: 3px; margin-top: 4px; }
+
+  /* Signature canvas */
+  .sig-wrapper { display: inline-block; position: relative; }
+  .sig-canvas { border: 1px solid #999; border-radius: 3px; cursor: crosshair; background: #fff; touch-action: none; }
+  .sig-clear { position: absolute; top: 2px; right: 4px; font-size: 10px; background: #e53935; color: #fff; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; }
+  .sig-label { font-size: 10px; color: #666; display: block; margin-top: 2px; }
+
+  /* Important notice banner */
+  .notice-banner { background: #e57373; color: #fff; font-weight: bold; text-align: center; padding: 12px 16px; font-size: 12px; letter-spacing: 0.3px; line-height: 1.5; }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .page-container { margin: 0; padding: 10px 8px; }
+    .toolbar { flex-direction: column; gap: 6px; padding: 8px; border-radius: 0; }
+    .toolbar button, .toolbar a { width: 100%; text-align: center; padding: 10px; font-size: 14px; }
+    .report-title { font-size: 15px; }
+    .header-table td { display: block; width: 100% !important; border-bottom: none; }
+    .header-table tr { display: flex; flex-wrap: wrap; }
+    .header-table td:nth-child(odd) { width: 30% !important; flex: 0 0 30%; }
+    .header-table td:nth-child(even) { width: 70% !important; flex: 0 0 70%; border-bottom: 1px solid #1a3a5c; }
+    .inspect-table { font-size: 10px; }
+    .inspect-table td, .inspect-table th { padding: 3px 4px; }
+    .photo-grid { grid-template-columns: 1fr; }
+    .photo-box input[type="file"] { font-size: 9px; }
+    .sig-canvas { width: 100% !important; max-width: 320px; }
+    .sig-wrapper { width: 100%; }
+    .notice-banner { font-size: 11px; padding: 8px; }
+  }
+
+  /* Print styles */
+  @media print {
+    body { background: #fff; }
+    .toolbar { display: none !important; }
+    .sig-clear { display: none !important; }
+    .page-container { box-shadow: none; margin: 0; padding: 10px; max-width: 100%; }
+    .field-input { border-bottom: 1px solid #999 !important; background: transparent !important; }
+    .sig-canvas { border: 1px solid #ccc; }
+    textarea.field-input { border: 1px solid #999 !important; }
+    @page { size: letter; margin: 0.4in; }
+    .logo-header { display: none; }
+    .print-wrap { width: 100%; }
+    thead.print-header { display: table-header-group; }
+    thead.print-header td { border: none !important; text-align: center; padding: 4px 0 6px; }
+    thead.print-header img { height: 55px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <button class="btn-download" onclick="downloadPDF()">&#128229; Download PDF</button>
+  <button class="btn-print" onclick="printForm()">&#128424; Print</button>
+  <a href="/safety/" style="background:#546e7a; padding:8px 18px; border-radius:4px; color:#fff; text-decoration:none; font-size:13px; font-weight:600;">&#8592; Forms Library</a>
+  <a href="/safety/records?type=vehicle" style="background:#ef6c00; padding:8px 18px; border-radius:4px; color:#fff; text-decoration:none; font-size:13px; font-weight:600;">&#128196; Saved Records</a>
+  <span class="timestamp" id="createTimestamp" style="display:none;"></span>
+</div>
+
+<!-- FORM -->
+<div class="page-container" id="reportForm">
+
+  <table class="print-wrap">
+    <thead class="print-header"><tr><td><img src="/images/fer-logo.jpg" alt="FER Logo"></td></tr></thead>
+    <tbody><tr><td>
+
+  <!-- Logo -->
+  <div class="logo-header">
+    <img src="/images/fer-logo.jpg" alt="FER Logo">
+  </div>
+
+  <!-- Title -->
+  <div class="report-title" style="margin-bottom:10px;">Monthly Vehicle Inspection</div>
+
+  <!-- HEADER FIELDS -->
+  <table class="header-table">
+    <tr>
+      <td style="width:15%;"><strong>Project:</strong></td>
+      <td style="width:35%;"><input type="text" class="field-input" id="fieldProject" placeholder="Project name"></td>
+      <td style="width:15%;"><strong>Location:</strong></td>
+      <td style="width:35%;"><input type="text" class="field-input" id="fieldLocation" placeholder="Location"></td>
+    </tr>
+    <tr>
+      <td><strong>Date:</strong></td>
+      <td><input type="date" class="field-input" id="fieldDate"></td>
+      <td><strong>Vehicle Number:</strong></td>
+      <td><input type="text" class="field-input" id="fieldVehicleNumber" placeholder="Vehicle #"></td>
+    </tr>
+    <tr>
+      <td><strong>Make / Model:</strong></td>
+      <td><input type="text" class="field-input" id="fieldMakeModel" placeholder="Make / Model"></td>
+      <td><strong>License Plate:</strong></td>
+      <td><input type="text" class="field-input" id="fieldLicensePlate" placeholder="License plate #"></td>
+    </tr>
+    <tr>
+      <td><strong>Registration Exp:</strong></td>
+      <td><input type="date" class="field-input" id="fieldRegExp"></td>
+      <td><strong>Current Mileage:</strong></td>
+      <td><input type="number" class="field-input" id="fieldMileage" placeholder="Current mileage"></td>
+    </tr>
+    <tr>
+      <td><strong>Last Tire Rotation:</strong></td>
+      <td><input type="date" class="field-input" id="fieldTireRotation"></td>
+      <td><strong>Last Oil Change Date:</strong></td>
+      <td><input type="date" class="field-input" id="fieldOilChangeDate"></td>
+    </tr>
+    <tr>
+      <td><strong>Last Oil Change Mileage:</strong></td>
+      <td><input type="number" class="field-input" id="fieldOilChangeMileage" placeholder="Mileage at last oil change"></td>
+      <td><strong>Inspected By:</strong></td>
+      <td><input type="text" class="field-input" id="fieldInspectedBy" placeholder="Inspector name"></td>
+    </tr>
+  </table>
+
+  <!-- CONDITION OF SECTION -->
+  <div class="section-box">
+    <div class="section-header-blue">CONDITION OF</div>
+    <table class="inspect-table">
+      <tr>
+        <th style="text-align:left; width:200px;">Item</th>
+        <th style="width:60px;">Pass</th>
+        <th style="width:60px;">Fail</th>
+        <th style="width:60px;">N/A</th>
+        <th>Comments</th>
+      </tr>
+      <tr>
+        <td>Seat Belt Condition</td>
+        <td class="radio-cell"><input type="radio" name="cond_seatbelt" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_seatbelt" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_seatbelt" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Seats</td>
+        <td class="radio-cell"><input type="radio" name="cond_seats" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_seats" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_seats" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Buttons / Switches</td>
+        <td class="radio-cell"><input type="radio" name="cond_buttons" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_buttons" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_buttons" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Locks</td>
+        <td class="radio-cell"><input type="radio" name="cond_locks" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_locks" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_locks" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Light Housings</td>
+        <td class="radio-cell"><input type="radio" name="cond_lights" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_lights" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_lights" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Body of Truck</td>
+        <td class="radio-cell"><input type="radio" name="cond_body" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_body" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_body" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Tires</td>
+        <td class="radio-cell"><input type="radio" name="cond_tires" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_tires" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_tires" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Windshield Wipers</td>
+        <td class="radio-cell"><input type="radio" name="cond_wipers" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_wipers" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_wipers" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Bed Cover</td>
+        <td class="radio-cell"><input type="radio" name="cond_bedcover" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_bedcover" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_bedcover" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Dark Room</td>
+        <td class="radio-cell"><input type="radio" name="cond_darkroom" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="cond_darkroom" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="cond_darkroom" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- FUNCTIONS OF SECTION -->
+  <div class="section-box">
+    <div class="section-header-blue">FUNCTIONS OF</div>
+    <table class="inspect-table">
+      <tr>
+        <th style="text-align:left; width:200px;">Item</th>
+        <th style="width:60px;">Pass</th>
+        <th style="width:60px;">Fail</th>
+        <th style="width:60px;">N/A</th>
+        <th>Comments</th>
+      </tr>
+      <tr>
+        <td>Buttons / Switches</td>
+        <td class="radio-cell"><input type="radio" name="func_buttons" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="func_buttons" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="func_buttons" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Locks</td>
+        <td class="radio-cell"><input type="radio" name="func_locks" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="func_locks" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="func_locks" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Low Beams</td>
+        <td class="radio-cell"><input type="radio" name="func_lowbeams" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="func_lowbeams" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="func_lowbeams" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>High Beams</td>
+        <td class="radio-cell"><input type="radio" name="func_highbeams" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="func_highbeams" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="func_highbeams" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Fog Lights</td>
+        <td class="radio-cell"><input type="radio" name="func_foglights" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="func_foglights" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="func_foglights" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Brake Lights</td>
+        <td class="radio-cell"><input type="radio" name="func_brakelights" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="func_brakelights" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="func_brakelights" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Blinkers</td>
+        <td class="radio-cell"><input type="radio" name="func_blinkers" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="func_blinkers" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="func_blinkers" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td>Gauges</td>
+        <td class="radio-cell"><input type="radio" name="func_gauges" value="Pass"></td>
+        <td class="radio-cell"><input type="radio" name="func_gauges" value="Fail"></td>
+        <td class="radio-cell"><input type="radio" name="func_gauges" value="NA"></td>
+        <td class="comment-cell"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- IMPORTANT QUESTIONS SECTION -->
+  <div class="section-box-red">
+    <div class="section-header">IMPORTANT QUESTIONS</div>
+    <table class="inspect-table" style="border-color:#e57373;">
+      <tr>
+        <th style="text-align:left; width:320px; background:#e57373; border-color:#e57373;">Question</th>
+        <th style="width:60px; background:#e57373; border-color:#e57373;">Yes</th>
+        <th style="width:60px; background:#e57373; border-color:#e57373;">No</th>
+        <th style="width:60px; background:#e57373; border-color:#e57373;">N/A</th>
+        <th style="background:#e57373; border-color:#e57373;">Comments</th>
+      </tr>
+      <tr>
+        <td style="border-color:#e57373;">Are any warning lights on in the dash?</td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_warning" value="Yes"></td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_warning" value="No"></td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_warning" value="NA"></td>
+        <td class="comment-cell" style="border-color:#e57373;"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td style="border-color:#e57373;">Is there any interior damage?</td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_interior" value="Yes"></td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_interior" value="No"></td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_interior" value="NA"></td>
+        <td class="comment-cell" style="border-color:#e57373;"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td style="border-color:#e57373;">Is there any exterior damage?</td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_exterior" value="Yes"></td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_exterior" value="No"></td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_exterior" value="NA"></td>
+        <td class="comment-cell" style="border-color:#e57373;"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+      <tr>
+        <td style="border-color:#e57373;">Is the registration and insurance paperwork in the vehicle?</td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_paperwork" value="Yes"></td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_paperwork" value="No"></td>
+        <td class="radio-cell" style="border-color:#e57373;"><input type="radio" name="q_paperwork" value="NA"></td>
+        <td class="comment-cell" style="border-color:#e57373;"><input type="text" class="field-input" placeholder="Comments"></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- PHOTO DOCUMENTATION SECTION -->
+  <div class="section-box">
+    <div class="section-header-blue">PHOTO DOCUMENTATION</div>
+    <div class="photo-grid">
+      <!-- Row 1 -->
+      <div class="photo-box">
+        <label>VIN <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>License Plate <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 2 -->
+      <div class="photo-box">
+        <label>Overall Front (Windshield &amp; Hood) <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Overall Front (Bumper &amp; Grill) <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 3 -->
+      <div class="photo-box">
+        <label>Exterior Drivers Side <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Exterior Passenger Side <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 4 -->
+      <div class="photo-box">
+        <label>Front Driver Side Tire (Tread) <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Front Passenger Side Tire (Tread) <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 5 -->
+      <div class="photo-box">
+        <label>Rear Drivers Side Tire (Tread) <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Rear Passenger Side Tire (Tread) <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 6 -->
+      <div class="photo-box">
+        <label>Overall Rear <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Inside Bed <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 7 -->
+      <div class="photo-box">
+        <label>Odometer <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Dash Board (Show Warning Lights) <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 8 -->
+      <div class="photo-box">
+        <label>Interior Front Driver Side <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Interior Front Passenger Side <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 9 -->
+      <div class="photo-box">
+        <label>Interior Rear Drivers Side (If Applicable)</label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Interior Rear Passenger Side (If Applicable)</label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 10 -->
+      <div class="photo-box">
+        <label>Oil Change Due Sticker <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Registration Sticker <span class="required-star">*</span></label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <!-- Row 11 -->
+      <div class="photo-box">
+        <label>Extra / Damage / Misc (N/A)</label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+      <div class="photo-box">
+        <label>Extra / Damage / Misc (N/A)</label>
+        <input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+        <img class="photo-preview" alt="Preview">
+      </div>
+    </div>
+  </div>
+
+  <!-- ADDITIONAL COMMENTS -->
+  <div class="section-box">
+    <div class="section-header-blue">ADDITIONAL COMMENTS</div>
+    <div style="padding:8px;">
+      <textarea class="field-input" rows="4" placeholder="Enter any additional comments, observations, or notes here..."></textarea>
+    </div>
+  </div>
+
+  <!-- IMPORTANT NOTICE -->
+  <div class="section-box-red" style="margin-top:10px;">
+    <div class="notice-banner">
+      &#9888; IMPORTANT NOTICE &#9888;<br><br>
+      ANY DAMAGES TO THE VEHICLE'S MOBILITY MUST BE ADDRESSED IMMEDIATELY. ENSURE THE VEHICLE IS DECOMMISSIONED UNTIL THE CONCERN IS FIXED. CONTACT THE SAFETY MANAGER AND/OR THE INVENTORY COORDINATOR FOR DECOMMISSIONED VEHICLES.
+    </div>
+  </div>
+
+  <!-- INSPECTOR SIGNATURE -->
+  <div class="section-box" style="margin-top:10px;">
+    <div class="section-header-blue">INSPECTOR SIGNATURE</div>
+    <div style="padding:10px; display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap; background:#f5f8fb;">
+      <div style="flex:1; min-width:200px;">
+        <strong style="color:#1a3a5c;">Inspector Name:</strong><br>
+        <input type="text" class="field-input" id="fieldInspectorSigName" placeholder="Full name" style="margin-top:4px;">
+      </div>
+      <div style="flex:0 0 auto;">
+        <strong style="color:#1a3a5c;">Signature:</strong><br>
+        <div class="sig-wrapper">
+          <canvas class="sig-canvas" width="340" height="80"></canvas>
+          <button class="sig-clear" onclick="clearSig(this)">Clear</button>
+        </div>
+        <span class="sig-label">Sign above</span>
+      </div>
+      <div style="flex:0 0 160px;">
+        <strong style="color:#1a3a5c;">Date:</strong><br>
+        <input type="date" class="field-input" id="fieldSigDate" style="margin-top:4px;">
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:right; font-size:9px; color:#888; margin-top:10px; display:none;" id="footerTimestamp"></div>
+
+    </td></tr></tbody>
+  </table>
+</div>
+
+<!-- CDN SCRIPTS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  // ===== TIMESTAMP =====
+  (function() {
+    const now = new Date();
+    const opts = { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' };
+    const stamp = now.toISOString();
+    const readable = 'Created: ' + now.toLocaleDateString('en-US', opts);
+    document.getElementById('reportForm').setAttribute('data-created', stamp);
+    document.getElementById('reportForm').setAttribute('data-created-readable', readable);
+    document.getElementById('createTimestamp').textContent = readable;
+    document.getElementById('footerTimestamp').textContent = readable;
+  })();
+
+  // ===== PHOTO PREVIEW =====
+  function previewPhoto(input) {
+    const preview = input.parentElement.querySelector('.photo-preview');
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(input.files[0]);
+    } else {
+      preview.src = '';
+      preview.style.display = 'none';
+    }
+  }
+
+  // ===== SIGNATURE PAD =====
+  function initSignaturePad(canvas) {
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let lastX, lastY;
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      if (e.touches) {
+        return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY };
+      }
+      return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      drawing = true;
+      const pos = getPos(e);
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function draw(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function stopDraw() { drawing = false; }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseleave', stopDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDraw);
+  }
+
+  // Initialize all existing signature canvases
+  document.querySelectorAll('.sig-canvas').forEach(initSignaturePad);
+
+  function clearSig(btn) {
+    const canvas = btn.parentElement.querySelector('.sig-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // ===== GENERATE PDF & SAVE TO DATABASE =====
+  async function generatePDF() {
+    const form = document.getElementById('reportForm');
+    // Hide buttons during capture
+    const btns = form.querySelectorAll('.sig-clear');
+    btns.forEach(b => b.style.display = 'none');
+
+    // Convert signature canvases to images for capture
+    const canvases = form.querySelectorAll('.sig-canvas');
+    const swaps = [];
+    canvases.forEach(canvas => {
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      img.style.width = canvas.width + 'px';
+      img.style.height = canvas.height + 'px';
+      img.style.border = '1px solid #999';
+      canvas.style.display = 'none';
+      canvas.parentElement.insertBefore(img, canvas);
+      swaps.push({ img, canvas });
+    });
+
+    try {
+      const canvas = await html2canvas(form, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'letter');
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 8;
+      const contentW = pageW - margin * 2;
+      const imgH = (canvas.height / canvas.width) * contentW;
+
+      // Multi-page support
+      let yOffset = 0;
+      const usableH = pageH - margin * 2;
+      while (yOffset < imgH) {
+        if (yOffset > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', margin, margin - yOffset, contentW, imgH);
+        yOffset += usableH;
+      }
+
+      return pdf;
+    } finally {
+      // Restore canvases
+      swaps.forEach(({ img, canvas }) => {
+        canvas.style.display = '';
+        img.remove();
+      });
+      btns.forEach(b => b.style.display = '');
+    }
+  }
+
+  function getSiteName() {
+    const el = document.getElementById('fieldVehicleNumber');
+    if (el && el.value.trim()) return el.value.trim();
+    return 'Unknown Vehicle';
+  }
+
+  function getDescriptionOfWork() {
+    const el = document.getElementById('fieldMakeModel');
+    if (el && el.value.trim()) return el.value.trim();
+    return '';
+  }
+
+  async function saveToDB(pdf) {
+    const pdfBase64 = pdf.output('datauristring').split(',')[1];
+    const siteName = getSiteName();
+    const descriptionOfWork = getDescriptionOfWork();
+
+    const res = await fetch('/safety/api/forms/vehicle/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName, descriptionOfWork, pdfBase64 })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Save failed');
+    return data.record;
+  }
+
+  async function downloadPDF() {
+    const btn = document.querySelector('.btn-download');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '&#9203; Generating PDF...';
+    btn.disabled = true;
+
+    try {
+      const pdf = await generatePDF();
+
+      // Save to database
+      btn.innerHTML = '&#9203; Saving to database...';
+      const record = await saveToDB(pdf);
+
+      // Also trigger browser download
+      const siteName = getSiteName().replace(/[^a-zA-Z0-9]/g, '_');
+      const dateStr = new Date(record.savedAt).toISOString().slice(0, 10);
+      pdf.save('Vehicle_Inspection_' + siteName + '_' + dateStr + '.pdf');
+
+      btn.innerHTML = '&#10004; Saved! (ID: ' + record.id + ')';
+      setTimeout(() => { btn.innerHTML = origText; }, 3000);
+
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Error: ' + err.message);
+      btn.innerHTML = origText;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function printForm() {
+    const btn = document.querySelector('.btn-print');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '&#9203; Saving...';
+    btn.disabled = true;
+
+    try {
+      const pdf = await generatePDF();
+      // Save to database on every print too
+      const record = await saveToDB(pdf);
+      console.log('Saved to DB before print, ID:', record.id);
+
+      // Now do the browser print
+      const canvases = document.querySelectorAll('.sig-canvas');
+      const images = [];
+      canvases.forEach(canvas => {
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/png');
+        img.style.width = canvas.width + 'px';
+        img.style.height = canvas.height + 'px';
+        img.style.border = '1px solid #999';
+        canvas.style.display = 'none';
+        canvas.parentElement.insertBefore(img, canvas);
+        images.push({ img, canvas });
+      });
+      window.print();
+      setTimeout(() => {
+        images.forEach(({ img, canvas }) => { canvas.style.display = ''; img.remove(); });
+      }, 1000);
+
+      btn.innerHTML = '&#10004; Saved & Printed (ID: ' + record.id + ')';
+      setTimeout(() => { btn.innerHTML = origText; }, 3000);
+    } catch (err) {
+      console.error('Print error:', err);
+      // Still allow print even if DB save fails
+      window.print();
+      btn.innerHTML = origText;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
