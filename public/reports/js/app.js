@@ -1642,6 +1642,24 @@ const App = (() => {
             renderEquipList('');
         }
 
+        function positionEquipList() {
+            const list = $('#nr-equip-list');
+            const input = $('#nr-equip-search');
+            const rect = input.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom - 10;
+            const spaceAbove = rect.top - 10;
+            const listH = Math.min(300, Math.max(spaceBelow, spaceAbove));
+            const openAbove = spaceBelow < 150 && spaceAbove > spaceBelow;
+
+            list.style.cssText = `
+                position:fixed; left:${rect.left}px; width:${rect.width}px;
+                ${openAbove ? `bottom:${window.innerHeight - rect.top}px;` : `top:${rect.bottom}px;`}
+                max-height:${listH}px; overflow-y:auto; background:#fff;
+                border:1px solid #ccc; border-radius:4px; z-index:9999;
+                box-shadow:0 4px 16px rgba(0,0,0,.2); display:block;
+            `;
+        }
+
         function renderEquipList(filter) {
             const list = $('#nr-equip-list');
             list.innerHTML = '';
@@ -1664,12 +1682,17 @@ const App = (() => {
             if (filtered.length === 0) {
                 list.innerHTML += `<div style="${itemStyle}color:#999;cursor:default;">No equipment found</div>`;
             }
-            list.style.display = 'block';
+            positionEquipList();
         }
 
         // Search input events
         $('#nr-equip-search').addEventListener('focus', () => renderEquipList($('#nr-equip-search').value));
         $('#nr-equip-search').addEventListener('input', (e) => renderEquipList(e.target.value));
+        // Reposition on scroll inside the modal
+        const modalContent = $('#new-report-modal').querySelector('.modal-content');
+        if (modalContent) modalContent.addEventListener('scroll', () => {
+            if ($('#nr-equip-list').style.display !== 'none') positionEquipList();
+        });
 
         // Click on item in list
         document.addEventListener('click', (e) => {
