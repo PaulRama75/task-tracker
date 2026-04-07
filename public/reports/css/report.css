@@ -1159,9 +1159,9 @@ body {
         max-width: 140px;
     }
 
-    /* Report content */
-    .report-content { padding: 8px; }
-    .report-section { margin-bottom: 8px; }
+    /* Report content — allow overflow scroll */
+    .report-content { padding: 8px; overflow: visible; }
+    .report-section { margin-bottom: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .section-view { padding: 10px 12px; }
     .section-view h3 {
         font-size: 12px;
@@ -1177,6 +1177,26 @@ body {
     .info-table .label { white-space: normal; width: 25%; }
     .info-table .value { width: 25%; }
     .inline-input { font-size: 12px; padding: 4px 4px; }
+
+    /* EXT equipment tables — scrollable */
+    .ext510-equip-table { table-layout: auto; }
+    .ext510-tbl-hdr { white-space: normal; font-size: 10px; padding: 4px 3px; }
+
+    /* Checklist table — scrollable wrapper */
+    #checklist-section-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .checklist-table { min-width: 500px; font-size: 11px; }
+    .checklist-table th, .checklist-table td { padding: 2px 3px; }
+    .checklist-table thead th { font-size: 10px; white-space: normal; }
+    .cl-item-cell { white-space: normal; }
+    .cl-loc-cell { white-space: normal; }
+    .cl-cat-cell { font-size: 10px; }
+    .cl-comment { font-size: 10px; }
+    .cl-toolbar { flex-wrap: wrap; }
+    .cl-toolbar button { padding: 4px 8px; min-height: 32px; }
+
+    /* Inspector table */
+    .ext510-inspector-table { font-size: 11px; }
+    .ext510-insp-label { font-size: 11px; padding: 4px 6px; }
 
     /* Photo grid — 2 columns on tablet */
     .photo-grid {
@@ -1248,13 +1268,21 @@ body {
     }
 
     /* Report header */
-    .report-header { padding: 12px; }
-    .ext510-header-block { flex-direction: column; gap: 8px; }
-    .ext510-title-area h1 { font-size: 16px; }
-    .ext510-meta-area { font-size: 10px; }
+    .report-header { padding: 8px; }
+    .ext510-header-block { flex-direction: column; gap: 6px; padding: 10px 8px; }
+    .ext510-title-area h1 { font-size: 15px; }
+    .ext510-meta-area { font-size: 10px; text-align: center; }
+    .ext510-logo img { width: 80px; }
+
+    /* Orientation / Data Plate photos — smaller on tablet */
+    .orient-photo-img { min-height: 120px; }
+    .orient-dataplate-grid { gap: 8px; }
 
     /* Library table — horizontal scroll */
     .library-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    /* Reduce container spacing */
+    .report-container { margin: 8px auto; padding: 0 8px; }
 }
 
 /* Phone (480px and below) */
@@ -1270,19 +1298,39 @@ body {
     .top-bar .btn-sm { font-size: 10px; padding: 3px 6px; }
 
     /* Content */
-    .report-content { padding: 4px; }
-    .section-view { padding: 8px 8px; }
+    .report-content { padding: 2px; overflow: visible; }
+    .section-view { padding: 6px 6px; }
     .section-view h3 {
         font-size: 11px;
         padding: 4px 8px;
-        margin-left: -8px;
-        margin-right: -8px;
-        margin-top: -8px;
+        margin-left: -6px;
+        margin-right: -6px;
+        margin-top: -6px;
     }
 
-    /* Equipment table — stack labels + values */
-    .info-table td, .info-table th { padding: 3px 4px; font-size: 10px; }
-    .inline-input { font-size: 11px; padding: 3px 2px; }
+    /* Equipment table — compact */
+    .info-table { font-size: 10px; }
+    .info-table td, .info-table th { padding: 3px 3px; font-size: 10px; }
+    .info-table .label { font-size: 9px; }
+    .inline-input { font-size: 10px; padding: 2px 2px; }
+
+    /* EXT equipment tables */
+    .ext510-equip-table { font-size: 10px; }
+    .ext510-tbl-hdr { font-size: 9px; padding: 3px 2px; letter-spacing: 0; }
+    .ext510-unit-row { font-size: 10px; }
+    .ext510-equip-id { font-size: 11px; padding: 3px 6px; margin-bottom: 6px; }
+    .ext510-logo img { width: 60px; }
+
+    /* Checklist — more compact */
+    .checklist-table { min-width: 450px; font-size: 10px; }
+    .checklist-table th, .checklist-table td { padding: 2px 2px; }
+    .checklist-table thead th { font-size: 9px; }
+    .cl-check-cell { font-size: 14px; }
+    .cl-toolbar button { font-size: 11px; min-height: 36px; }
+
+    /* Inspector — compact */
+    .ext510-inspector-table { font-size: 10px; }
+    .ext510-insp-label { font-size: 10px; padding: 3px 4px; }
 
     /* Photo grid — single column */
     .photo-grid {
@@ -1336,7 +1384,20 @@ body {
     }
 
     /* Header */
-    .ext510-header-block { padding: 8px; }
-    .ext510-title-area h1 { font-size: 14px; }
-    .ext510-equip-id { font-size: 12px; padding: 4px 8px; }
+    .ext510-header-block { padding: 6px; }
+    .ext510-title-area h1 { font-size: 13px; }
+
+    /* Orientation — compact */
+    .orient-dataplate-grid { grid-template-columns: 1fr; gap: 6px; }
+    .orient-photo-img { min-height: 80px; }
+    .orient-photo-label { font-size: 11px; padding: 3px 6px; }
+
+    /* Container — no wasted space */
+    .report-container { margin: 4px auto; padding: 0 2px; max-width: 100%; }
+    .report-content { border-radius: 4px; }
+
+    /* Report header */
+    .report-header { padding: 6px; }
+    .ext510-header-block { gap: 4px; padding: 6px; }
+    .ext510-meta-area { font-size: 9px; }
 }
