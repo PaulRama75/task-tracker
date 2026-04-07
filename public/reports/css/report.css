@@ -652,25 +652,15 @@ body {
 .ql-toolbar.ql-snow {
     border: 1px solid var(--gray-300) !important;
     background: var(--gray-50); border-radius: 4px 4px 0 0;
-    padding: 6px 8px !important;
 }
-.ql-toolbar.ql-snow:empty { display: none; }
-.ql-toolbar.ql-snow button { width: 28px; height: 24px; padding: 3px 5px; }
-.ql-toolbar.ql-snow button svg { width: 18px; height: 18px; }
-.ql-toolbar.ql-snow .ql-picker { height: 24px; }
-.ql-toolbar.ql-snow .ql-picker-label { padding: 2px 4px; }
-.ql-toolbar.ql-snow .ql-picker-label svg { width: 18px; height: 18px; }
 .ql-container.ql-snow {
     border: 1px solid var(--gray-300) !important;
     border-top: none !important;
     background: #fffef5; border-radius: 0 0 4px 4px;
     font-size: 13px; font-family: inherit;
 }
-/* Hide empty narrative wraps and Quill tooltip/clipboard artifacts */
+/* Hide empty narrative wraps */
 .narrative-wrap:empty { display: none; }
-.ql-tooltip { display: none; }
-.ql-tooltip.ql-editing { display: block; }
-.ql-clipboard { display: none !important; height: 0 !important; overflow: hidden !important; }
 .ql-editor { min-height: 80px; line-height: 1.7; }
 .ql-editor img { max-width: 100%; height: auto; border-radius: 4px; margin: 4px 0; }
 .ql-editor table { border-collapse: collapse; width: 100%; margin: 8px 0; }
