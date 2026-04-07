@@ -112,7 +112,8 @@ const API = (() => {
                     title: 'TOWER INSPECTION REPORT',
                     formNumber: 'FER-PROJ-FORM-01',
                     headerFields: [
-                        ['Equipment Name:', 'equipment_name', 'Equipment Type:', 'equipment_type'],
+                        ['Equipment Name:', 'equipment_name', null, null],
+                        ['Equipment Type:', 'equipment_type', null, null],
                         ['Shell Material:', 'shell_material', 'Shell Thickness:', 'shell_thickness'],
                         ['Height:', 'height', 'Internal Diameter:', 'internal_diameter'],
                         ['Head Material:', 'head_material', 'Head Thickness:', 'head_thickness'],
@@ -144,7 +145,8 @@ const API = (() => {
                     title: 'EXCHANGER INSPECTION REPORT',
                     formNumber: 'FER-PROJ-FORM-02',
                     headerFields: [
-                        ['Equipment Name:', 'equipment_name', 'Equipment Type:', 'equipment_type'],
+                        ['Equipment Name:', 'equipment_name', null, null],
+                        ['Equipment Type:', 'equipment_type', null, null],
                         ['Shell Material:', 'shell_material', 'Shell Thickness:', 'shell_thickness'],
                         ['Cladding/Lining Material:', 'cladding_material', 'Internal Diameter:', 'internal_diameter'],
                         ['Tube Material:', 'tube_material', 'Tube Thickness:', 'tube_thickness'],
@@ -172,7 +174,8 @@ const API = (() => {
                     title: 'AIR COOLER INSPECTION REPORT',
                     formNumber: 'FER-PROJ-FORM-03',
                     headerFields: [
-                        ['Equipment Name:', 'equipment_name', 'Equipment Type:', 'equipment_type'],
+                        ['Equipment Name:', 'equipment_name', null, null],
+                        ['Equipment Type:', 'equipment_type', null, null],
                         ['Header Box Material:', 'header_box_material', 'Header Box Thickness:', 'header_box_thickness'],
                         ['Tube Sheet Material:', 'tube_sheet_material', 'Tube Sheet Thickness:', 'tube_sheet_thickness'],
                         ['Tube Material:', 'tube_material', 'Tube Thickness:', 'tube_thickness'],
@@ -197,7 +200,8 @@ const API = (() => {
                     title: 'DRUM INSPECTION REPORT',
                     formNumber: 'FER-PROJ-FORM-04',
                     headerFields: [
-                        ['Equipment Name:', 'equipment_name', 'Equipment Type:', 'equipment_type'],
+                        ['Equipment Name:', 'equipment_name', null, null],
+                        ['Equipment Type:', 'equipment_type', null, null],
                         ['Shell Material:', 'shell_material', 'Shell Thickness:', 'shell_thickness'],
                         ['Height:', 'height', 'Internal Diameter:', 'internal_diameter'],
                         ['Head Material:', 'head_material', 'Head Thickness:', 'head_thickness'],
@@ -222,7 +226,8 @@ const API = (() => {
                     title: 'HEATER INSPECTION REPORT',
                     formNumber: 'FER-PROJ-FORM-05',
                     headerFields: [
-                        ['Equipment Name:', 'equipment_name', 'Equipment Type:', 'equipment_type'],
+                        ['Equipment Name:', 'equipment_name', null, null],
+                        ['Equipment Type:', 'equipment_type', null, null],
                         ['MFR #:', 'mfr_number', null, null],
                     ],
                     headerDefaults: {

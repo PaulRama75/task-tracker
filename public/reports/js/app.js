@@ -705,9 +705,10 @@ const App = (() => {
             const key = el.dataset.field;
             const val = data[key] || '';
             if (hasLock) {
-                el.innerHTML = `<input type="text" class="inline-input" data-skey="header" data-fkey="${key}" value="${esc(val)}">`;
+                el.innerHTML = `<input type="text" class="inline-input" data-skey="header" data-fkey="${key}" value="${esc(val)}" title="${esc(val)}">`;
             } else {
                 el.textContent = val;
+                el.title = val;
             }
         });
 
@@ -718,9 +719,10 @@ const App = (() => {
                 const val = data[key] || '';
                 const isSpan = el.tagName === 'SPAN';
                 if (hasLock) {
-                    el.innerHTML = `<input type="text" class="inline-input" data-skey="header" data-fkey="${key}" value="${esc(val)}" style="${isSpan ? 'width:60px;display:inline;' : ''}">`;
+                    el.innerHTML = `<input type="text" class="inline-input" data-skey="header" data-fkey="${key}" value="${esc(val)}" title="${esc(val)}" style="${isSpan ? 'width:60px;display:inline;' : ''}">`;
                 } else {
                     el.textContent = val;
+                    el.title = val;
                 }
             });
         }

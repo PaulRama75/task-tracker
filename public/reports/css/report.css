@@ -135,8 +135,8 @@ body {
 
 /* ─── Inline Editing ────────────────────────────────────────────────────── */
 .inline-input {
-    width: 100%; padding: 3px 6px; border: 1px solid var(--gray-300);
-    border-radius: 3px; font-size: 13px; background: #fffef5;
+    width: 100%; padding: 3px 4px; border: 1px solid var(--gray-300);
+    border-radius: 3px; font-size: 12px; background: #fffef5;
     text-align: center;
 }
 .inline-input:focus { outline: 2px solid #333; border-color: #333; }
@@ -255,9 +255,9 @@ body {
 }
 .info-table .label {
     background: var(--gray-50); font-weight: 600; color: var(--gray-700);
-    width: 20%; white-space: nowrap;
+    width: 1%; white-space: nowrap;
 }
-.info-table .value { width: 30%; text-align: center; }
+.info-table .value { text-align: center; }
 .info-table th {
     background: var(--primary); color: var(--white);
     font-weight: 600; font-size: 12px; text-align: center;
