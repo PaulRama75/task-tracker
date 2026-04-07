@@ -649,6 +649,63 @@ body {
 /* info-table rules consolidated above */
 
 /* ─── Quill Overrides ───────────────────────────────────────────────────── */
+/* Core SVG icon styles (needed because CDN CSS may not apply cross-origin) */
+.ql-snow .ql-stroke {
+    fill: none !important;
+    stroke: #444 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    stroke-width: 2 !important;
+}
+.ql-snow .ql-stroke-miter {
+    fill: none !important;
+    stroke: #444 !important;
+    stroke-miterlimit: 10 !important;
+    stroke-width: 2 !important;
+}
+.ql-snow .ql-fill,
+.ql-snow .ql-stroke.ql-fill {
+    fill: #444 !important;
+}
+.ql-snow .ql-thin {
+    fill: none !important;
+    stroke: #444 !important;
+    stroke-width: 1 !important;
+}
+.ql-snow .ql-even {
+    fill: none !important;
+    stroke: #444 !important;
+    stroke-width: 2 !important;
+}
+.ql-snow .ql-empty {
+    fill: none !important;
+    stroke: none !important;
+}
+.ql-snow .ql-active .ql-stroke,
+.ql-snow .ql-active .ql-stroke-miter {
+    stroke: #06c !important;
+}
+.ql-snow .ql-active .ql-fill,
+.ql-snow .ql-active .ql-stroke.ql-fill {
+    fill: #06c !important;
+}
+.ql-snow .ql-picker-label {
+    color: #444 !important;
+}
+.ql-snow .ql-picker-label .ql-stroke {
+    stroke: #444 !important;
+}
+.ql-snow .ql-active .ql-picker-label .ql-stroke {
+    stroke: #06c !important;
+}
+.ql-snow .ql-toolbar button:hover .ql-stroke,
+.ql-toolbar.ql-snow button:hover .ql-stroke {
+    stroke: #06c !important;
+}
+.ql-snow .ql-toolbar button:hover .ql-fill,
+.ql-toolbar.ql-snow button:hover .ql-fill {
+    fill: #06c !important;
+}
 .ql-snow .ql-toolbar svg,
 .ql-toolbar.ql-snow svg {
     width: 18px !important;
