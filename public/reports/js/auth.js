@@ -110,7 +110,54 @@ const Auth = (() => {
                 sessionStorage.setItem('tir_user', JSON.stringify(user));
                 return currentUser;
             }
-            // Fallback: check sessionStorage for standalone mode
+            // Fallback: try API-based auth using token from parent sessionStorage
+            const token = getToken();
+            if (token) {
+                try {
+                    const res = await authFetch('/reports/api/me');
+                    if (res.ok) {
+                        const me = await res.json();
+                        const roleName = me.role === 'superadmin' ? 'Supervisor' : me.role === 'admin' ? 'Engineer' : 'Inspector';
+                        const isAdmin = me.role === 'superadmin' || me.role === 'admin';
+
+                        // Load sites
+                        await loadParentSites();
+
+                        const user = API.login(me.username, roleName, '');
+                        if (isAdmin && !user.is_admin) {
+                            API.updateUser(user.id, { is_admin: true });
+                            user.is_admin = true;
+                        }
+
+                        // Sync site access
+                        if (me.role === 'superadmin') {
+                            const allSites = API.getSites();
+                            user.site_ids = allSites.map(s => s.id);
+                        } else if (me.allowedSites && me.allowedSites.length > 0 && parentSites) {
+                            const data = JSON.parse(localStorage.getItem('tir_data') || '{}');
+                            const localSites = data.sites || [];
+                            user.site_ids = [];
+                            me.allowedSites.forEach(psId => {
+                                const ps = parentSites.find(s => s.id === psId);
+                                if (ps) {
+                                    const ls = localSites.find(s => s.db_site_id === ps.id || s.plant_name === ps.name);
+                                    if (ls) user.site_ids.push(ls.id);
+                                }
+                            });
+                        } else {
+                            user.site_ids = [];
+                        }
+                        API.updateUser(user.id, { site_ids: user.site_ids });
+
+                        currentUser = user;
+                        parentAllowedSites = me.allowedSites || [];
+                        sessionStorage.setItem('tir_user', JSON.stringify(user));
+                        return currentUser;
+                    }
+                } catch(e) { console.error('API auth fallback failed:', e); }
+            }
+
+            // Final fallback: check sessionStorage for standalone mode
             const raw = sessionStorage.getItem('tir_user');
             currentUser = raw ? JSON.parse(raw) : null;
             return currentUser;
