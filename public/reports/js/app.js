@@ -195,7 +195,8 @@ const App = (() => {
     }
 
     // ─── Load Report ──────────────────────────────────────────────────────
-    function loadReport(reportId) {
+    function loadReport(reportId, options) {
+        const skipAutoLock = options && options.skipAutoLock;
         destroyQuills();
         viewingVersion = null;
         $('#version-banner').classList.add('hidden');
@@ -215,7 +216,7 @@ const App = (() => {
         $('#library-container').classList.add('hidden');
 
         // Auto-claim edit lock (before rendering so all sections get editors)
-        if (!Auth.hasLock(currentReport)) {
+        if (!skipAutoLock && !Auth.hasLock(currentReport)) {
             try {
                 Auth.acquireLock(currentReport.id);
                 currentReport = API.getReport(currentReport.id);
@@ -1284,14 +1285,14 @@ const App = (() => {
                     destroyQuills(); Auth.releaseLock(currentReport.id);
                     clearInterval(lockRefreshInterval);
                     currentReport = API.getReport(currentReport.id);
-                    loadReport(currentReport.id); toast('Lock released.', 'info');
+                    loadReport(currentReport.id, { skipAutoLock: true }); toast('Lock released.', 'info');
                 } catch (err) { toast(err.message, 'error'); }
             } else if (isAdmin && currentReport.lock) {
                 // Admin force unlock another user's lock
                 if (!confirm(`Force release lock held by ${currentReport.lock.user_name}?`)) return;
                 API.forceUnlock(currentReport.id);
                 currentReport = API.getReport(currentReport.id);
-                loadReport(currentReport.id); toast('Lock force-released.', 'info');
+                loadReport(currentReport.id, { skipAutoLock: true }); toast('Lock force-released.', 'info');
             }
         });
 
