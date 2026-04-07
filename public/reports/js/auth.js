@@ -93,44 +93,55 @@ const Auth = (() => {
 
             // First check if running inside task-tracker iframe
             const parentUser = getParentUser();
+            console.log('[Auth] parentUser:', parentUser);
             if (parentUser) {
-                // Load sites from task-tracker DB
-                await loadParentSites();
+                try {
+                    // Load sites from task-tracker DB
+                    console.log('[Auth] Loading parent sites...');
+                    await loadParentSites();
+                    console.log('[Auth] Parent sites loaded:', parentSites);
 
-                // Auto-login using parent credentials
-                const user = API.login(parentUser.name, parentUser.role, '');
-                // Sync admin status from parent
-                if (parentUser.is_admin && !user.is_admin) {
-                    API.updateUser(user.id, { is_admin: true });
-                    user.is_admin = true;
+                    // Auto-login using parent credentials
+                    console.log('[Auth] Calling API.login with:', parentUser.name, parentUser.role);
+                    const user = API.login(parentUser.name, parentUser.role, '');
+                    console.log('[Auth] API.login returned:', user);
+
+                    // Sync admin status from parent
+                    if (parentUser.is_admin && !user.is_admin) {
+                        API.updateUser(user.id, { is_admin: true });
+                        user.is_admin = true;
+                    }
+
+                    // Sync site access - assign user to their allowed sites
+                    if (parentUser.parentRole === 'superadmin') {
+                        const allSites = API.getSites();
+                        user.site_ids = allSites.map(s => s.id);
+                    } else if (parentUser.allowedSites.length > 0 && parentSites) {
+                        const data = JSON.parse(localStorage.getItem('tir_data') || '{}');
+                        const localSites = data.sites || [];
+                        user.site_ids = [];
+                        parentUser.allowedSites.forEach(psId => {
+                            const ps = parentSites.find(s => s.id === psId);
+                            if (ps) {
+                                const ls = localSites.find(s => s.db_site_id === ps.id || s.plant_name === ps.name);
+                                if (ls) user.site_ids.push(ls.id);
+                            }
+                        });
+                    } else {
+                        user.site_ids = [];
+                    }
+                    API.updateUser(user.id, { site_ids: user.site_ids });
+
+                    currentUser = user;
+                    parentAllowedSites = parentUser.allowedSites;
+                    sessionStorage.setItem('tir_user', JSON.stringify(user));
+                    console.log('[Auth] Success! User:', currentUser);
+                    return currentUser;
+                } catch(e) {
+                    console.error('[Auth] Error in parent auth flow:', e);
+                    // Don't return null — throw so app.js can show the error
+                    throw new Error('Parent auth failed: ' + e.message);
                 }
-
-                // Sync site access - assign user to their allowed sites
-                if (parentUser.parentRole === 'superadmin') {
-                    // Superadmin gets all sites
-                    const allSites = API.getSites();
-                    user.site_ids = allSites.map(s => s.id);
-                } else if (parentUser.allowedSites.length > 0 && parentSites) {
-                    // Map parent allowed site IDs to local site IDs
-                    const data = JSON.parse(localStorage.getItem('tir_data') || '{}');
-                    const localSites = data.sites || [];
-                    user.site_ids = [];
-                    parentUser.allowedSites.forEach(psId => {
-                        const ps = parentSites.find(s => s.id === psId);
-                        if (ps) {
-                            const ls = localSites.find(s => s.db_site_id === ps.id || s.plant_name === ps.name);
-                            if (ls) user.site_ids.push(ls.id);
-                        }
-                    });
-                } else {
-                    user.site_ids = [];
-                }
-                API.updateUser(user.id, { site_ids: user.site_ids });
-
-                currentUser = user;
-                parentAllowedSites = parentUser.allowedSites;
-                sessionStorage.setItem('tir_user', JSON.stringify(user));
-                return currentUser;
             }
             // Fallback: try API-based auth using token from parent sessionStorage
             const token = getToken();
