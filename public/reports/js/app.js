@@ -56,18 +56,28 @@ const App = (() => {
 
     // ─── Init ─────────────────────────────────────────────────────────────
     async function init() {
-        migratePhotos();
-        const user = await Auth.init();
+        try { migratePhotos(); } catch(e) { console.error('migratePhotos error:', e); }
+
+        let user = null;
+        try {
+            user = await Auth.init();
+        } catch(e) {
+            console.error('Auth.init error:', e);
+        }
+
+        // Always show UI - auth comes from parent task-tracker
+        $('#login-modal').classList.add('hidden');
+        $('#top-bar').classList.remove('hidden');
+        $('#report-container').classList.remove('hidden');
+
         if (user) {
             showApp(user);
         } else {
-            // Hide login modal - auth comes from parent task-tracker
-            $('#login-modal').classList.add('hidden');
-            $('#top-bar').classList.remove('hidden');
-            $('#report-container').classList.remove('hidden');
             $('#user-info').textContent = 'Not authenticated';
+            $('#report-content').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#888;"><h2 style="color:#ccc;margin-bottom:12px;">Authentication Required</h2><p>Please log in to the main application first, then switch to Reports.</p></div>';
         }
-        bindEvents();
+
+        try { bindEvents(); } catch(e) { console.error('bindEvents error:', e); }
     }
 
     async function migratePhotos() {
