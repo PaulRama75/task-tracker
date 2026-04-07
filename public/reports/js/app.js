@@ -58,7 +58,14 @@ const App = (() => {
     async function init() {
         migratePhotos();
         const user = await Auth.init();
-        if (user) showApp(user); else showLogin();
+        if (user) {
+            showApp(user);
+        } else {
+            // Hide login modal - auth comes from parent task-tracker
+            $('#login-modal').classList.add('hidden');
+            $('#top-bar').classList.remove('hidden');
+            $('#user-info').textContent = 'Not authenticated';
+        }
         bindEvents();
     }
 
