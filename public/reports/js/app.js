@@ -227,8 +227,8 @@ const App = (() => {
         $('#report-container').classList.remove('hidden');
         $('#library-container').classList.add('hidden');
 
-        // Auto-claim edit lock when in iframe mode (before rendering)
-        if (Auth.isInIframe() && !Auth.hasLock(currentReport)) {
+        // Auto-claim edit lock (before rendering so all sections get editors)
+        if (!Auth.hasLock(currentReport)) {
             try {
                 Auth.acquireLock(currentReport.id);
                 currentReport = API.getReport(currentReport.id);
