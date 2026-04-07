@@ -649,9 +649,38 @@ body {
 /* info-table rules consolidated above */
 
 /* ─── Quill Overrides ───────────────────────────────────────────────────── */
+.ql-snow .ql-toolbar svg,
+.ql-toolbar.ql-snow svg {
+    width: 18px !important;
+    height: 18px !important;
+}
+.ql-snow .ql-toolbar button,
+.ql-toolbar.ql-snow button {
+    width: 28px !important;
+    height: 24px !important;
+    display: inline-block !important;
+    padding: 3px 5px !important;
+}
+.ql-snow .ql-toolbar .ql-picker-label,
+.ql-toolbar.ql-snow .ql-picker-label {
+    display: inline-flex !important;
+    align-items: center !important;
+}
+.ql-snow .ql-toolbar .ql-formats,
+.ql-toolbar.ql-snow .ql-formats {
+    display: inline-flex !important;
+    align-items: center !important;
+    vertical-align: middle !important;
+    margin-right: 10px !important;
+}
+.ql-snow .ql-tooltip {
+    left: 0 !important;
+}
 .ql-toolbar.ql-snow {
     border: 1px solid var(--gray-300) !important;
     background: var(--gray-50); border-radius: 4px 4px 0 0;
+    padding: 6px 8px !important;
+    line-height: 24px !important;
 }
 .ql-container.ql-snow {
     border: 1px solid var(--gray-300) !important;

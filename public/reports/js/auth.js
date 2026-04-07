@@ -83,28 +83,12 @@ const Auth = (() => {
 
     return {
         async init() {
-            const dbg = [];
-            try { dbg.push('parent.authToken=' + (window.parent && window.parent !== window ? (window.parent.authToken ? 'YES' : 'NO') : 'N/A')); } catch(e) { dbg.push('parent.authToken=ERR:' + e.message); }
-            try { dbg.push('parent.currentUser=' + (window.parent && window.parent !== window && window.parent.currentUser ? 'YES' : 'NO')); } catch(e) { dbg.push('parent.currentUser=ERR:' + e.message); }
-            dbg.push('ls.authToken=' + (localStorage.getItem('authToken') ? 'YES(' + localStorage.getItem('authToken').substring(0,8) + '...)' : 'NO'));
-            dbg.push('ls.currentUser=' + (localStorage.getItem('currentUser') ? 'YES' : 'NO'));
-            dbg.push('isIframe=' + (window.parent !== window));
-            console.log('[Reports Auth Debug]', dbg.join(' | '));
-
             // First check if running inside task-tracker iframe
             const parentUser = getParentUser();
-            console.log('[Auth] parentUser:', parentUser);
             if (parentUser) {
                 try {
-                    // Load sites from task-tracker DB
-                    console.log('[Auth] Loading parent sites...');
                     await loadParentSites();
-                    console.log('[Auth] Parent sites loaded:', parentSites);
-
-                    // Auto-login using parent credentials
-                    console.log('[Auth] Calling API.login with:', parentUser.name, parentUser.role);
                     const user = API.login(parentUser.name, parentUser.role, '');
-                    console.log('[Auth] API.login returned:', user);
 
                     // Sync admin status from parent
                     if (parentUser.is_admin && !user.is_admin) {
@@ -135,7 +119,6 @@ const Auth = (() => {
                     currentUser = user;
                     parentAllowedSites = parentUser.allowedSites;
                     sessionStorage.setItem('tir_user', JSON.stringify(user));
-                    console.log('[Auth] Success! User:', currentUser);
                     return currentUser;
                 } catch(e) {
                     console.error('[Auth] Error in parent auth flow:', e);

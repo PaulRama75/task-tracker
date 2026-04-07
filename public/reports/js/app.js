@@ -59,12 +59,10 @@ const App = (() => {
         try { migratePhotos(); } catch(e) { console.error('migratePhotos error:', e); }
 
         let user = null;
-        let authError = null;
         try {
             user = await Auth.init();
         } catch(e) {
             console.error('Auth.init error:', e);
-            authError = e.message || String(e);
         }
 
         // Always show UI - auth comes from parent task-tracker
@@ -75,19 +73,8 @@ const App = (() => {
         if (user) {
             showApp(user);
         } else {
-            // Show debug info to diagnose auth failure
-            let debugInfo = '';
-            try {
-                const hasParent = window.parent !== window;
-                const parentToken = hasParent ? (window.parent.authToken ? 'yes' : 'no') : 'n/a';
-                const parentUser = hasParent ? (window.parent.currentUser ? JSON.stringify(window.parent.currentUser.username) : 'no') : 'n/a';
-                const lsToken = localStorage.getItem('authToken') ? 'yes' : 'no';
-                const lsUser = localStorage.getItem('currentUser') ? 'yes' : 'no';
-                debugInfo = `<p style="font-size:11px;color:#999;margin-top:20px;">Debug: iframe=${hasParent}, parentToken=${parentToken}, parentUser=${parentUser}, lsToken=${lsToken}, lsUser=${lsUser}</p>`;
-            } catch(e) { debugInfo = `<p style="font-size:11px;color:#999;margin-top:20px;">Debug error: ${e.message}</p>`; }
             $('#user-info').textContent = 'Not authenticated';
-            const errMsg = authError ? `<p style="font-size:11px;color:#e74c3c;margin-top:10px;">Error: ${authError}</p>` : '';
-            $('#report-content').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#888;"><h2 style="color:#ccc;margin-bottom:12px;">Authentication Required</h2><p>Please log in to the main application first, then switch to Reports.</p>' + errMsg + debugInfo + '</div>';
+            $('#report-content').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#888;"><h2 style="color:#ccc;margin-bottom:12px;">Authentication Required</h2><p>Please log in to the main application first, then switch to Reports.</p></div>';
         }
 
         try { bindEvents(); } catch(e) { console.error('bindEvents error:', e); }
@@ -232,7 +219,7 @@ const App = (() => {
             try {
                 Auth.acquireLock(currentReport.id);
                 currentReport = API.getReport(currentReport.id);
-            } catch(e) { console.warn('Auto-lock failed:', e); }
+            } catch(e) { console.warn('Auto-lock failed:', e.message); }
         }
 
         // Set title based on report type
