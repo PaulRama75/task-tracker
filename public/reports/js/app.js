@@ -1174,6 +1174,7 @@ const App = (() => {
             }
             updateNewReportTypes();
             $('#nr-equip-select').value = '';
+            $('#nr-equip-search').value = '';
             $('#nr-add-new-fields').classList.add('hidden');
             $('#new-report-modal').classList.remove('hidden');
         });
@@ -1255,6 +1256,8 @@ const App = (() => {
             }
 
             $('#new-report-modal').classList.add('hidden'); $('#new-report-form').reset();
+            $('#nr-equip-search').value = ''; $('#nr-equip-select').value = '';
+            $('#nr-equip-list').style.display = 'none';
             $('#nr-add-new-fields').classList.add('hidden');
             loadReportList(); $('#report-selector').value = report.id; loadReport(report.id);
             toast('Report created!' + (equipVal !== '__new__' ? ' Header auto-filled from master data.' : ''), 'success');
@@ -1620,41 +1623,77 @@ const App = (() => {
         const searchEl = $('#equip-filter-search');
         if (searchEl) searchEl.addEventListener('input', renderEquipMasterList);
 
-        // ─── New Report: equipment dropdown auto-fill ─────────────────────
-        // When report type changes, populate equipment dropdown
+        // ─── New Report: searchable equipment dropdown ─────────────────────
+        let _equipList = []; // cached equipment for current type/site
         $('#nr-type').addEventListener('change', () => populateEquipDropdown());
         function populateEquipDropdown() {
             const type = $('#nr-type').value;
-            // Use modal site selector if open, otherwise toolbar
             const nrSiteVal = $('#nr-site') ? $('#nr-site').value : '';
             const siteId = nrSiteVal ? parseSiteId(nrSiteVal) : getSelectedSiteId();
-            // Get equipment for this type - first try with site filter, then fallback to all sites
             let equipment = API.getEquipment(type, siteId);
             if (equipment.length === 0 && siteId) {
-                // No equipment for this site - show all equipment for this type (any site)
                 equipment = API.getEquipment(type, null);
             }
-            const select = $('#nr-equip-select');
-            select.innerHTML = '<option value="">-- Select Equipment --</option>';
-            equipment.forEach(e => {
-                const opt = document.createElement('option');
-                opt.value = e.equipment_number;
-                opt.textContent = `${e.equipment_number} - ${e.equipment_name || ''}`;
-                select.appendChild(opt);
-            });
-            select.innerHTML += '<option value="__new__">+ Add New Equipment</option>';
+            _equipList = equipment;
+            $('#nr-equip-select').value = '';
+            $('#nr-equip-search').value = '';
+            $('#nr-add-new-fields').classList.add('hidden');
+            $('#nr-equipment').required = false;
+            renderEquipList('');
         }
 
-        // When equipment selected, show/hide add-new fields
-        $('#nr-equip-select').addEventListener('change', () => {
-            const val = $('#nr-equip-select').value;
-            const addNewFields = $('#nr-add-new-fields');
-            if (val === '__new__') {
-                addNewFields.classList.remove('hidden');
-                $('#nr-equipment').required = true;
-            } else {
-                addNewFields.classList.add('hidden');
-                $('#nr-equipment').required = false;
+        function renderEquipList(filter) {
+            const list = $('#nr-equip-list');
+            list.innerHTML = '';
+            const itemStyle = 'padding:8px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid #f0f0f0;';
+            const hoverIn = "this.style.background='#e8f0fe'";
+            const hoverOut = "this.style.background='#fff'";
+
+            // "+ Add New Equipment" always at top
+            list.innerHTML += `<div class="eq-item" data-val="__new__" style="${itemStyle}font-weight:600;color:#1a73e8;" onmouseover="${hoverIn}" onmouseout="${hoverOut}">+ Add New Equipment</div>`;
+
+            const q = (filter || '').toLowerCase();
+            const filtered = _equipList.filter(e => {
+                const txt = `${e.equipment_number} - ${e.equipment_name || ''}`.toLowerCase();
+                return !q || txt.includes(q);
+            });
+            filtered.forEach(e => {
+                const label = `${e.equipment_number} - ${e.equipment_name || ''}`;
+                list.innerHTML += `<div class="eq-item" data-val="${esc(e.equipment_number)}" style="${itemStyle}" onmouseover="${hoverIn}" onmouseout="${hoverOut}">${esc(label)}</div>`;
+            });
+            if (filtered.length === 0) {
+                list.innerHTML += `<div style="${itemStyle}color:#999;cursor:default;">No equipment found</div>`;
+            }
+            list.style.display = 'block';
+        }
+
+        // Search input events
+        $('#nr-equip-search').addEventListener('focus', () => renderEquipList($('#nr-equip-search').value));
+        $('#nr-equip-search').addEventListener('input', (e) => renderEquipList(e.target.value));
+
+        // Click on item in list
+        document.addEventListener('click', (e) => {
+            const item = e.target.closest('.eq-item');
+            if (item && item.closest('#nr-equip-list')) {
+                const val = item.dataset.val;
+                const addNewFields = $('#nr-add-new-fields');
+                if (val === '__new__') {
+                    $('#nr-equip-select').value = '__new__';
+                    $('#nr-equip-search').value = '+ Add New Equipment';
+                    addNewFields.classList.remove('hidden');
+                    $('#nr-equipment').required = true;
+                } else {
+                    $('#nr-equip-select').value = val;
+                    $('#nr-equip-search').value = item.textContent;
+                    addNewFields.classList.add('hidden');
+                    $('#nr-equipment').required = false;
+                }
+                $('#nr-equip-list').style.display = 'none';
+                return;
+            }
+            // Close list when clicking outside
+            if (!e.target.closest('#nr-equip-wrapper')) {
+                $('#nr-equip-list').style.display = 'none';
             }
         });
 
