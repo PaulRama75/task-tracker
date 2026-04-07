@@ -655,6 +655,10 @@ input:focus,select:focus{border-color:var(--accent)}
 // ========== AUTH STATE ==========
 let authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken') || '';
 window.authToken = authToken; // expose for iframes
+// Sync token to localStorage so iframes can access it
+if (authToken && !localStorage.getItem('authToken')) {
+  localStorage.setItem('authToken', authToken);
+}
 let currentUser = null; // { username, role }
 window.currentUser = currentUser; // expose for iframes
 
