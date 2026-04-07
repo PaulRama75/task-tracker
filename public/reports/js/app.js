@@ -132,7 +132,6 @@ const App = (() => {
     function showApp(user) {
         $('#login-modal').classList.add('hidden');
         $('#top-bar').classList.remove('hidden');
-        $('#report-container').classList.remove('hidden');
         $('#user-info').textContent = `${user.name} (${user.role})`;
         $('#btn-admin').classList.toggle('hidden', !user.is_admin);
         $('#btn-import-portal').classList.toggle('hidden', !user.is_admin);
@@ -142,6 +141,8 @@ const App = (() => {
         }
         loadSiteSelector();
         loadReportList();
+        // Show Library as default landing page
+        Library.show();
     }
 
     // ─── Site Selector ────────────────────────────────────────────────────
