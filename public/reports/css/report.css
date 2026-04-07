@@ -666,8 +666,11 @@ body {
     background: #fffef5; border-radius: 0 0 4px 4px;
     font-size: 13px; font-family: inherit;
 }
-/* Hide empty narrative wraps and any orphaned Quill containers */
+/* Hide empty narrative wraps and Quill tooltip/clipboard artifacts */
 .narrative-wrap:empty { display: none; }
+.ql-tooltip { display: none; }
+.ql-tooltip.ql-editing { display: block; }
+.ql-clipboard { display: none !important; height: 0 !important; overflow: hidden !important; }
 .ql-editor { min-height: 80px; line-height: 1.7; }
 .ql-editor img { max-width: 100%; height: auto; border-radius: 4px; margin: 4px 0; }
 .ql-editor table { border-collapse: collapse; width: 100%; margin: 8px 0; }
