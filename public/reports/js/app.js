@@ -192,7 +192,8 @@ const App = (() => {
         if (!reportId) {
             currentReport = null;
             document.title = 'Inspection Report System';
-            $('#report-container').classList.add('hidden');
+            $('#report-container').classList.remove('hidden');
+            $('#report-content').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#888;"><h2 style="color:#ccc;margin-bottom:12px;">No Report Selected</h2><p>Select a report from the dropdown above or click <strong>+ New Report</strong> to create one.</p></div>';
             updateLockUI(); return;
         }
         const report = API.getReport(parseInt(reportId));
