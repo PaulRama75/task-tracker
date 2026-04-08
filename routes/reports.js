@@ -282,6 +282,12 @@ router.post('/api/tir/equipment/import', authRequired, asyncHandler(async (req, 
   res.json(result);
 }));
 
+router.post('/api/tir/equipment/bulk-delete', authRequired, asyncHandler(async (req, res) => {
+  const { ids } = req.body;
+  const deleted = await db.bulkDeleteTirEquipment(ids);
+  res.json({ deleted });
+}));
+
 router.delete('/api/tir/equipment/:id', authRequired, asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const result = await db.deleteTirEquipment(id);

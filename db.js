@@ -1153,6 +1153,15 @@ async function getTirUserSites(userId) {
 }
 
 // ========== TIR REPORT OPERATIONS ==========
+
+// Helper: nest flat lock columns into a report.lock object for client compatibility
+function nestLock(row) {
+  if (!row) return row;
+  const { lock_user_id, lock_user_name, locked_at, lock_expires_at, ...rest } = row;
+  rest.lock = lock_user_id ? { user_id: lock_user_id, user_name: lock_user_name, locked_at, expires_at: lock_expires_at } : null;
+  return rest;
+}
+
 async function getTirReports() {
   // Clean expired locks
   await pool.query('DELETE FROM tir_locks WHERE expires_at < NOW()');
@@ -1162,7 +1171,7 @@ async function getTirReports() {
     LEFT JOIN tir_locks l ON r.id = l.report_id
     ORDER BY r.updated_at DESC
   `);
-  return rows;
+  return rows.map(nestLock);
 }
 
 async function createTirReport(data) {
@@ -1183,7 +1192,7 @@ async function getTirReport(id) {
     LEFT JOIN tir_locks l ON r.id = l.report_id
     WHERE r.id=$1
   `, [id]);
-  return rows[0] || null;
+  return nestLock(rows[0]) || null;
 }
 
 async function updateTirReportStatus(reportId, newStatus, userId, extra) {
@@ -1213,11 +1222,17 @@ async function deleteTirReport(reportId) {
 }
 
 async function tirSaveSection(reportId, sectionKey, sectionData, userId) {
+  // Wrap in standard section envelope: { section_data, updated_by, updated_at }
+  const envelope = {
+    section_data: sectionData,
+    updated_by: userId || null,
+    updated_at: new Date().toISOString(),
+  };
   const { rows } = await pool.query(
     `UPDATE tir_reports SET sections = jsonb_set(COALESCE(sections, '{}'), $2, $3), updated_at=NOW() WHERE id=$1 RETURNING *`,
-    [reportId, `{${sectionKey}}`, JSON.stringify(sectionData)]
+    [reportId, `{${sectionKey}}`, JSON.stringify(envelope)]
   );
-  return rows[0];
+  return nestLock(rows[0]);
 }
 
 async function tirAcquireLock(reportId, userId) {
@@ -1235,8 +1250,8 @@ async function tirAcquireLock(reportId, userId) {
       );
       return rows[0];
     }
-    // Locked by someone else
-    return { locked: true, lock_user_id: lock.user_id, lock_user_name: lock.user_name };
+    // Locked by someone else — throw so route returns 409
+    throw new Error(`Report is locked by ${lock.user_name}`);
   }
   // Get user name
   const userRes = await pool.query('SELECT name FROM tir_users WHERE id=$1', [userId]);
@@ -1426,6 +1441,12 @@ async function getAllTirEquipment() {
   return rows.map(flattenEquipment);
 }
 
+async function bulkDeleteTirEquipment(ids) {
+  if (!ids || !ids.length) return 0;
+  const { rowCount } = await pool.query('DELETE FROM tir_equipment WHERE id = ANY($1)', [ids]);
+  return rowCount;
+}
+
 module.exports = {
   pool,
   initDB,
@@ -1456,5 +1477,5 @@ module.exports = {
   // TIR Final Reports
   tirFinalizeReport, getTirFinalReports, deleteTirFinalReport,
   // TIR Equipment
-  tirImportEquipment, getTirEquipment, getTirEquipmentById, deleteTirEquipment, getAllTirEquipment
+  tirImportEquipment, getTirEquipment, getTirEquipmentById, deleteTirEquipment, getAllTirEquipment, bulkDeleteTirEquipment
 };

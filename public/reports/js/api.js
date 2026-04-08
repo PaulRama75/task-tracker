@@ -540,6 +540,11 @@ const API = (() => {
             return handleRes(res);
         },
 
+        async bulkDeleteEquipment(ids) {
+            const res = await jsonPost(`${BASE}/equipment/bulk-delete`, { ids });
+            return handleRes(res);
+        },
+
         async getAllEquipment() {
             const res = await af(`${BASE}/equipment/all`);
             return handleRes(res);

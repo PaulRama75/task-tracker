@@ -1253,7 +1253,7 @@ const App = (() => {
                     const existing = report.sections?.header?.section_data || {};
                     await API.saveSection(report.id, 'header', { ...existing, ...headerOverrides }, user.id);
                     await API.releaseLock(report.id, user.id);
-                } catch(e) {}
+                } catch(e) { console.warn('Auto-fill header failed:', e.message); }
             }
 
             $('#new-report-modal').classList.add('hidden'); $('#new-report-form').reset();
@@ -1440,24 +1440,68 @@ const App = (() => {
             );
 
             if (countEl) countEl.textContent = `(${all.length} items)`;
-            if (all.length === 0) { container.innerHTML = '<p style="color:#aaa;text-align:center;">No equipment found.</p>'; return; }
+            if (all.length === 0) {
+                container.innerHTML = '<p style="color:#aaa;text-align:center;">No equipment found.</p>';
+                updateBulkDeleteBtn();
+                return;
+            }
 
-            container.innerHTML = `<table class="admin-table" style="font-size:12px;">
-                <thead><tr><th>Equipment #</th><th>Name</th><th>Type</th><th>Unit</th><th>Site</th><th></th></tr></thead>
+            container.innerHTML = `
+                <div style="margin-bottom:8px;">
+                    <button class="btn btn-sm btn-danger" id="btn-bulk-delete-equip" disabled>Delete Selected</button>
+                    <label style="margin-left:12px;font-size:12px;cursor:pointer;"><input type="checkbox" id="equip-select-all"> Select All</label>
+                </div>
+                <table class="admin-table" style="font-size:12px;">
+                <thead><tr><th style="width:30px;"><input type="checkbox" id="equip-select-all-head"></th><th>Equipment #</th><th>Name</th><th>Type</th><th>Unit</th><th>Site</th><th></th></tr></thead>
                 <tbody>${all.map(e => {
                     const site = sites.find(s => s.id === e.site_id);
                     const siteName = site ? site.plant_name : '';
                     return `<tr>
+                    <td><input type="checkbox" class="equip-check" data-eid="${e.id}"></td>
                     <td><strong>${esc(e.equipment_number || '')}</strong></td>
                     <td>${esc(e.equipment_name || '')}</td>
                     <td><span class="status-badge draft">${typeLabels[e.report_type] || e.report_type || ''}</span></td>
                     <td>${esc(e.unit_number || '')}</td>
                     <td style="font-size:11px;">${esc(siteName)}</td>
-                    <td><button class="btn btn-sm btn-danger" onclick="(async()=>{await API.deleteEquipment(${e.id});await renderEquipMasterList();})()">Del</button></td>
+                    <td><button class="btn btn-sm btn-danger" onclick="(async()=>{if(!confirm('Delete this equipment?'))return;await API.deleteEquipment(${e.id});await renderEquipMasterList();})()">Del</button></td>
                 </tr>`;
                 }).join('')}</tbody>
             </table>`;
+
+            // Select All checkboxes
+            const selectAllHead = container.querySelector('#equip-select-all-head');
+            const selectAllTop = container.querySelector('#equip-select-all');
+            [selectAllHead, selectAllTop].forEach(cb => {
+                if (cb) cb.addEventListener('change', () => {
+                    container.querySelectorAll('.equip-check').forEach(c => c.checked = cb.checked);
+                    if (selectAllHead && selectAllTop) { selectAllHead.checked = cb.checked; selectAllTop.checked = cb.checked; }
+                    updateBulkDeleteBtn();
+                });
+            });
+            container.querySelectorAll('.equip-check').forEach(c => c.addEventListener('change', updateBulkDeleteBtn));
+
+            // Bulk delete button
+            const bulkBtn = container.querySelector('#btn-bulk-delete-equip');
+            if (bulkBtn) bulkBtn.addEventListener('click', async () => {
+                const ids = Array.from(container.querySelectorAll('.equip-check:checked')).map(c => parseInt(c.dataset.eid));
+                if (!ids.length) return;
+                if (!confirm(`Delete ${ids.length} selected equipment item(s)? This cannot be undone.`)) return;
+                try {
+                    const result = await API.bulkDeleteEquipment(ids);
+                    toast(`Deleted ${result.deleted} equipment item(s).`, 'success');
+                    await renderEquipMasterList();
+                } catch(e) { toast(e.message, 'error'); }
+            });
         }
+
+        function updateBulkDeleteBtn() {
+            const btn = document.querySelector('#btn-bulk-delete-equip');
+            if (!btn) return;
+            const checked = document.querySelectorAll('.equip-check:checked').length;
+            btn.disabled = checked === 0;
+            btn.textContent = checked > 0 ? `Delete Selected (${checked})` : 'Delete Selected';
+        }
+
         // Expose for inline onclick
         window.renderEquipMasterList = renderEquipMasterList;
 
