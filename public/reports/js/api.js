@@ -20,19 +20,11 @@ const API = (() => {
         if (!data.nextUserId) data.nextUserId = 1;
         if (!data.nextReportId) data.nextReportId = 1;
         if (!data.nextSiteId) data.nextSiteId = 1;
-        // Migration: ensure all sites have all report types in enabled_types
-        const ALL_REPORT_TYPES = ['tower','exchanger','aircooler','drum','heater','ext510','ext570'];
+        // Migration: ensure sites without enabled_types get a default set
         let migrated = false;
         (data.sites || []).forEach(site => {
-            if (site.enabled_types && Array.isArray(site.enabled_types)) {
-                ALL_REPORT_TYPES.forEach(t => {
-                    if (!site.enabled_types.includes(t)) {
-                        site.enabled_types.push(t);
-                        migrated = true;
-                    }
-                });
-            } else {
-                site.enabled_types = ALL_REPORT_TYPES.slice();
+            if (!site.enabled_types || !Array.isArray(site.enabled_types) || site.enabled_types.length === 0) {
+                site.enabled_types = ['tower','exchanger','aircooler','drum','heater','ext510','ext570'];
                 migrated = true;
             }
         });
