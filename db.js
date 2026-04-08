@@ -1372,18 +1372,29 @@ async function deleteTirFinalReport(finalId) {
 
 // ========== TIR EQUIPMENT OPERATIONS ==========
 async function tirImportEquipment(items) {
-  const results = [];
+  let added = 0, updated = 0;
   for (const item of items) {
+    // Separate known columns from header fields
+    const { equipment_number, report_type, site_id, id, created_at, updated_at, header_fields, ...rest } = item;
+    // If header_fields is already an object use it, otherwise collect remaining flat fields
+    const hf = (header_fields && typeof header_fields === 'object') ? header_fields : rest;
     const { rows } = await pool.query(
       `INSERT INTO tir_equipment (equipment_number, report_type, site_id, header_fields)
        VALUES ($1,$2,$3,$4)
        ON CONFLICT (equipment_number, report_type) DO UPDATE SET header_fields=$4, site_id=$3, updated_at=NOW()
-       RETURNING *`,
-      [item.equipment_number, item.report_type, item.site_id, JSON.stringify(item.header_fields || {})]
+       RETURNING xmax`,
+      [equipment_number, report_type, site_id || null, JSON.stringify(hf)]
     );
-    results.push(rows[0]);
+    // xmax = 0 means INSERT, > 0 means UPDATE
+    if (rows[0] && parseInt(rows[0].xmax) === 0) added++; else updated++;
   }
-  return results;
+  return { added, updated };
+}
+
+function flattenEquipment(row) {
+  if (!row) return row;
+  const { header_fields, ...rest } = row;
+  return { ...rest, ...(header_fields || {}) };
 }
 
 async function getTirEquipment(reportType, siteId) {
@@ -1391,10 +1402,10 @@ async function getTirEquipment(reportType, siteId) {
   const params = [];
   let i = 1;
   if (reportType) { conditions.push(`report_type=$${i++}`); params.push(reportType); }
-  if (siteId) { conditions.push(`site_id=$${i++}`); params.push(siteId); }
+  if (siteId) { conditions.push(`(site_id IS NULL OR site_id=$${i++})`); params.push(siteId); }
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
   const { rows } = await pool.query(`SELECT * FROM tir_equipment ${where} ORDER BY equipment_number`, params);
-  return rows;
+  return rows.map(flattenEquipment);
 }
 
 async function getTirEquipmentById(equipNum, reportType) {
@@ -1402,7 +1413,7 @@ async function getTirEquipmentById(equipNum, reportType) {
     'SELECT * FROM tir_equipment WHERE equipment_number=$1 AND report_type=$2',
     [equipNum, reportType]
   );
-  return rows[0] || null;
+  return flattenEquipment(rows[0]) || null;
 }
 
 async function deleteTirEquipment(equipId) {
@@ -1412,7 +1423,7 @@ async function deleteTirEquipment(equipId) {
 
 async function getAllTirEquipment() {
   const { rows } = await pool.query('SELECT * FROM tir_equipment ORDER BY equipment_number');
-  return rows;
+  return rows.map(flattenEquipment);
 }
 
 module.exports = {
