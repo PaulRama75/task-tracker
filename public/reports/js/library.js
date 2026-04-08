@@ -25,23 +25,24 @@ const Library = (() => {
         document.getElementById('lib-tab-progress').classList.toggle('hidden', tab !== 'progress');
         document.getElementById('lib-tab-review').classList.toggle('hidden', tab !== 'review');
         document.getElementById('lib-tab-final').classList.toggle('hidden', tab !== 'final');
-        if (tab === 'progress') renderProgress();
-        else if (tab === 'review') renderReview();
-        else renderFinal();
+        if (tab === 'progress') renderProgress().catch(console.error);
+        else if (tab === 'review') renderReview().catch(console.error);
+        else renderFinal().catch(console.error);
     }
 
-    function updateReviewBadge() {
-        const count = API.getReports().filter(r => r.status === 'in_review').length;
+    async function updateReviewBadge() {
+        const reports = await API.getReports();
+        const count = reports.filter(r => r.status === 'in_review').length;
         const badge = document.getElementById('review-count');
         if (badge) badge.textContent = count > 0 ? count : '';
     }
 
     // ─── Progress Reports ─────────────────────────────────────────────────
-    function renderProgress(filterStatus, searchText) {
-        updateReviewBadge();
+    async function renderProgress(filterStatus, searchText) {
+        await updateReviewBadge();
         const tbody = document.getElementById('lib-tbody');
-        const users = API.getUsers();
-        let reports = API.getReports().filter(r => r.status !== 'final' && r.status !== 'in_review');
+        const users = await API.getUsers();
+        let reports = (await API.getReports()).filter(r => r.status !== 'final' && r.status !== 'in_review');
         // Filter by selected site
         const siteId = document.getElementById('site-selector') ? parseInt(document.getElementById('site-selector').value) : null;
         if (siteId) reports = reports.filter(r => r.site_id === siteId);
@@ -80,12 +81,12 @@ const Library = (() => {
     }
 
     // ─── Review Queue ─────────────────────────────────────────────────────
-    function renderReview() {
-        updateReviewBadge();
+    async function renderReview() {
+        await updateReviewBadge();
         const tbody = document.getElementById('review-tbody');
         const emptyMsg = document.getElementById('review-empty');
-        const users = API.getUsers();
-        const reports = API.getReports().filter(r => r.status === 'in_review');
+        const users = await API.getUsers();
+        const reports = (await API.getReports()).filter(r => r.status === 'in_review');
 
         if (reports.length === 0) {
             tbody.innerHTML = ''; emptyMsg.classList.remove('hidden'); return;
@@ -111,10 +112,10 @@ const Library = (() => {
     }
 
     // ─── Final Reports ────────────────────────────────────────────────────
-    function renderFinal(searchText) {
+    async function renderFinal(searchText) {
         const tbody = document.getElementById('final-tbody');
         const emptyMsg = document.getElementById('final-empty');
-        let finals = API.getFinalReports();
+        let finals = await API.getFinalReports();
 
         if (searchText) {
             const s = searchText.toLowerCase();
@@ -144,8 +145,8 @@ const Library = (() => {
         if (btn) { btn.disabled = checked === 0; btn.textContent = checked > 0 ? `Download Selected (${checked})` : 'Download Selected'; }
     }
 
-    function downloadFinal(finalId) {
-        const finals = API.getFinalReports();
+    async function downloadFinal(finalId) {
+        const finals = await API.getFinalReports();
         const f = finals.find(r => r.id === finalId);
         if (!f) return;
         hide();
@@ -164,8 +165,8 @@ const Library = (() => {
         next();
     }
 
-    function viewFinalReport(finalId) {
-        const finals = API.getFinalReports();
+    async function viewFinalReport(finalId) {
+        const finals = await API.getFinalReports();
         const f = finals.find(r => r.id === finalId);
         if (!f) return;
         hide();
@@ -179,32 +180,32 @@ const Library = (() => {
 
     function openReport(id) { hide(); const s = document.getElementById('report-selector'); s.value = id; s.dispatchEvent(new Event('change')); }
 
-    function deleteReport(id) {
+    async function deleteReport(id) {
         if (!Auth.isAdmin()) return;
         if (!confirm('Permanently delete this report and all its data? This cannot be undone.')) return;
-        API.deleteReport(id);
+        await API.deleteReport(id);
         App.toast('Report deleted.', 'info');
-        renderProgress();
+        await renderProgress();
     }
 
-    function forceUnlock(id) {
+    async function forceUnlock(id) {
         if (!Auth.isAdmin()) return;
         if (!confirm('Force release the lock on this report?')) return;
-        API.forceUnlock(id);
+        await API.forceUnlock(id);
         App.toast('Lock released.', 'info');
-        renderProgress();
+        await renderProgress();
     }
 
-    function deleteFinalReport(id) {
+    async function deleteFinalReport(id) {
         if (!Auth.isAdmin()) return;
         if (!confirm('Delete this final report from the library?')) return;
-        API.deleteFinalReport(id);
+        await API.deleteFinalReport(id);
         App.toast('Final report deleted.', 'info');
-        renderFinal();
+        await renderFinal();
     }
 
-    function showVersions(reportId) {
-        const versions = API.getVersions(reportId);
+    async function showVersions(reportId) {
+        const versions = await API.getVersions(reportId);
         const list = document.getElementById('version-list');
         list.innerHTML = versions.length === 0
             ? '<p style="text-align:center;color:#aaa;">No versions saved yet.</p>'
@@ -212,8 +213,9 @@ const Library = (() => {
         document.getElementById('version-modal').classList.remove('hidden');
     }
 
-    function viewVersion(reportId, versionId) {
-        const version = API.getVersions(reportId).find(v => v.version_id === versionId);
+    async function viewVersion(reportId, versionId) {
+        const versions = await API.getVersions(reportId);
+        const version = versions.find(v => v.version_id === versionId);
         if (!version) return;
         document.getElementById('version-modal').classList.add('hidden');
         hide();
@@ -226,10 +228,10 @@ const Library = (() => {
     document.addEventListener('DOMContentLoaded', () => {
         const search = document.getElementById('lib-search');
         const filter = document.getElementById('lib-filter');
-        if (search) search.addEventListener('input', () => renderProgress(filter.value, search.value));
-        if (filter) filter.addEventListener('change', () => renderProgress(filter.value, search.value));
+        if (search) search.addEventListener('input', () => renderProgress(filter.value, search.value).catch(console.error));
+        if (filter) filter.addEventListener('change', () => renderProgress(filter.value, search.value).catch(console.error));
         const finalSearch = document.getElementById('final-search');
-        if (finalSearch) finalSearch.addEventListener('input', () => renderFinal(finalSearch.value));
+        if (finalSearch) finalSearch.addEventListener('input', () => renderFinal(finalSearch.value).catch(console.error));
         document.querySelectorAll('.lib-tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.libtab)));
         const selectAllHead = document.getElementById('final-select-all-head');
         const selectAll = document.getElementById('final-select-all');

@@ -47,7 +47,7 @@ const Sections = (() => {
     };
 
     // Render a section's view with data
-    function renderView(sectionEl, sectionKey, data) {
+    async function renderView(sectionEl, sectionKey, data) {
         const config = SECTION_CONFIGS[sectionKey];
         if (!config) return;
         const sData = (data && data.section_data) || {};
@@ -91,7 +91,7 @@ const Sections = (() => {
         // Show editor info
         const editorInfo = sectionEl.querySelector('.section-editor-info');
         if (editorInfo && data && data.updated_by) {
-            const users = API.getUsers();
+            const users = await API.getUsers();
             const editor = users.find(u => u.id === data.updated_by);
             const date = data.updated_at ? new Date(data.updated_at).toLocaleString() : '';
             editorInfo.textContent = editor ? `Last edited by ${editor.name} - ${date}` : '';

@@ -51,34 +51,45 @@ const Auth = (() => {
         };
     }
 
-    // Fetch sites from task-tracker DB
+    // Fetch sites from task-tracker DB and ensure they exist server-side in TIR
     async function loadParentSites() {
         try {
             const res = await authFetch('/reports/api/sites');
             if (res.ok) {
                 parentSites = await res.json();
-                // Sync sites to localStorage API so reports can use them
-                const data = JSON.parse(localStorage.getItem('tir_data') || '{}');
-                if (!data.sites) data.sites = [];
-                parentSites.forEach(s => {
-                    const existing = data.sites.find(ls => ls.id === s.id || ls.plant_name === s.name);
-                    if (!existing) {
-                        data.sites.push({
-                            id: s.id || data.sites.length + 1,
-                            client_name: s.name,
-                            plant_name: s.name,
-                            location: '',
-                            db_site_id: s.id,
-                            enabled_types: ['tower','exchanger','aircooler','drum','heater','ext510','ext570'],
-                            created_at: new Date().toISOString()
-                        });
+                // Ensure each parent site exists in the TIR API
+                const existingSites = await API.getSites();
+                for (const s of parentSites) {
+                    const already = existingSites.find(es => es.client_name === s.name || es.plant_name === s.name);
+                    if (!already) {
+                        await API.createSite(s.name, s.name, '', null);
                     }
-                });
-                if (!data.nextSiteId) data.nextSiteId = 1;
-                data.nextSiteId = Math.max(data.nextSiteId, ...data.sites.map(s => (typeof s.id === 'number' ? s.id : 0) + 1));
-                localStorage.setItem('tir_data', JSON.stringify(data));
+                }
             }
         } catch(e) { console.error('Failed to load parent sites:', e); }
+    }
+
+    // Assign allowed sites to user via the API
+    async function syncSiteAccess(user, allowedSiteIds, isSuperadmin) {
+        const allSites = await API.getSites();
+        if (isSuperadmin) {
+            user.site_ids = allSites.map(s => s.id);
+        } else if (allowedSiteIds && allowedSiteIds.length > 0 && parentSites) {
+            user.site_ids = [];
+            for (const psId of allowedSiteIds) {
+                const ps = parentSites.find(s => s.id === psId);
+                if (ps) {
+                    const tirSite = allSites.find(s => s.plant_name === ps.name || s.client_name === ps.name);
+                    if (tirSite) {
+                        user.site_ids.push(tirSite.id);
+                        await API.assignUserToSite(user.id, tirSite.id);
+                    }
+                }
+            }
+        } else {
+            user.site_ids = [];
+        }
+        await API.updateUser(user.id, { site_ids: user.site_ids });
     }
 
     return {
@@ -88,33 +99,16 @@ const Auth = (() => {
             if (parentUser) {
                 try {
                     await loadParentSites();
-                    const user = API.login(parentUser.name, parentUser.role, '');
+                    const user = await API.login(parentUser.name, parentUser.role, '');
 
                     // Sync admin status from parent
                     if (parentUser.is_admin && !user.is_admin) {
-                        API.updateUser(user.id, { is_admin: true });
+                        await API.updateUser(user.id, { is_admin: true });
                         user.is_admin = true;
                     }
 
-                    // Sync site access - assign user to their allowed sites
-                    if (parentUser.parentRole === 'superadmin') {
-                        const allSites = API.getSites();
-                        user.site_ids = allSites.map(s => s.id);
-                    } else if (parentUser.allowedSites.length > 0 && parentSites) {
-                        const data = JSON.parse(localStorage.getItem('tir_data') || '{}');
-                        const localSites = data.sites || [];
-                        user.site_ids = [];
-                        parentUser.allowedSites.forEach(psId => {
-                            const ps = parentSites.find(s => s.id === psId);
-                            if (ps) {
-                                const ls = localSites.find(s => s.db_site_id === ps.id || s.plant_name === ps.name);
-                                if (ls) user.site_ids.push(ls.id);
-                            }
-                        });
-                    } else {
-                        user.site_ids = [];
-                    }
-                    API.updateUser(user.id, { site_ids: user.site_ids });
+                    // Sync site access via API
+                    await syncSiteAccess(user, parentUser.allowedSites, parentUser.parentRole === 'superadmin');
 
                     currentUser = user;
                     parentAllowedSites = parentUser.allowedSites;
@@ -139,31 +133,14 @@ const Auth = (() => {
                         // Load sites
                         await loadParentSites();
 
-                        const user = API.login(me.username, roleName, '');
+                        const user = await API.login(me.username, roleName, '');
                         if (isAdmin && !user.is_admin) {
-                            API.updateUser(user.id, { is_admin: true });
+                            await API.updateUser(user.id, { is_admin: true });
                             user.is_admin = true;
                         }
 
-                        // Sync site access
-                        if (me.role === 'superadmin') {
-                            const allSites = API.getSites();
-                            user.site_ids = allSites.map(s => s.id);
-                        } else if (me.allowedSites && me.allowedSites.length > 0 && parentSites) {
-                            const data = JSON.parse(localStorage.getItem('tir_data') || '{}');
-                            const localSites = data.sites || [];
-                            user.site_ids = [];
-                            me.allowedSites.forEach(psId => {
-                                const ps = parentSites.find(s => s.id === psId);
-                                if (ps) {
-                                    const ls = localSites.find(s => s.db_site_id === ps.id || s.plant_name === ps.name);
-                                    if (ls) user.site_ids.push(ls.id);
-                                }
-                            });
-                        } else {
-                            user.site_ids = [];
-                        }
-                        API.updateUser(user.id, { site_ids: user.site_ids });
+                        // Sync site access via API
+                        await syncSiteAccess(user, me.allowedSites, me.role === 'superadmin');
 
                         currentUser = user;
                         parentAllowedSites = me.allowedSites || [];
@@ -178,8 +155,8 @@ const Auth = (() => {
             currentUser = raw ? JSON.parse(raw) : null;
             return currentUser;
         },
-        login(name, role, apiCert) {
-            const user = API.login(name, role, apiCert);
+        async login(name, role, apiCert) {
+            const user = await API.login(name, role, apiCert);
             currentUser = user;
             sessionStorage.setItem('tir_user', JSON.stringify(user));
             return user;
@@ -193,13 +170,13 @@ const Auth = (() => {
             catch (e) { return false; }
         },
         getParentSites() { return parentSites; },
-        acquireLock(reportId) {
+        async acquireLock(reportId) {
             if (!currentUser) throw new Error('Not logged in');
-            return API.acquireLock(reportId, currentUser.id);
+            return await API.acquireLock(reportId, currentUser.id);
         },
-        releaseLock(reportId) {
+        async releaseLock(reportId) {
             if (!currentUser) throw new Error('Not logged in');
-            return API.releaseLock(reportId, currentUser.id);
+            return await API.releaseLock(reportId, currentUser.id);
         },
         hasLock(report) {
             if (!currentUser || !report || !report.lock) return false;

@@ -71,7 +71,7 @@ const App = (() => {
         $('#report-container').classList.remove('hidden');
 
         if (user) {
-            showApp(user);
+            await showApp(user);
         } else {
             $('#user-info').textContent = 'Not authenticated';
             $('#report-content').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#888;"><h2 style="color:#ccc;margin-bottom:12px;">Authentication Required</h2><p>Please log in to the main application first, then switch to Reports.</p></div>';
@@ -116,7 +116,7 @@ const App = (() => {
         $('#library-container').classList.add('hidden');
     }
 
-    function showApp(user) {
+    async function showApp(user) {
         $('#login-modal').classList.add('hidden');
         $('#top-bar').classList.remove('hidden');
         $('#user-info').textContent = `${user.name} (${user.role})`;
@@ -126,17 +126,17 @@ const App = (() => {
         if (Auth.isInIframe()) {
             $('#btn-logout').style.display = 'none';
         }
-        loadSiteSelector();
-        loadReportList();
+        await loadSiteSelector();
+        await loadReportList();
         // Show Library as default landing page
         Library.show();
     }
 
     // ─── Site Selector ────────────────────────────────────────────────────
-    function loadSiteSelector() {
+    async function loadSiteSelector() {
         const user = Auth.getUser();
         if (!user) return;
-        const sites = API.getUserSites(user.id);
+        const sites = await API.getUserSites(user.id);
         const select = $('#site-selector');
         const currentVal = select.value;
         select.innerHTML = '<option value="">-- All Sites --</option>';
@@ -165,8 +165,8 @@ const App = (() => {
         return val ? parseSiteId(val) : null;
     }
 
-    function loadReportList() {
-        let reports = API.getReports();
+    async function loadReportList() {
+        let reports = await API.getReports();
         const siteId = getSelectedSiteId();
         const user = Auth.getUser();
 
@@ -180,7 +180,7 @@ const App = (() => {
 
         const select = $('#report-selector');
         select.innerHTML = '<option value="">-- Select Report --</option>';
-        const sites = API.getSites();
+        const sites = await API.getSites();
         reports.forEach(r => {
             const opt = document.createElement('option');
             opt.value = r.id;
@@ -195,7 +195,7 @@ const App = (() => {
     }
 
     // ─── Load Report ──────────────────────────────────────────────────────
-    function loadReport(reportId, options) {
+    async function loadReport(reportId, options) {
         const skipAutoLock = options && options.skipAutoLock;
         destroyQuills();
         viewingVersion = null;
@@ -208,7 +208,7 @@ const App = (() => {
             $('#report-content').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#888;"><h2 style="color:#ccc;margin-bottom:12px;">No Report Selected</h2><p>Select a report from the dropdown above or click <strong>+ New Report</strong> to create one.</p></div>';
             updateLockUI(); return;
         }
-        const report = API.getReport(parseInt(reportId));
+        const report = await API.getReport(parseInt(reportId));
         if (!report) { toast('Report not found', 'error'); return; }
         currentReport = report;
         dirty = false;
@@ -218,8 +218,8 @@ const App = (() => {
         // Auto-claim edit lock (before rendering so all sections get editors)
         if (!skipAutoLock && !Auth.hasLock(currentReport)) {
             try {
-                Auth.acquireLock(currentReport.id);
-                currentReport = API.getReport(currentReport.id);
+                await Auth.acquireLock(currentReport.id);
+                currentReport = await API.getReport(currentReport.id);
             } catch(e) { console.warn('Auto-lock failed:', e.message); }
         }
 
@@ -890,9 +890,9 @@ const App = (() => {
         `).join('');
 
         grid.querySelectorAll('.photo-delete').forEach(btn => {
-            btn.addEventListener('click', () => {
-                API.deletePhoto(currentReport.id, parseInt(btn.closest('.photo-card').dataset.photoId));
-                currentReport = API.getReport(currentReport.id);
+            btn.addEventListener('click', async () => {
+                await API.deletePhoto(currentReport.id, parseInt(btn.closest('.photo-card').dataset.photoId));
+                currentReport = await API.getReport(currentReport.id);
                 renderPhotos(); toast('Photo deleted', 'info');
             });
         });
@@ -907,7 +907,7 @@ const App = (() => {
     }
 
     // ─── Render: Attachments ─────────────────────────────────────────────
-    function renderAttachments() {
+    async function renderAttachments() {
         const list = $('#attachments-list');
         const attachments = currentReport.attachments || [];
         const hasLock = !viewingVersion && Auth.hasLock(currentReport);
@@ -919,13 +919,14 @@ const App = (() => {
             return;
         }
 
+        const allUsers = await API.getUsers();
         list.innerHTML = `<table class="att-table">
             <thead><tr><th>File</th><th>Type</th><th>Uploaded By</th><th>Date</th><th>Actions</th></tr></thead>
             <tbody>${attachments.map(a => {
                 const isImage = a.file_type && a.file_type.startsWith('image/');
                 const isPdf = a.file_type && a.file_type.includes('pdf');
                 const icon = isImage ? '&#128247;' : isPdf ? '&#128196;' : '&#128206;';
-                const users = API.getUsers();
+                const users = allUsers;
                 const uploader = users.find(u => u.id === a.uploaded_by);
                 const uploaderName = uploader ? uploader.name : '';
                 const date = a.uploaded_at ? new Date(a.uploaded_at).toLocaleDateString() : '';
@@ -966,11 +967,11 @@ const App = (() => {
 
         // Delete
         list.querySelectorAll('.btn-att-delete').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 if (!confirm('Delete this attachment?')) return;
-                API.deleteAttachment(currentReport.id, parseFloat(btn.dataset.attId));
-                currentReport = API.getReport(currentReport.id);
-                renderAttachments();
+                await API.deleteAttachment(currentReport.id, parseFloat(btn.dataset.attId));
+                currentReport = await API.getReport(currentReport.id);
+                await renderAttachments();
                 toast('Attachment deleted', 'info');
             });
         });
@@ -1007,7 +1008,7 @@ const App = (() => {
     }
 
     // ─── Lock UI ──────────────────────────────────────────────────────────
-    function updateLockUI() {
+    async function updateLockUI() {
         const lockStatus = $('#lock-status');
         const btnLock = $('#btn-lock'), btnUnlock = $('#btn-unlock'), btnPdf = $('#btn-pdf');
         const saveBar = $('#save-bar');
@@ -1024,7 +1025,7 @@ const App = (() => {
         }
 
         btnPdf.classList.remove('hidden');
-        const report = API.getReport(currentReport.id);
+        const report = await API.getReport(currentReport.id);
         if (report) currentReport = report;
         const isLocked = !!currentReport.lock;
         const hasLock = Auth.hasLock(currentReport);
@@ -1068,24 +1069,24 @@ const App = (() => {
     }
 
     // ─── Save All ─────────────────────────────────────────────────────────
-    function saveAll() {
+    async function saveAll() {
         const user = Auth.getUser();
         if (!user || !currentReport || !Auth.hasLock(currentReport)) {
             toast('You need the edit lock to save.', 'error'); return;
         }
         try {
             // Create version snapshot BEFORE saving new data
-            API.createVersion(currentReport.id, user.id);
+            await API.createVersion(currentReport.id, user.id);
 
             // Header
             const headerData = {};
             $$('.inline-input[data-skey="header"]').forEach(inp => headerData[inp.dataset.fkey] = inp.value);
-            if (Object.keys(headerData).length) API.saveSection(currentReport.id, 'header', headerData, user.id);
+            if (Object.keys(headerData).length) await API.saveSection(currentReport.id, 'header', headerData, user.id);
 
             // Quill narratives
-            quillEditors.forEach((quill, sectionKey) => {
-                API.saveSection(currentReport.id, sectionKey, { content: quill.root.innerHTML }, user.id);
-            });
+            for (const [sectionKey, quill] of quillEditors) {
+                await API.saveSection(currentReport.id, sectionKey, { content: quill.root.innerHTML }, user.id);
+            }
 
             // 510 EXT: Inspector info + Checklist
             const config = API.getReportTypeConfig(currentReport.report_type || 'tower');
@@ -1093,9 +1094,9 @@ const App = (() => {
                 // Inspector info
                 const inspData = {};
                 $$('.inline-input[data-skey="ext510_inspector"]').forEach(inp => inspData[inp.dataset.fkey] = inp.value);
-                if (Object.keys(inspData).length) API.saveSection(currentReport.id, 'ext510_inspector', inspData, user.id);
+                if (Object.keys(inspData).length) await API.saveSection(currentReport.id, 'ext510_inspector', inspData, user.id);
                 // Checklist
-                API.saveSection(currentReport.id, 'checklist', collectChecklistData(), user.id);
+                await API.saveSection(currentReport.id, 'checklist', collectChecklistData(), user.id);
             }
 
             // Inspection type
@@ -1107,7 +1108,7 @@ const App = (() => {
                 row.querySelectorAll('[data-insp]').forEach(inp => insp[inp.dataset.insp] = inp.value);
                 if (insp.name) inspectors.push(insp);
             });
-            API.saveSection(currentReport.id, 'inspection_type', {
+            await API.saveSection(currentReport.id, 'inspection_type', {
                 internal_inspection: intCheck ? intCheck.classList.contains('checked') : false,
                 external_inspection_check: extCheck ? extCheck.classList.contains('checked') : false,
                 inspectors,
@@ -1115,7 +1116,7 @@ const App = (() => {
 
             dirty = false;
             const s = $('#save-status'); if (s) { s.textContent = 'Saved!'; setTimeout(() => s.textContent = '', 2000); }
-            currentReport = API.getReport(currentReport.id);
+            currentReport = await API.getReport(currentReport.id);
             toast('Report saved!', 'success');
         } catch (err) { toast('Save failed: ' + err.message, 'error'); }
     }
@@ -1133,28 +1134,28 @@ const App = (() => {
 
     // ─── Events ───────────────────────────────────────────────────────────
     function bindEvents() {
-        $('#login-form').addEventListener('submit', (e) => {
+        $('#login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = $('#login-name').value.trim(); if (!name) return;
-            const user = Auth.login(name, $('#login-role').value, $('#login-cert').value.trim());
+            const user = await Auth.login(name, $('#login-role').value, $('#login-cert').value.trim());
             showApp(user); toast(`Welcome, ${user.name}!`, 'success');
         });
 
-        $('#btn-logout').addEventListener('click', () => {
+        $('#btn-logout').addEventListener('click', async () => {
             if (currentReport && Auth.hasLock(currentReport)) {
-                if (dirty) saveAll();
-                try { Auth.releaseLock(currentReport.id); } catch(e) {}
+                if (dirty) await saveAll();
+                try { await Auth.releaseLock(currentReport.id); } catch(e) {}
             }
             destroyQuills(); Auth.logout(); currentReport = null;
             clearInterval(lockRefreshInterval); showLogin();
         });
 
-        $('#report-selector').addEventListener('change', (e) => loadReport(e.target.value));
-        $('#site-selector').addEventListener('change', () => { loadReportList(); });
-        $('#btn-new-report').addEventListener('click', () => {
+        $('#report-selector').addEventListener('change', async (e) => await loadReport(e.target.value));
+        $('#site-selector').addEventListener('change', async () => { await loadReportList(); });
+        $('#btn-new-report').addEventListener('click', async () => {
             // Populate site selector with user's accessible sites
             const user = Auth.getUser();
-            const userSites = user ? API.getUserSites(user.id) : [];
+            const userSites = user ? await API.getUserSites(user.id) : [];
             const siteSelect = $('#nr-site');
             siteSelect.innerHTML = '<option value="">-- Select Site --</option>';
             userSites.forEach(s => {
@@ -1172,7 +1173,7 @@ const App = (() => {
             } else if (userSites.length > 1) {
                 siteSelect.value = userSites[0].id;
             }
-            updateNewReportTypes();
+            await updateNewReportTypes();
             $('#nr-equip-select').value = '';
             $('#nr-equip-search').value = '';
             $('#nr-add-new-fields').classList.add('hidden');
@@ -1180,7 +1181,7 @@ const App = (() => {
         });
 
         // Update report types based on selected site in New Report modal
-        function updateNewReportTypes() {
+        async function updateNewReportTypes() {
             const siteVal = $('#nr-site').value;
             const siteId = siteVal ? parseSiteId(siteVal) : null;
             const typeSelect = $('#nr-type');
@@ -1191,18 +1192,18 @@ const App = (() => {
             ];
             let enabledTypes = allTypes;
             if (siteId) {
-                const site = API.getSites().find(s => s.id === siteId);
+                const site = (await API.getSites()).find(s => s.id === siteId);
                 if (site && site.enabled_types && site.enabled_types.length > 0) {
                     enabledTypes = allTypes.filter(t => site.enabled_types.includes(t.key));
                 }
             }
             typeSelect.innerHTML = enabledTypes.map(t => `<option value="${t.key}">${t.label}</option>`).join('');
-            populateEquipDropdown();
+            await populateEquipDropdown();
         }
-        $('#nr-site').addEventListener('change', () => updateNewReportTypes());
+        $('#nr-site').addEventListener('change', async () => await updateNewReportTypes());
         $('#btn-cancel-new').addEventListener('click', () => $('#new-report-modal').classList.add('hidden'));
 
-        $('#new-report-form').addEventListener('submit', (e) => {
+        $('#new-report-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const user = Auth.getUser();
             const nrSiteVal = $('#nr-site').value;
@@ -1221,7 +1222,7 @@ const App = (() => {
                 if (!equipNumber) { toast('Equipment # is required.', 'error'); return; }
             } else if (equipVal) {
                 // From imported data
-                const equip = API.getEquipmentById(equipVal, reportType);
+                const equip = await API.getEquipmentById(equipVal, reportType);
                 if (equip) {
                     headerOverrides = { ...equip };
                     delete headerOverrides.id;
@@ -1237,7 +1238,7 @@ const App = (() => {
                 toast('Please select equipment.', 'error'); return;
             }
 
-            const report = API.createReport({
+            const report = await API.createReport({
                 unit_number: unitNum,
                 equipment_number: equipNumber,
                 nb_serial_number: serialNum,
@@ -1248,10 +1249,10 @@ const App = (() => {
             // Auto-fill header section with all equipment master data
             if (Object.keys(headerOverrides).length) {
                 try {
-                    API.acquireLock(report.id, user.id);
+                    await API.acquireLock(report.id, user.id);
                     const existing = report.sections?.header?.section_data || {};
-                    API.saveSection(report.id, 'header', { ...existing, ...headerOverrides }, user.id);
-                    API.releaseLock(report.id, user.id);
+                    await API.saveSection(report.id, 'header', { ...existing, ...headerOverrides }, user.id);
+                    await API.releaseLock(report.id, user.id);
                 } catch(e) {}
             }
 
@@ -1259,63 +1260,63 @@ const App = (() => {
             $('#nr-equip-search').value = ''; $('#nr-equip-select').value = '';
             $('#nr-equip-list').style.display = 'none';
             $('#nr-add-new-fields').classList.add('hidden');
-            loadReportList(); $('#report-selector').value = report.id; loadReport(report.id);
+            await loadReportList(); $('#report-selector').value = report.id; await loadReport(report.id);
             toast('Report created!' + (equipVal !== '__new__' ? ' Header auto-filled from master data.' : ''), 'success');
         });
 
         // Lock/Unlock
-        $('#btn-lock').addEventListener('click', () => {
+        $('#btn-lock').addEventListener('click', async () => {
             if (!currentReport) return;
             try {
-                Auth.acquireLock(currentReport.id);
-                currentReport = API.getReport(currentReport.id);
-                loadReport(currentReport.id);
+                await Auth.acquireLock(currentReport.id);
+                currentReport = await API.getReport(currentReport.id);
+                await loadReport(currentReport.id);
                 toast('Edit lock acquired.', 'success');
                 clearInterval(lockRefreshInterval);
-                lockRefreshInterval = setInterval(() => {
-                    if (currentReport && Auth.hasLock(currentReport)) try { Auth.acquireLock(currentReport.id); } catch(e) {}
+                lockRefreshInterval = setInterval(async () => {
+                    if (currentReport && Auth.hasLock(currentReport)) try { await Auth.acquireLock(currentReport.id); } catch(e) {}
                 }, 5 * 60 * 1000);
             } catch (err) { toast(err.message, 'error'); }
         });
 
-        $('#btn-unlock').addEventListener('click', () => {
+        $('#btn-unlock').addEventListener('click', async () => {
             if (!currentReport) return;
             const hasLock = Auth.hasLock(currentReport);
             const isAdmin = Auth.isAdmin();
 
             if (hasLock) {
                 // Own lock — save and release
-                if (dirty) saveAll();
+                if (dirty) await saveAll();
                 try {
-                    destroyQuills(); Auth.releaseLock(currentReport.id);
+                    destroyQuills(); await Auth.releaseLock(currentReport.id);
                     clearInterval(lockRefreshInterval);
-                    currentReport = API.getReport(currentReport.id);
-                    loadReport(currentReport.id, { skipAutoLock: true }); toast('Lock released.', 'info');
+                    currentReport = await API.getReport(currentReport.id);
+                    await loadReport(currentReport.id, { skipAutoLock: true }); toast('Lock released.', 'info');
                 } catch (err) { toast(err.message, 'error'); }
             } else if (isAdmin && currentReport.lock) {
                 // Admin force unlock another user's lock
                 if (!confirm(`Force release lock held by ${currentReport.lock.user_name}?`)) return;
-                API.forceUnlock(currentReport.id);
-                currentReport = API.getReport(currentReport.id);
-                loadReport(currentReport.id, { skipAutoLock: true }); toast('Lock force-released.', 'info');
+                await API.forceUnlock(currentReport.id);
+                currentReport = await API.getReport(currentReport.id);
+                await loadReport(currentReport.id, { skipAutoLock: true }); toast('Lock force-released.', 'info');
             }
         });
 
-        $('#btn-save-all').addEventListener('click', () => saveAll());
+        $('#btn-save-all').addEventListener('click', async () => await saveAll());
 
         // Submit for Review
-        $('#btn-submit-review').addEventListener('click', () => {
+        $('#btn-submit-review').addEventListener('click', async () => {
             if (!currentReport || !Auth.hasLock(currentReport)) return;
             if (!confirm('Submit this report for Lead Inspector review?')) return;
-            saveAll();
+            await saveAll();
             const user = Auth.getUser();
             try {
-                API.updateReportStatus(currentReport.id, 'in_review', user.id);
-                try { Auth.releaseLock(currentReport.id); } catch(e) {}
+                await API.updateReportStatus(currentReport.id, 'in_review', user.id);
+                try { await Auth.releaseLock(currentReport.id); } catch(e) {}
                 clearInterval(lockRefreshInterval);
-                currentReport = API.getReport(currentReport.id);
-                loadReportList();
-                loadReport(currentReport.id);
+                currentReport = await API.getReport(currentReport.id);
+                await loadReportList();
+                await loadReport(currentReport.id);
                 toast('Report submitted for review!', 'success');
             } catch (err) { toast(err.message, 'error'); }
         });
@@ -1325,39 +1326,39 @@ const App = (() => {
             if (!currentReport || !Auth.hasLock(currentReport)) return;
             if (!confirm('Approve and finalize this report? This will generate a PDF and save to the Final Reports library.')) return;
 
-            saveAll();
+            await saveAll();
             const user = Auth.getUser();
             try {
-                API.finalizeReport(currentReport.id, user.id, null);
-                currentReport = API.getReport(currentReport.id);
+                await API.finalizeReport(currentReport.id, user.id, null);
+                currentReport = await API.getReport(currentReport.id);
                 toast('Report approved & finalized! Generating PDF...', 'success');
 
-                try { Auth.releaseLock(currentReport.id); } catch(e) {}
+                try { await Auth.releaseLock(currentReport.id); } catch(e) {}
                 clearInterval(lockRefreshInterval);
 
                 await PDF.generate(currentReport, { autoDownload: true });
 
-                loadReportList();
-                loadReport(currentReport.id);
+                await loadReportList();
+                await loadReport(currentReport.id);
                 toast('Final report saved to library!', 'success');
             } catch (err) { toast('Finalize failed: ' + err.message, 'error'); }
         });
 
         // Reject Report (Back to Draft)
-        $('#btn-reject-report').addEventListener('click', () => {
+        $('#btn-reject-report').addEventListener('click', async () => {
             if (!currentReport || !Auth.hasLock(currentReport)) return;
             const reason = prompt('Enter rejection reason:');
             if (reason === null) return;
             if (!reason.trim()) { toast('Please provide a rejection reason.', 'error'); return; }
-            saveAll();
+            await saveAll();
             const user = Auth.getUser();
             try {
-                API.updateReportStatus(currentReport.id, 'draft', user.id, { rejection_reason: reason.trim() });
-                try { Auth.releaseLock(currentReport.id); } catch(e) {}
+                await API.updateReportStatus(currentReport.id, 'draft', user.id, { rejection_reason: reason.trim() });
+                try { await Auth.releaseLock(currentReport.id); } catch(e) {}
                 clearInterval(lockRefreshInterval);
-                currentReport = API.getReport(currentReport.id);
-                loadReportList();
-                loadReport(currentReport.id);
+                currentReport = await API.getReport(currentReport.id);
+                await loadReportList();
+                await loadReport(currentReport.id);
                 toast('Report rejected and returned to draft.', 'info');
             } catch (err) { toast(err.message, 'error'); }
         });
@@ -1369,20 +1370,20 @@ const App = (() => {
             }
             if (!confirm('Finalize this report and generate PDF?')) return;
 
-            saveAll();
+            await saveAll();
             const user = Auth.getUser();
             try {
-                API.finalizeReport(currentReport.id, user.id, null);
-                currentReport = API.getReport(currentReport.id);
+                await API.finalizeReport(currentReport.id, user.id, null);
+                currentReport = await API.getReport(currentReport.id);
                 toast('Report finalized! Generating PDF...', 'success');
 
-                try { Auth.releaseLock(currentReport.id); } catch(e) {}
+                try { await Auth.releaseLock(currentReport.id); } catch(e) {}
                 clearInterval(lockRefreshInterval);
 
                 await PDF.generate(currentReport, { autoDownload: true });
 
-                loadReportList();
-                loadReport(currentReport.id);
+                await loadReportList();
+                await loadReport(currentReport.id);
                 toast('Final report saved to library!', 'success');
             } catch (err) { toast('Finalize failed: ' + err.message, 'error'); }
         });
@@ -1417,11 +1418,11 @@ const App = (() => {
             return m;
         }
 
-        function renderEquipMasterList() {
-            let all = API.getAllEquipment();
+        async function renderEquipMasterList() {
+            let all = await API.getAllEquipment();
             const container = $('#equip-master-list');
             const countEl = $('#equip-count');
-            const sites = API.getSites();
+            const sites = await API.getSites();
             const typeLabels = { tower:'Tower', exchanger:'Exchanger', aircooler:'Air Cooler', drum:'Drum', heater:'Heater', ext510:'510 EXT', ext570:'570 EXT' };
 
             // Apply filters
@@ -1451,7 +1452,7 @@ const App = (() => {
                     <td><span class="status-badge draft">${typeLabels[e.report_type] || e.report_type || ''}</span></td>
                     <td>${esc(e.unit_number || '')}</td>
                     <td style="font-size:11px;">${esc(siteName)}</td>
-                    <td><button class="btn btn-sm btn-danger" onclick="API.deleteEquipment(${e.id});renderEquipMasterList();">Del</button></td>
+                    <td><button class="btn btn-sm btn-danger" onclick="(async()=>{await API.deleteEquipment(${e.id});await renderEquipMasterList();})()">Del</button></td>
                 </tr>`;
                 }).join('')}</tbody>
             </table>`;
@@ -1460,7 +1461,7 @@ const App = (() => {
         window.renderEquipMasterList = renderEquipMasterList;
 
         // Export CSV template with header columns for selected report type
-        $('#btn-export-equip').addEventListener('click', () => {
+        $('#btn-export-equip').addEventListener('click', async () => {
             const filterType = ($('#equip-filter-type') ? $('#equip-filter-type').value : '') ||
                                ($('#import-type') ? $('#import-type').value : '');
             const type = filterType || 'tower';
@@ -1479,7 +1480,7 @@ const App = (() => {
             const defaultSiteId = filterSite || '';
 
             // Get existing data matching filter
-            let all = API.getAllEquipment();
+            let all = await API.getAllEquipment();
             const filterSearch = $('#equip-filter-search') ? $('#equip-filter-search').value.toLowerCase() : '';
             if (filterType) all = all.filter(e => e.report_type === filterType);
             if (filterSite) all = all.filter(e => e.site_id && String(e.site_id) === String(parseSiteId(filterSite)));
@@ -1525,8 +1526,8 @@ const App = (() => {
             toast(`Exported ${all.length} records with ${cols.length} columns for ${config.title}.`, 'success');
         });
 
-        function populateSiteDropdowns() {
-            const sites = API.getSites();
+        async function populateSiteDropdowns() {
+            const sites = await API.getSites();
             ['#import-site', '#equip-filter-site'].forEach(sel => {
                 const el = $(sel);
                 if (!el) return;
@@ -1544,12 +1545,12 @@ const App = (() => {
         }
 
         // Portal Import — open modal
-        $('#btn-import-portal').addEventListener('click', () => {
+        $('#btn-import-portal').addEventListener('click', async () => {
             $('#import-modal').classList.remove('hidden');
             $('#import-preview').innerHTML = '';
             $('#import-result').innerHTML = '';
-            populateSiteDropdowns();
-            renderEquipMasterList();
+            await populateSiteDropdowns();
+            await renderEquipMasterList();
         });
         $('#btn-close-import').addEventListener('click', () => $('#import-modal').classList.add('hidden'));
 
@@ -1589,7 +1590,7 @@ const App = (() => {
         });
 
         // Import to equipment master
-        $('#btn-run-import').addEventListener('click', () => {
+        $('#btn-run-import').addEventListener('click', async () => {
             const rows = window._importRows;
             if (!rows || !rows.length) { toast('Upload a file first.', 'error'); return; }
             const defaultType = $('#import-type').value;
@@ -1606,8 +1607,8 @@ const App = (() => {
                 return m;
             }).filter(Boolean);
             if (!mapped.length) return;
-            const result = API.importEquipment(mapped);
-            renderEquipMasterList();
+            const result = await API.importEquipment(mapped);
+            await renderEquipMasterList();
             const msg = `Imported: ${result.added} new, ${result.updated} updated.`;
             $('#import-result').innerHTML = `<p style="color:#27ae60;font-weight:600;">${msg}</p>`;
             toast(msg, 'success');
@@ -1618,21 +1619,21 @@ const App = (() => {
         // Master list filter events
         ['#equip-filter-type', '#equip-filter-site'].forEach(sel => {
             const el = $(sel);
-            if (el) el.addEventListener('change', renderEquipMasterList);
+            if (el) el.addEventListener('change', () => renderEquipMasterList());
         });
         const searchEl = $('#equip-filter-search');
-        if (searchEl) searchEl.addEventListener('input', renderEquipMasterList);
+        if (searchEl) searchEl.addEventListener('input', () => renderEquipMasterList());
 
         // ─── New Report: searchable equipment dropdown ─────────────────────
         let _equipList = []; // cached equipment for current type/site
-        $('#nr-type').addEventListener('change', () => populateEquipDropdown());
-        function populateEquipDropdown() {
+        $('#nr-type').addEventListener('change', async () => await populateEquipDropdown());
+        async function populateEquipDropdown() {
             const type = $('#nr-type').value;
             const nrSiteVal = $('#nr-site') ? $('#nr-site').value : '';
             const siteId = nrSiteVal ? parseSiteId(nrSiteVal) : getSelectedSiteId();
-            let equipment = API.getEquipment(type, siteId);
+            let equipment = await API.getEquipment(type, siteId);
             if (equipment.length === 0 && siteId) {
-                equipment = API.getEquipment(type, null);
+                equipment = await API.getEquipment(type, null);
             }
             _equipList = equipment;
             $('#nr-equip-select').value = '';
@@ -1743,7 +1744,7 @@ const App = (() => {
             const compressed = await compressImage(file, 800, 600, 0.7);
             const data = getSectionData('orientation_photos');
             data.orientation_photo = compressed;
-            try { API.saveSection(currentReport.id, 'orientation_photos', data, user.id); currentReport = API.getReport(currentReport.id); renderOrientPhotos(); toast('Orientation photo saved!', 'success'); } catch (err) { toast(err.message, 'error'); }
+            try { await API.saveSection(currentReport.id, 'orientation_photos', data, user.id); currentReport = await API.getReport(currentReport.id); renderOrientPhotos(); toast('Orientation photo saved!', 'success'); } catch (err) { toast(err.message, 'error'); }
             e.target.value = '';
         });
         $('#dataplate-file').addEventListener('change', async (e) => {
@@ -1752,7 +1753,7 @@ const App = (() => {
             const compressed = await compressImage(file, 800, 600, 0.7);
             const data = getSectionData('orientation_photos');
             data.dataplate_photo = compressed;
-            try { API.saveSection(currentReport.id, 'orientation_photos', data, user.id); currentReport = API.getReport(currentReport.id); renderOrientPhotos(); toast('Data Plate photo saved!', 'success'); } catch (err) { toast(err.message, 'error'); }
+            try { await API.saveSection(currentReport.id, 'orientation_photos', data, user.id); currentReport = await API.getReport(currentReport.id); renderOrientPhotos(); toast('Data Plate photo saved!', 'success'); } catch (err) { toast(err.message, 'error'); }
             e.target.value = '';
         });
 
@@ -1764,9 +1765,9 @@ const App = (() => {
             if (!imageFiles.length) { toast('No image files found', 'error'); return; }
             for (const file of imageFiles) {
                 const compressed = await compressImage(file, 800, 600, 0.7);
-                API.addPhoto(currentReport.id, { filename: file.name, dataUrl: compressed, caption: '', uploaded_by: user.id });
+                await API.addPhoto(currentReport.id, { filename: file.name, dataUrl: compressed, caption: '', uploaded_by: user.id });
             }
-            currentReport = API.getReport(currentReport.id); renderPhotos();
+            currentReport = await API.getReport(currentReport.id); renderPhotos();
             toast(`${imageFiles.length} photo(s) added!`, 'success');
         }
 
@@ -1798,10 +1799,10 @@ const App = (() => {
 
 
         // PDF
-        $('#btn-pdf').addEventListener('click', () => {
+        $('#btn-pdf').addEventListener('click', async () => {
             if (!currentReport) return;
-            if (dirty) saveAll();
-            PDF.generate(currentReport);
+            if (dirty) await saveAll();
+            await PDF.generate(currentReport);
         });
 
         // Admin
@@ -1811,10 +1812,10 @@ const App = (() => {
         $('#btn-library').addEventListener('click', () => Library.show());
 
         // Version banner — back to current
-        $('#btn-back-current').addEventListener('click', () => {
+        $('#btn-back-current').addEventListener('click', async () => {
             viewingVersion = null;
             $('#version-banner').classList.add('hidden');
-            loadReport(currentReport.id);
+            await loadReport(currentReport.id);
         });
 
         window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });

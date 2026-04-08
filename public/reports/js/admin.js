@@ -11,21 +11,21 @@ const Admin = (() => {
         { key: 'ext570', label: '570 External Inspection' },
     ];
 
-    function open() {
+    async function open() {
         if (!Auth.isAdmin()) return;
         document.getElementById('admin-modal').classList.remove('hidden');
-        renderUsers();
-        renderSites();
-        renderReports();
+        await renderUsers();
+        await renderSites();
+        await renderReports();
     }
 
     function close() { document.getElementById('admin-modal').classList.add('hidden'); }
 
     // ─── Users ────────────────────────────────────────────────────────────
-    function renderUsers() {
+    async function renderUsers() {
         const tbody = document.getElementById('admin-users-tbody');
-        const users = API.getUsers();
-        const sites = API.getSites();
+        const users = await API.getUsers();
+        const sites = await API.getSites();
         const me = Auth.getUser();
         tbody.innerHTML = users.map(u => {
             const userSites = sites.filter(s => (u.site_ids || []).includes(s.id));
@@ -42,10 +42,10 @@ const Admin = (() => {
     }
 
     // ─── Sites ────────────────────────────────────────────────────────────
-    function renderSites() {
+    async function renderSites() {
         const container = document.getElementById('sites-list');
-        const sites = API.getSites();
-        const users = API.getUsers();
+        const sites = await API.getSites();
+        const users = await API.getUsers();
 
         if (sites.length === 0) {
             container.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px;">No sites created yet.</p>';
@@ -82,36 +82,37 @@ const Admin = (() => {
 
         // Bind type toggles
         container.querySelectorAll('[data-site][data-type]').forEach(cb => {
-            cb.addEventListener('change', () => {
+            cb.addEventListener('change', async () => {
                 const siteId = parseSiteId(cb.dataset.site);
-                const site = API.getSites().find(s => s.id === siteId);
+                const sites = await API.getSites();
+                const site = sites.find(s => s.id === siteId);
                 if (!site) return;
                 let types = site.enabled_types || [];
                 if (cb.checked) { if (!types.includes(cb.dataset.type)) types.push(cb.dataset.type); }
                 else { types = types.filter(t => t !== cb.dataset.type); }
-                API.updateSite(siteId, { enabled_types: types });
+                await API.updateSite(siteId, { enabled_types: types });
             });
         });
 
         // Bind user assignment toggles
         container.querySelectorAll('[data-site][data-uid]').forEach(cb => {
-            cb.addEventListener('change', () => {
+            cb.addEventListener('change', async () => {
                 const siteId = parseSiteId(cb.dataset.site);
                 const userId = parseInt(cb.dataset.uid);
-                if (cb.checked) API.assignUserToSite(userId, siteId);
-                else API.removeUserFromSite(userId, siteId);
-                renderUsers(); // refresh user table to show site assignments
+                if (cb.checked) await API.assignUserToSite(userId, siteId);
+                else await API.removeUserFromSite(userId, siteId);
+                await renderUsers(); // refresh user table to show site assignments
             });
         });
     }
 
     // Save all site settings at once (batch save)
-    function saveAllSites() {
+    async function saveAllSites() {
         const container = document.getElementById('sites-list');
         if (!container) return;
 
         // Save enabled types per site
-        const sites = API.getSites();
+        const sites = await API.getSites();
         const siteTypes = {};
         sites.forEach(s => { siteTypes[s.id] = []; });
 
@@ -121,20 +122,20 @@ const Admin = (() => {
             if (cb.checked) siteTypes[siteId].push(cb.dataset.type);
         });
 
-        Object.keys(siteTypes).forEach(sid => {
+        for (const sid of Object.keys(siteTypes)) {
             const siteId = parseSiteId(sid);
-            try { API.updateSite(siteId, { enabled_types: siteTypes[sid] }); } catch(e) {}
-        });
+            try { await API.updateSite(siteId, { enabled_types: siteTypes[sid] }); } catch(e) {}
+        }
 
         // Save user assignments per site
-        container.querySelectorAll('[data-site][data-uid]').forEach(cb => {
+        for (const cb of container.querySelectorAll('[data-site][data-uid]')) {
             const siteId = parseSiteId(cb.dataset.site);
             const userId = parseInt(cb.dataset.uid);
-            if (cb.checked) API.assignUserToSite(userId, siteId);
-            else API.removeUserFromSite(userId, siteId);
-        });
+            if (cb.checked) await API.assignUserToSite(userId, siteId);
+            else await API.removeUserFromSite(userId, siteId);
+        }
 
-        renderUsers();
+        await renderUsers();
         App.toast('Site settings saved', 'success');
     }
 
@@ -144,19 +145,19 @@ const Admin = (() => {
         return isNaN(n) ? raw : n;
     }
 
-    function deleteSite(siteId) {
+    async function deleteSite(siteId) {
         if (!confirm('Delete this site? Reports will keep their data but lose site assignment.')) return;
-        API.deleteSite(siteId);
-        renderSites();
+        await API.deleteSite(siteId);
+        await renderSites();
         App.toast('Site deleted', 'info');
         if (typeof App.loadSiteSelector === 'function') App.loadSiteSelector();
     }
 
     // ─── Reports ──────────────────────────────────────────────────────────
-    function renderReports() {
+    async function renderReports() {
         const tbody = document.getElementById('admin-reports-tbody');
-        const reports = API.getReports();
-        const sites = API.getSites();
+        const reports = await API.getReports();
+        const sites = await API.getSites();
         tbody.innerHTML = reports.map(r => {
             const site = sites.find(s => s.id === r.site_id);
             const siteName = site ? `${site.client_name} - ${site.plant_name}` : '<em style="color:#aaa">No site</em>';
@@ -177,19 +178,19 @@ const Admin = (() => {
         }).join('');
 
         tbody.querySelectorAll('.admin-status-select').forEach(sel => {
-            sel.addEventListener('change', () => {
+            sel.addEventListener('change', async () => {
                 try {
-                    API.updateReportStatus(parseInt(sel.dataset.rid), sel.value, Auth.getUser().id);
+                    await API.updateReportStatus(parseInt(sel.dataset.rid), sel.value, Auth.getUser().id);
                     App.toast('Status updated', 'success');
-                    renderReports();
+                    await renderReports();
                 } catch (e) { App.toast(e.message, 'error'); }
             });
         });
     }
 
-    function deleteUser(userId) {
+    async function deleteUser(userId) {
         if (!confirm('Delete this user?')) return;
-        try { API.deleteUser(userId); renderUsers(); App.toast('User deleted', 'success'); }
+        try { await API.deleteUser(userId); await renderUsers(); App.toast('User deleted', 'success'); }
         catch (e) { App.toast(e.message, 'error'); }
     }
 
@@ -198,27 +199,27 @@ const Admin = (() => {
     // Bind events
     document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('admin-add-user');
-        if (form) form.addEventListener('submit', (e) => {
+        if (form) form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('au-name').value.trim();
             if (!name) return;
             try {
-                API.createUser(name, document.getElementById('au-role').value,
+                await API.createUser(name, document.getElementById('au-role').value,
                     document.getElementById('au-cert').value.trim(), document.getElementById('au-admin').checked);
-                form.reset(); renderUsers(); renderSites();
+                form.reset(); await renderUsers(); await renderSites();
                 App.toast('User created', 'success');
             } catch (e) { App.toast(e.message, 'error'); }
         });
 
         const siteForm = document.getElementById('admin-add-site');
-        if (siteForm) siteForm.addEventListener('submit', (e) => {
+        if (siteForm) siteForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const client = document.getElementById('as-client').value.trim();
             const plant = document.getElementById('as-plant').value.trim();
             const loc = document.getElementById('as-location').value.trim();
             if (!client || !plant) return;
-            API.createSite(client, plant, loc);
-            siteForm.reset(); renderSites();
+            await API.createSite(client, plant, loc);
+            siteForm.reset(); await renderSites();
             if (typeof App.loadSiteSelector === 'function') App.loadSiteSelector();
             App.toast('Site created', 'success');
         });

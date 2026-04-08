@@ -1,103 +1,67 @@
-// ─── Local Storage API Layer ───────────────────────────────────────────────
+// ─── Server-backed API Layer (PostgreSQL) ─────────────────────────────────
+// All data stored on server — shared across all devices
 
 const API = (() => {
-    const STORAGE_KEY = 'tir_data';
+    const BASE = '/reports/api/tir';
 
-    function getData() {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-            const initial = { users: [], reports: [], locks: {}, finalReports: [], sites: [], nextUserId: 1, nextReportId: 1, nextSiteId: 1 };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-            return initial;
-        }
-        const data = JSON.parse(raw);
-        if (!data.users) data.users = [];
-        if (!data.reports) data.reports = [];
-        if (!data.locks) data.locks = {};
-        if (!data.finalReports) data.finalReports = [];
-        if (!data.sites) data.sites = [];
-        if (!data.equipment) data.equipment = [];
-        if (!data.nextUserId) data.nextUserId = 1;
-        if (!data.nextReportId) data.nextReportId = 1;
-        if (!data.nextSiteId) data.nextSiteId = 1;
-        // Migration: ensure sites without enabled_types get a default set
-        let migrated = false;
-        (data.sites || []).forEach(site => {
-            if (!site.enabled_types || !Array.isArray(site.enabled_types) || site.enabled_types.length === 0) {
-                site.enabled_types = ['tower','exchanger','aircooler','drum','heater','ext510','ext570'];
-                migrated = true;
-            }
-        });
-        if (migrated) saveData(data);
-        return data;
+    // Auth fetch helper — uses Auth.authFetch if available, else plain fetch
+    function af(url, opts = {}) {
+        if (typeof Auth !== 'undefined' && Auth.authFetch) return Auth.authFetch(url, opts);
+        return fetch(url, opts);
     }
 
-    function saveData(data) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    function jsonPost(url, body) {
+        return af(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    }
+    function jsonPut(url, body) {
+        return af(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    }
+    function jsonDelete(url, body) {
+        const opts = { method: 'DELETE' };
+        if (body) { opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(body); }
+        return af(url, opts);
+    }
+
+    async function handleRes(res) {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+        return data;
     }
 
     return {
         // ─── Users ────────────────────────────────────────────────────────
-        login(name, role, api_cert) {
-            const data = getData();
-            let user = data.users.find(u => u.name === name);
-            if (!user) {
-                // First user ever becomes admin
-                const isFirst = data.users.length === 0;
-                const noAdmins = !data.users.some(u => u.is_admin);
-                user = {
-                    id: data.nextUserId++, name, role, api_cert,
-                    is_admin: isFirst || noAdmins,
-                    created_at: new Date().toISOString(),
-                };
-                data.users.push(user);
-                saveData(data);
-            }
-            return user;
+        async login(name, role, api_cert) {
+            const res = await jsonPost(`${BASE}/login`, { name, role, api_cert });
+            return handleRes(res);
         },
 
-        getUsers() { return getData().users; },
-
-        createUser(name, role, api_cert, is_admin) {
-            const data = getData();
-            if (data.users.find(u => u.name === name)) throw new Error('User already exists');
-            const user = {
-                id: data.nextUserId++, name, role, api_cert: api_cert || '',
-                is_admin: !!is_admin, created_at: new Date().toISOString(),
-            };
-            data.users.push(user);
-            saveData(data);
-            return user;
+        async getUsers() {
+            const res = await af(`${BASE}/users`);
+            return handleRes(res);
         },
 
-        deleteUser(userId) {
-            const data = getData();
-            const idx = data.users.findIndex(u => u.id === userId);
-            if (idx === -1) throw new Error('User not found');
-            const user = data.users[idx];
-            if (user.is_admin && data.users.filter(u => u.is_admin).length <= 1) {
-                throw new Error('Cannot delete the last admin');
-            }
-            data.users.splice(idx, 1);
-            saveData(data);
+        async createUser(name, role, api_cert, is_admin) {
+            const res = await jsonPost(`${BASE}/users`, { name, role, api_cert: api_cert || '', is_admin: !!is_admin });
+            return handleRes(res);
         },
 
-        updateUser(userId, fields) {
-            const data = getData();
-            const user = data.users.find(u => u.id === userId);
-            if (!user) throw new Error('User not found');
-            Object.assign(user, fields);
-            saveData(data);
-            return user;
+        async deleteUser(userId) {
+            const res = await jsonDelete(`${BASE}/users/${userId}`);
+            return handleRes(res);
+        },
+
+        async updateUser(userId, fields) {
+            const res = await jsonPut(`${BASE}/users/${userId}`, fields);
+            return handleRes(res);
         },
 
         // ─── Reports ─────────────────────────────────────────────────────
-        getReports() {
-            const data = getData();
-            return data.reports.map(r => ({ ...r, lock: data.locks[r.id] || null }));
+        async getReports() {
+            const res = await af(`${BASE}/reports`);
+            return handleRes(res);
         },
 
-        // Report type configurations
+        // Report type configurations (pure client-side, no DB needed)
         getReportTypeConfig(type) {
             const configs = {
                 tower: {
@@ -174,9 +138,7 @@ const API = (() => {
                         ['Total Tubes:', 'total_tubes', 'ECT Performed / Method:', 'ect_performed'],
                         ['Test Pressure:', 'test_pressure', null, null],
                     ],
-                    headerDefaults: {
-                        equipment_type: 'Air Cooler',
-                    },
+                    headerDefaults: { equipment_type: 'Air Cooler' },
                     narrativeSections: [
                         { key: 'summary', title: 'SUMMARY' },
                         { key: 'repairs', title: 'REPAIRS' },
@@ -199,9 +161,7 @@ const API = (() => {
                         ['Head Material:', 'head_material', 'Head Thickness:', 'head_thickness'],
                         ['Cladding/Lining Material:', 'cladding_material', 'NDE Performed:', 'nde_performed'],
                     ],
-                    headerDefaults: {
-                        equipment_type: 'Drum',
-                    },
+                    headerDefaults: { equipment_type: 'Drum' },
                     narrativeSections: [
                         { key: 'summary', title: 'SUMMARY' },
                         { key: 'repairs', title: 'REPAIRS' },
@@ -222,9 +182,7 @@ const API = (() => {
                         ['Equipment Type:', 'equipment_type', null, null],
                         ['MFR #:', 'mfr_number', null, null],
                     ],
-                    headerDefaults: {
-                        equipment_type: 'Heater/Boiler',
-                    },
+                    headerDefaults: { equipment_type: 'Heater/Boiler' },
                     narrativeSections: [
                         { key: 'summary', title: 'SUMMARY' },
                         { key: 'repairs', title: 'REPAIRS' },
@@ -257,9 +215,7 @@ const API = (() => {
                         ['Oper. Pressure (PSIG):', 'oper_pressure', 'Oper. Temp. (°F):', 'oper_temp'],
                         ['P&ID:', 'p_and_id', null, null],
                     ],
-                    headerDefaults: {
-                        description: '',
-                    },
+                    headerDefaults: { description: '' },
                     checklistCategories: [
                         {
                             title: 'GENERAL- VESSEL "(ISSUES)"',
@@ -339,9 +295,7 @@ const API = (() => {
                         ['Oper. Pressure (PSIG):', 'oper_pressure', 'Oper. Temp. (°F):', 'oper_temp'],
                         ['P&ID:', 'p_and_id', null, null],
                     ],
-                    headerDefaults: {
-                        description: '',
-                    },
+                    headerDefaults: { description: '' },
                     checklistCategories: [
                         {
                             title: 'GENERAL- PIPING "(ISSUES)"',
@@ -406,19 +360,15 @@ const API = (() => {
             return configs[type] || configs.tower;
         },
 
-        createReport({ unit_number, equipment_number, nb_serial_number, project_name, created_by, report_type, site_id }) {
-            const data = getData();
+        async createReport({ unit_number, equipment_number, nb_serial_number, project_name, created_by, report_type, site_id }) {
             const type = report_type || 'tower';
             const config = this.getReportTypeConfig(type);
-
-            // Build section keys from config
             const sectionKeys = ['header', 'orientation_photos', 'inspection_type'];
             if (config.checklistCategories) {
                 sectionKeys.push('ext510_inspector');
                 sectionKeys.push('checklist');
             }
             config.narrativeSections.forEach(s => sectionKeys.push(s.key));
-
             const sections = {};
             for (const key of sectionKeys) {
                 sections[key] = { section_data: {}, updated_by: null, updated_at: null };
@@ -427,335 +377,172 @@ const API = (() => {
                 unit_number, equipment_number, nb_serial_number, project_name,
                 ...config.headerDefaults,
             };
-            const report = {
-                id: data.nextReportId++,
+            const res = await jsonPost(`${BASE}/reports`, {
                 unit_number, equipment_number, nb_serial_number, project_name,
-                report_type: type, site_id: site_id || null,
-                status: 'draft', created_by,
-                created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-                sections, photos: [], versions: [],
-            };
-            data.reports.push(report);
-            saveData(data);
-            return report;
+                report_type: type, site_id: site_id || null, created_by, sections,
+            });
+            return handleRes(res);
         },
 
-        getReport(id) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === id);
-            if (!report) return null;
-            const lock = data.locks[id];
-            if (lock && new Date(lock.expires_at) < new Date()) {
-                delete data.locks[id];
-                saveData(data);
-            }
-            return { ...report, lock: data.locks[id] || null };
+        async getReport(id) {
+            const res = await af(`${BASE}/reports/${id}`);
+            return handleRes(res);
         },
 
-        updateReportStatus(reportId, newStatus, userId, extra) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            if (!report) throw new Error('Report not found');
-            const user = data.users.find(u => u.id === userId);
-            report.status = newStatus;
-            if (newStatus === 'approved' || newStatus === 'final') {
-                report.approved_by = userId;
-                report.approved_at = new Date().toISOString();
-                report.rejection = null;
-            }
-            if (newStatus === 'draft' && extra && extra.rejection_reason) {
-                report.rejection = {
-                    reason: extra.rejection_reason,
-                    rejected_by: userId,
-                    rejected_by_name: user ? user.name : 'Unknown',
-                    rejected_at: new Date().toISOString(),
-                };
-            }
-            if (newStatus === 'in_review') {
-                report.rejection = null;
-            }
-            report.updated_at = new Date().toISOString();
-            saveData(data);
-            return report;
+        async updateReportStatus(reportId, newStatus, userId, extra) {
+            const res = await jsonPut(`${BASE}/reports/${reportId}/status`, { status: newStatus, userId, extra });
+            return handleRes(res);
         },
 
         // ─── Sections ────────────────────────────────────────────────────
-        saveSection(reportId, sectionKey, sectionData, userId) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            if (!report) throw new Error('Report not found');
-            const lock = data.locks[reportId];
-            if (!lock || lock.user_id !== userId) throw new Error('You do not hold the edit lock.');
-            if (!report.sections) report.sections = {};
-            report.sections[sectionKey] = {
-                section_data: sectionData, updated_by: userId,
-                updated_at: new Date().toISOString(),
-            };
-            report.updated_at = new Date().toISOString();
-            saveData(data);
-            return report.sections[sectionKey];
+        async saveSection(reportId, sectionKey, sectionData, userId) {
+            const res = await jsonPut(`${BASE}/reports/${reportId}/sections/${sectionKey}`, { sectionData, userId });
+            return handleRes(res);
         },
 
         // ─── Locks ───────────────────────────────────────────────────────
-        acquireLock(reportId, userId) {
-            const data = getData();
-            const existing = data.locks[reportId];
-            if (existing && new Date(existing.expires_at) < new Date()) delete data.locks[reportId];
-            const current = data.locks[reportId];
-            if (current) {
-                if (current.user_id === userId) {
-                    current.expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-                    saveData(data); return { locked: true, lock: current };
-                }
-                const lockUser = data.users.find(u => u.id === current.user_id);
-                throw new Error(`Report is being edited by ${lockUser ? lockUser.name : 'another user'}`);
-            }
-            const lock = {
-                report_id: reportId, user_id: userId,
-                locked_at: new Date().toISOString(),
-                expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-                user_name: data.users.find(u => u.id === userId)?.name || 'Unknown',
-            };
-            data.locks[reportId] = lock;
-            saveData(data);
-            return { locked: true, lock };
+        async acquireLock(reportId, userId) {
+            const res = await jsonPost(`${BASE}/reports/${reportId}/lock`, { userId });
+            return handleRes(res);
         },
 
-        releaseLock(reportId, userId) {
-            const data = getData();
-            const lock = data.locks[reportId];
-            if (lock && lock.user_id === userId) { delete data.locks[reportId]; saveData(data); return { released: true }; }
-            throw new Error('You do not hold the lock.');
+        async releaseLock(reportId, userId) {
+            const res = await jsonDelete(`${BASE}/reports/${reportId}/lock`, { userId });
+            return handleRes(res);
         },
 
         // ─── Photos ──────────────────────────────────────────────────────
-        addPhoto(reportId, photoData) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            if (!report) throw new Error('Report not found');
-            if (!report.photos) report.photos = [];
-            const photo = { id: Date.now(), ...photoData, uploaded_at: new Date().toISOString() };
-            report.photos.push(photo);
-            saveData(data);
-            return photo;
+        async addPhoto(reportId, photoData) {
+            const res = await jsonPost(`${BASE}/reports/${reportId}/photos`, photoData);
+            return handleRes(res);
         },
 
-        deletePhoto(reportId, photoId) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            if (!report) return;
-            report.photos = (report.photos || []).filter(p => p.id !== photoId);
-            saveData(data);
+        async deletePhoto(reportId, photoId) {
+            const res = await jsonDelete(`${BASE}/reports/${reportId}/photos/${photoId}`);
+            return handleRes(res);
         },
 
-        // ─── Attachments (docs, PDFs, images per report) ────────────────
-        addAttachment(reportId, attachment) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            if (!report) throw new Error('Report not found');
-            if (!report.attachments) report.attachments = [];
-            const att = { id: Date.now() + Math.random(), ...attachment, uploaded_at: new Date().toISOString() };
-            report.attachments.push(att);
-            saveData(data);
-            return att;
+        // ─── Attachments ─────────────────────────────────────────────────
+        async addAttachment(reportId, attachment) {
+            const res = await jsonPost(`${BASE}/reports/${reportId}/attachments`, attachment);
+            return handleRes(res);
         },
 
-        getAttachments(reportId) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            return report ? (report.attachments || []) : [];
+        async getAttachments(reportId) {
+            const res = await af(`${BASE}/reports/${reportId}/attachments`);
+            return handleRes(res);
         },
 
-        deleteAttachment(reportId, attId) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            if (!report) return;
-            report.attachments = (report.attachments || []).filter(a => a.id !== attId);
-            saveData(data);
+        async deleteAttachment(reportId, attId) {
+            const res = await jsonDelete(`${BASE}/reports/${reportId}/attachments/${attId}`);
+            return handleRes(res);
         },
 
         // ─── Versions ────────────────────────────────────────────────────
-        createVersion(reportId, userId) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            if (!report) return;
-            if (!report.versions) report.versions = [];
-            const user = data.users.find(u => u.id === userId);
-            const version = {
-                version_id: report.versions.length + 1,
-                timestamp: new Date().toISOString(),
-                user_id: userId,
-                user_name: user ? user.name : 'Unknown',
-                section_snapshots: JSON.parse(JSON.stringify(report.sections)),
-            };
-            report.versions.push(version);
-            // Cap at 20 versions
-            if (report.versions.length > 20) report.versions = report.versions.slice(-20);
-            saveData(data);
-            return version;
+        async createVersion(reportId, userId) {
+            const res = await jsonPost(`${BASE}/reports/${reportId}/versions`, { userId });
+            return handleRes(res);
         },
 
-        getVersions(reportId) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            return report ? (report.versions || []) : [];
+        async getVersions(reportId) {
+            const res = await af(`${BASE}/reports/${reportId}/versions`);
+            return handleRes(res);
         },
 
         // ─── Final Reports ───────────────────────────────────────────────
-        finalizeReport(reportId, userId, pdfDataUrl) {
-            const data = getData();
-            const report = data.reports.find(r => r.id === reportId);
-            if (!report) throw new Error('Report not found');
-            const user = data.users.find(u => u.id === userId);
-
-            // Update report status to final
-            report.status = 'final';
-            report.approved_by = userId;
-            report.approved_at = new Date().toISOString();
-
-            // Store in final reports library
-            const finalReport = {
-                id: Date.now(),
-                report_id: reportId,
-                equipment_number: report.equipment_number || '',
-                project_name: report.project_name || '',
-                unit_number: report.unit_number || '',
-                finalized_by: userId,
-                finalized_by_name: user ? user.name : 'Unknown',
-                finalized_at: new Date().toISOString(),
-                pdf_data: pdfDataUrl || null,
-                sections_snapshot: JSON.parse(JSON.stringify(report.sections)),
-            };
-            data.finalReports.push(finalReport);
-            saveData(data);
-            return finalReport;
+        async finalizeReport(reportId, userId, pdfDataUrl) {
+            const res = await jsonPost(`${BASE}/reports/${reportId}/finalize`, { userId, pdfDataUrl });
+            return handleRes(res);
         },
 
-        getFinalReports() {
-            return getData().finalReports || [];
+        async getFinalReports() {
+            const res = await af(`${BASE}/final-reports`);
+            return handleRes(res);
         },
 
-        deleteFinalReport(finalId) {
-            const data = getData();
-            data.finalReports = (data.finalReports || []).filter(f => f.id !== finalId);
-            saveData(data);
+        async deleteFinalReport(finalId) {
+            const res = await jsonDelete(`${BASE}/final-reports/${finalId}`);
+            return handleRes(res);
         },
 
         // ─── Admin: Delete Report ────────────────────────────────────────
-        deleteReport(reportId) {
-            const data = getData();
-            data.reports = data.reports.filter(r => r.id !== reportId);
-            delete data.locks[reportId];
-            data.finalReports = (data.finalReports || []).filter(f => f.report_id !== reportId);
-            saveData(data);
+        async deleteReport(reportId) {
+            const res = await jsonDelete(`${BASE}/reports/${reportId}`);
+            return handleRes(res);
         },
 
         // ─── Admin: Force Unlock ─────────────────────────────────────────
-        forceUnlock(reportId) {
-            const data = getData();
-            delete data.locks[reportId];
-            saveData(data);
+        async forceUnlock(reportId) {
+            const res = await jsonDelete(`${BASE}/reports/${reportId}/lock/force`);
+            return handleRes(res);
         },
 
         // ─── Sites ───────────────────────────────────────────────────────
-        createSite(client_name, plant_name, location, enabled_types) {
-            const data = getData();
-            const site = {
-                id: data.nextSiteId++, client_name, plant_name, location,
-                enabled_types: enabled_types || ['tower','exchanger','aircooler','drum','heater','ext510','ext570'],
-                created_at: new Date().toISOString(),
-            };
-            data.sites.push(site);
-            saveData(data);
-            return site;
+        async createSite(client_name, plant_name, location, enabled_types) {
+            const res = await jsonPost(`${BASE}/sites`, { client_name, plant_name, location, enabled_types });
+            return handleRes(res);
         },
 
-        getSites() { return getData().sites || []; },
-
-        updateSite(siteId, fields) {
-            const data = getData();
-            const site = data.sites.find(s => s.id === siteId);
-            if (!site) throw new Error('Site not found');
-            Object.assign(site, fields);
-            saveData(data);
-            return site;
+        async getSites() {
+            const res = await af(`${BASE}/sites`);
+            return handleRes(res);
         },
 
-        deleteSite(siteId) {
-            const data = getData();
-            data.sites = data.sites.filter(s => s.id !== siteId);
-            saveData(data);
+        async updateSite(siteId, fields) {
+            const res = await jsonPut(`${BASE}/sites/${siteId}`, fields);
+            return handleRes(res);
         },
 
-        assignUserToSite(userId, siteId) {
-            const data = getData();
-            const user = data.users.find(u => u.id === userId);
-            if (!user) return;
-            if (!user.site_ids) user.site_ids = [];
-            if (!user.site_ids.includes(siteId)) user.site_ids.push(siteId);
-            saveData(data);
+        async deleteSite(siteId) {
+            const res = await jsonDelete(`${BASE}/sites/${siteId}`);
+            return handleRes(res);
         },
 
-        removeUserFromSite(userId, siteId) {
-            const data = getData();
-            const user = data.users.find(u => u.id === userId);
-            if (!user || !user.site_ids) return;
-            user.site_ids = user.site_ids.filter(id => id !== siteId);
-            saveData(data);
+        async assignUserToSite(userId, siteId) {
+            const res = await jsonPost(`${BASE}/sites/${siteId}/assign-user`, { userId });
+            return handleRes(res);
         },
 
-        getUserSites(userId) {
-            const data = getData();
-            const user = data.users.find(u => u.id === userId);
-            if (!user) return [];
-            if (user.is_admin) return data.sites;
-            return data.sites.filter(s => (user.site_ids || []).includes(s.id));
+        async removeUserFromSite(userId, siteId) {
+            const res = await jsonPost(`${BASE}/sites/${siteId}/remove-user`, { userId });
+            return handleRes(res);
+        },
+
+        async getUserSites(userId) {
+            const res = await af(`${BASE}/users/${userId}/sites`);
+            return handleRes(res);
         },
 
         // ─── Equipment Master Data ───────────────────────────────────────
-        importEquipment(items) {
-            // items = array of { equipment_number, report_type, ...headerFields }
-            const data = getData();
-            let added = 0, updated = 0;
-            items.forEach(item => {
-                const existing = data.equipment.find(e =>
-                    e.equipment_number === item.equipment_number && e.report_type === item.report_type
-                );
-                if (existing) {
-                    Object.assign(existing, item, { updated_at: new Date().toISOString() });
-                    updated++;
-                } else {
-                    data.equipment.push({ id: Date.now() + Math.random(), ...item, created_at: new Date().toISOString() });
-                    added++;
-                }
-            });
-            saveData(data);
-            return { added, updated };
+        async importEquipment(items) {
+            const res = await jsonPost(`${BASE}/equipment/import`, { items });
+            return handleRes(res);
         },
 
-        getEquipment(reportType, siteId) {
-            const data = getData();
-            let list = data.equipment || [];
-            if (reportType) list = list.filter(e => e.report_type === reportType);
-            if (siteId) list = list.filter(e => !e.site_id || String(e.site_id) === String(siteId));
-            return list;
+        async getEquipment(reportType, siteId) {
+            const params = new URLSearchParams();
+            if (reportType) params.set('reportType', reportType);
+            if (siteId) params.set('siteId', siteId);
+            const res = await af(`${BASE}/equipment?${params}`);
+            return handleRes(res);
         },
 
-        getEquipmentById(equipNum, reportType) {
-            const data = getData();
-            return (data.equipment || []).find(e =>
-                e.equipment_number === equipNum && (!reportType || e.report_type === reportType)
-            );
+        async getEquipmentById(equipNum, reportType) {
+            const params = new URLSearchParams();
+            if (equipNum) params.set('equipNum', equipNum);
+            if (reportType) params.set('reportType', reportType);
+            const res = await af(`${BASE}/equipment/by-num?${params}`);
+            return handleRes(res);
         },
 
-        deleteEquipment(equipId) {
-            const data = getData();
-            data.equipment = (data.equipment || []).filter(e => e.id !== equipId);
-            saveData(data);
+        async deleteEquipment(equipId) {
+            const res = await jsonDelete(`${BASE}/equipment/${equipId}`);
+            return handleRes(res);
         },
 
-        getAllEquipment() {
-            return getData().equipment || [];
+        async getAllEquipment() {
+            const res = await af(`${BASE}/equipment/all`);
+            return handleRes(res);
         },
     };
 })();

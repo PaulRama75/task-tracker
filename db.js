@@ -313,6 +313,122 @@ async function initDB() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_username ON audit_log(username)`);
 
+    // ===== TIR (Reports) Tables =====
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tir_users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) UNIQUE NOT NULL,
+        role VARCHAR(100),
+        api_cert VARCHAR(255),
+        is_admin BOOLEAN DEFAULT false,
+        site_ids INTEGER[] DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tir_sites (
+        id SERIAL PRIMARY KEY,
+        client_name VARCHAR(255),
+        plant_name VARCHAR(255),
+        location VARCHAR(255),
+        db_site_id VARCHAR(255),
+        enabled_types TEXT[] DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tir_reports (
+        id SERIAL PRIMARY KEY,
+        unit_number VARCHAR(255),
+        equipment_number VARCHAR(255),
+        nb_serial_number VARCHAR(255),
+        project_name VARCHAR(255),
+        report_type VARCHAR(100) DEFAULT 'tower',
+        site_id INTEGER,
+        status VARCHAR(50) DEFAULT 'draft',
+        created_by INTEGER,
+        approved_by INTEGER,
+        approved_at TIMESTAMPTZ,
+        rejection JSONB,
+        sections JSONB DEFAULT '{}',
+        photos JSONB DEFAULT '[]',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tir_locks (
+        report_id INTEGER PRIMARY KEY,
+        user_id INTEGER,
+        user_name VARCHAR(255),
+        locked_at TIMESTAMPTZ DEFAULT NOW(),
+        expires_at TIMESTAMPTZ
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tir_versions (
+        id SERIAL PRIMARY KEY,
+        report_id INTEGER,
+        version_number INTEGER,
+        user_id INTEGER,
+        user_name VARCHAR(255),
+        section_snapshots JSONB,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tir_final_reports (
+        id SERIAL PRIMARY KEY,
+        report_id INTEGER,
+        equipment_number VARCHAR(255),
+        project_name VARCHAR(255),
+        unit_number VARCHAR(255),
+        report_type VARCHAR(100),
+        site_id INTEGER,
+        finalized_by INTEGER,
+        finalized_by_name VARCHAR(255),
+        finalized_at TIMESTAMPTZ DEFAULT NOW(),
+        pdf_data TEXT,
+        sections_snapshot JSONB
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tir_equipment (
+        id SERIAL PRIMARY KEY,
+        equipment_number VARCHAR(255),
+        report_type VARCHAR(100),
+        site_id INTEGER,
+        header_fields JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tir_attachments (
+        id SERIAL PRIMARY KEY,
+        report_id INTEGER,
+        attachment_data JSONB,
+        uploaded_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // TIR indexes
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_tir_reports_site ON tir_reports(site_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_tir_reports_status ON tir_reports(status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_tir_reports_created_by ON tir_reports(created_by)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_tir_versions_report ON tir_versions(report_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_tir_final_reports_report ON tir_final_reports(report_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_tir_equipment_type_site ON tir_equipment(report_type, site_id)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tir_equipment_num_type ON tir_equipment(equipment_number, report_type)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_tir_attachments_report ON tir_attachments(report_id)`);
+
     await client.query('COMMIT');
     console.log('Database schema initialized successfully');
   } catch (e) {
@@ -909,6 +1025,396 @@ async function migrateFromJSON(dataDir) {
   }
 }
 
+// ========== TIR USER OPERATIONS ==========
+async function tirLogin(name, role, api_cert) {
+  // Check if any users exist
+  const countRes = await pool.query('SELECT COUNT(*) FROM tir_users');
+  const isFirst = parseInt(countRes.rows[0].count) === 0;
+
+  // Find or create
+  const existing = await pool.query('SELECT * FROM tir_users WHERE name=$1', [name]);
+  if (existing.rows.length > 0) {
+    const u = existing.rows[0];
+    // Update role/cert on login
+    await pool.query('UPDATE tir_users SET role=$1, api_cert=$2 WHERE id=$3', [role, api_cert, u.id]);
+    return { ...u, role, api_cert };
+  }
+
+  const { rows } = await pool.query(
+    'INSERT INTO tir_users (name, role, api_cert, is_admin) VALUES ($1,$2,$3,$4) RETURNING *',
+    [name, role, api_cert, isFirst]
+  );
+  return rows[0];
+}
+
+async function getTirUsers() {
+  const { rows } = await pool.query('SELECT * FROM tir_users ORDER BY id');
+  return rows;
+}
+
+async function createTirUser(name, role, api_cert, is_admin) {
+  const { rows } = await pool.query(
+    'INSERT INTO tir_users (name, role, api_cert, is_admin) VALUES ($1,$2,$3,$4) RETURNING *',
+    [name, role, api_cert, is_admin || false]
+  );
+  return rows[0];
+}
+
+async function updateTirUser(userId, fields) {
+  const sets = [];
+  const vals = [];
+  let i = 1;
+  if (fields.name !== undefined) { sets.push(`name=$${i++}`); vals.push(fields.name); }
+  if (fields.role !== undefined) { sets.push(`role=$${i++}`); vals.push(fields.role); }
+  if (fields.api_cert !== undefined) { sets.push(`api_cert=$${i++}`); vals.push(fields.api_cert); }
+  if (fields.is_admin !== undefined) { sets.push(`is_admin=$${i++}`); vals.push(fields.is_admin); }
+  if (fields.site_ids !== undefined) { sets.push(`site_ids=$${i++}`); vals.push(fields.site_ids); }
+  if (!sets.length) return;
+  vals.push(userId);
+  const { rows } = await pool.query(`UPDATE tir_users SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
+  return rows[0];
+}
+
+async function deleteTirUser(userId) {
+  // Check not last admin
+  const user = await pool.query('SELECT is_admin FROM tir_users WHERE id=$1', [userId]);
+  if (user.rows.length && user.rows[0].is_admin) {
+    const adminCount = await pool.query('SELECT COUNT(*) FROM tir_users WHERE is_admin=true');
+    if (parseInt(adminCount.rows[0].count) <= 1) {
+      throw new Error('Cannot delete the last admin user');
+    }
+  }
+  const { rowCount } = await pool.query('DELETE FROM tir_users WHERE id=$1', [userId]);
+  return rowCount > 0;
+}
+
+// ========== TIR SITE OPERATIONS ==========
+async function getTirSites() {
+  const { rows } = await pool.query('SELECT * FROM tir_sites ORDER BY id');
+  return rows;
+}
+
+async function createTirSite(client_name, plant_name, location, enabled_types) {
+  const { rows } = await pool.query(
+    'INSERT INTO tir_sites (client_name, plant_name, location, enabled_types) VALUES ($1,$2,$3,$4) RETURNING *',
+    [client_name, plant_name, location, enabled_types || []]
+  );
+  return rows[0];
+}
+
+async function updateTirSite(siteId, fields) {
+  const sets = [];
+  const vals = [];
+  let i = 1;
+  if (fields.client_name !== undefined) { sets.push(`client_name=$${i++}`); vals.push(fields.client_name); }
+  if (fields.plant_name !== undefined) { sets.push(`plant_name=$${i++}`); vals.push(fields.plant_name); }
+  if (fields.location !== undefined) { sets.push(`location=$${i++}`); vals.push(fields.location); }
+  if (fields.db_site_id !== undefined) { sets.push(`db_site_id=$${i++}`); vals.push(fields.db_site_id); }
+  if (fields.enabled_types !== undefined) { sets.push(`enabled_types=$${i++}`); vals.push(fields.enabled_types); }
+  if (!sets.length) return;
+  vals.push(siteId);
+  const { rows } = await pool.query(`UPDATE tir_sites SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
+  return rows[0];
+}
+
+async function deleteTirSite(siteId) {
+  const { rowCount } = await pool.query('DELETE FROM tir_sites WHERE id=$1', [siteId]);
+  return rowCount > 0;
+}
+
+async function assignTirUserToSite(userId, siteId) {
+  const { rows } = await pool.query(
+    'UPDATE tir_users SET site_ids = array_append(site_ids, $2) WHERE id=$1 AND NOT ($2 = ANY(site_ids)) RETURNING *',
+    [userId, siteId]
+  );
+  return rows[0];
+}
+
+async function removeTirUserFromSite(userId, siteId) {
+  const { rows } = await pool.query(
+    'UPDATE tir_users SET site_ids = array_remove(site_ids, $2) WHERE id=$1 RETURNING *',
+    [userId, siteId]
+  );
+  return rows[0];
+}
+
+async function getTirUserSites(userId) {
+  const userRes = await pool.query('SELECT is_admin, site_ids FROM tir_users WHERE id=$1', [userId]);
+  if (!userRes.rows.length) return [];
+  const user = userRes.rows[0];
+  if (user.is_admin) {
+    const { rows } = await pool.query('SELECT * FROM tir_sites ORDER BY id');
+    return rows;
+  }
+  const siteIds = user.site_ids || [];
+  if (!siteIds.length) return [];
+  const { rows } = await pool.query('SELECT * FROM tir_sites WHERE id = ANY($1) ORDER BY id', [siteIds]);
+  return rows;
+}
+
+// ========== TIR REPORT OPERATIONS ==========
+async function getTirReports() {
+  // Clean expired locks
+  await pool.query('DELETE FROM tir_locks WHERE expires_at < NOW()');
+  const { rows } = await pool.query(`
+    SELECT r.*, l.user_id AS lock_user_id, l.user_name AS lock_user_name, l.locked_at, l.expires_at AS lock_expires_at
+    FROM tir_reports r
+    LEFT JOIN tir_locks l ON r.id = l.report_id
+    ORDER BY r.updated_at DESC
+  `);
+  return rows;
+}
+
+async function createTirReport(data) {
+  const { rows } = await pool.query(
+    `INSERT INTO tir_reports (unit_number, equipment_number, nb_serial_number, project_name, report_type, site_id, created_by, sections)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [data.unit_number, data.equipment_number, data.nb_serial_number, data.project_name, data.report_type || 'tower', data.site_id, data.created_by, JSON.stringify(data.sections || {})]
+  );
+  return rows[0];
+}
+
+async function getTirReport(id) {
+  // Clean expired locks
+  await pool.query('DELETE FROM tir_locks WHERE expires_at < NOW()');
+  const { rows } = await pool.query(`
+    SELECT r.*, l.user_id AS lock_user_id, l.user_name AS lock_user_name, l.locked_at, l.expires_at AS lock_expires_at
+    FROM tir_reports r
+    LEFT JOIN tir_locks l ON r.id = l.report_id
+    WHERE r.id=$1
+  `, [id]);
+  return rows[0] || null;
+}
+
+async function updateTirReportStatus(reportId, newStatus, userId, extra) {
+  const sets = ['status=$1', 'updated_at=NOW()'];
+  const vals = [newStatus];
+  let i = 2;
+  if (newStatus === 'approved' && userId) {
+    sets.push(`approved_by=$${i++}`);
+    vals.push(userId);
+    sets.push(`approved_at=NOW()`);
+  }
+  if (extra && extra.rejection !== undefined) {
+    sets.push(`rejection=$${i++}`);
+    vals.push(JSON.stringify(extra.rejection));
+  }
+  vals.push(reportId);
+  const { rows } = await pool.query(`UPDATE tir_reports SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
+  return rows[0];
+}
+
+async function deleteTirReport(reportId) {
+  await pool.query('DELETE FROM tir_locks WHERE report_id=$1', [reportId]);
+  await pool.query('DELETE FROM tir_versions WHERE report_id=$1', [reportId]);
+  await pool.query('DELETE FROM tir_attachments WHERE report_id=$1', [reportId]);
+  const { rowCount } = await pool.query('DELETE FROM tir_reports WHERE id=$1', [reportId]);
+  return rowCount > 0;
+}
+
+async function tirSaveSection(reportId, sectionKey, sectionData, userId) {
+  const { rows } = await pool.query(
+    `UPDATE tir_reports SET sections = jsonb_set(COALESCE(sections, '{}'), $2, $3), updated_at=NOW() WHERE id=$1 RETURNING *`,
+    [reportId, `{${sectionKey}}`, JSON.stringify(sectionData)]
+  );
+  return rows[0];
+}
+
+async function tirAcquireLock(reportId, userId) {
+  // Clean expired locks
+  await pool.query('DELETE FROM tir_locks WHERE expires_at < NOW()');
+  // Check existing lock
+  const existing = await pool.query('SELECT * FROM tir_locks WHERE report_id=$1', [reportId]);
+  if (existing.rows.length > 0) {
+    const lock = existing.rows[0];
+    if (lock.user_id === userId) {
+      // Renew lock
+      const { rows } = await pool.query(
+        `UPDATE tir_locks SET locked_at=NOW(), expires_at=NOW() + INTERVAL '15 minutes' WHERE report_id=$1 RETURNING *`,
+        [reportId]
+      );
+      return rows[0];
+    }
+    // Locked by someone else
+    return { locked: true, lock_user_id: lock.user_id, lock_user_name: lock.user_name };
+  }
+  // Get user name
+  const userRes = await pool.query('SELECT name FROM tir_users WHERE id=$1', [userId]);
+  const userName = userRes.rows.length ? userRes.rows[0].name : 'Unknown';
+  const { rows } = await pool.query(
+    `INSERT INTO tir_locks (report_id, user_id, user_name, expires_at) VALUES ($1,$2,$3,NOW() + INTERVAL '15 minutes') RETURNING *`,
+    [reportId, userId, userName]
+  );
+  return rows[0];
+}
+
+async function tirReleaseLock(reportId, userId) {
+  const { rowCount } = await pool.query('DELETE FROM tir_locks WHERE report_id=$1 AND user_id=$2', [reportId, userId]);
+  return rowCount > 0;
+}
+
+async function tirForceUnlock(reportId) {
+  const { rowCount } = await pool.query('DELETE FROM tir_locks WHERE report_id=$1', [reportId]);
+  return rowCount > 0;
+}
+
+// ========== TIR PHOTO OPERATIONS ==========
+async function tirAddPhoto(reportId, photoData) {
+  const { rows } = await pool.query(
+    `UPDATE tir_reports SET photos = COALESCE(photos, '[]'::jsonb) || $2::jsonb, updated_at=NOW() WHERE id=$1 RETURNING photos`,
+    [reportId, JSON.stringify([photoData])]
+  );
+  return rows[0];
+}
+
+async function tirDeletePhoto(reportId, photoId) {
+  // Remove photo with matching id from JSONB array
+  const report = await pool.query('SELECT photos FROM tir_reports WHERE id=$1', [reportId]);
+  if (!report.rows.length) return null;
+  const photos = (report.rows[0].photos || []).filter(p => p.id !== photoId);
+  const { rows } = await pool.query(
+    'UPDATE tir_reports SET photos=$2, updated_at=NOW() WHERE id=$1 RETURNING photos',
+    [reportId, JSON.stringify(photos)]
+  );
+  return rows[0];
+}
+
+// ========== TIR ATTACHMENT OPERATIONS ==========
+async function getTirAttachments(reportId) {
+  const { rows } = await pool.query('SELECT * FROM tir_attachments WHERE report_id=$1 ORDER BY uploaded_at DESC', [reportId]);
+  return rows;
+}
+
+async function tirAddAttachment(reportId, attachmentData) {
+  const { rows } = await pool.query(
+    'INSERT INTO tir_attachments (report_id, attachment_data) VALUES ($1,$2) RETURNING *',
+    [reportId, JSON.stringify(attachmentData)]
+  );
+  return rows[0];
+}
+
+async function tirDeleteAttachment(reportId, attId) {
+  const { rowCount } = await pool.query('DELETE FROM tir_attachments WHERE id=$1 AND report_id=$2', [attId, reportId]);
+  return rowCount > 0;
+}
+
+// ========== TIR VERSION OPERATIONS ==========
+async function tirCreateVersion(reportId, userId) {
+  // Get current report sections
+  const report = await pool.query('SELECT sections FROM tir_reports WHERE id=$1', [reportId]);
+  if (!report.rows.length) return null;
+
+  // Get user name
+  const userRes = await pool.query('SELECT name FROM tir_users WHERE id=$1', [userId]);
+  const userName = userRes.rows.length ? userRes.rows[0].name : 'Unknown';
+
+  // Get next version number
+  const verRes = await pool.query('SELECT COALESCE(MAX(version_number), 0) + 1 AS next FROM tir_versions WHERE report_id=$1', [reportId]);
+  const nextVer = verRes.rows[0].next;
+
+  // Insert version
+  const { rows } = await pool.query(
+    'INSERT INTO tir_versions (report_id, version_number, user_id, user_name, section_snapshots) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+    [reportId, nextVer, userId, userName, JSON.stringify(report.rows[0].sections)]
+  );
+
+  // Cap at 20 versions per report
+  await pool.query(`
+    DELETE FROM tir_versions WHERE id IN (
+      SELECT id FROM tir_versions WHERE report_id=$1 ORDER BY version_number DESC OFFSET 20
+    )
+  `, [reportId]);
+
+  return rows[0];
+}
+
+async function getTirVersions(reportId) {
+  const { rows } = await pool.query('SELECT * FROM tir_versions WHERE report_id=$1 ORDER BY version_number DESC', [reportId]);
+  return rows;
+}
+
+// ========== TIR FINAL REPORT OPERATIONS ==========
+async function tirFinalizeReport(reportId, userId, pdfDataUrl) {
+  // Get report data
+  const report = await pool.query('SELECT * FROM tir_reports WHERE id=$1', [reportId]);
+  if (!report.rows.length) return null;
+  const r = report.rows[0];
+
+  // Get user name
+  const userRes = await pool.query('SELECT name FROM tir_users WHERE id=$1', [userId]);
+  const userName = userRes.rows.length ? userRes.rows[0].name : 'Unknown';
+
+  // Insert final report
+  const { rows } = await pool.query(
+    `INSERT INTO tir_final_reports (report_id, equipment_number, project_name, unit_number, report_type, site_id, finalized_by, finalized_by_name, pdf_data, sections_snapshot)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [reportId, r.equipment_number, r.project_name, r.unit_number, r.report_type, r.site_id, userId, userName, pdfDataUrl, JSON.stringify(r.sections)]
+  );
+
+  // Update report status to final
+  await pool.query('UPDATE tir_reports SET status=$1, updated_at=NOW() WHERE id=$2', ['final', reportId]);
+
+  // Release any lock
+  await pool.query('DELETE FROM tir_locks WHERE report_id=$1', [reportId]);
+
+  return rows[0];
+}
+
+async function getTirFinalReports() {
+  const { rows } = await pool.query('SELECT * FROM tir_final_reports ORDER BY finalized_at DESC');
+  return rows;
+}
+
+async function deleteTirFinalReport(finalId) {
+  const { rowCount } = await pool.query('DELETE FROM tir_final_reports WHERE id=$1', [finalId]);
+  return rowCount > 0;
+}
+
+// ========== TIR EQUIPMENT OPERATIONS ==========
+async function tirImportEquipment(items) {
+  const results = [];
+  for (const item of items) {
+    const { rows } = await pool.query(
+      `INSERT INTO tir_equipment (equipment_number, report_type, site_id, header_fields)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (equipment_number, report_type) DO UPDATE SET header_fields=$4, site_id=$3, updated_at=NOW()
+       RETURNING *`,
+      [item.equipment_number, item.report_type, item.site_id, JSON.stringify(item.header_fields || {})]
+    );
+    results.push(rows[0]);
+  }
+  return results;
+}
+
+async function getTirEquipment(reportType, siteId) {
+  const conditions = [];
+  const params = [];
+  let i = 1;
+  if (reportType) { conditions.push(`report_type=$${i++}`); params.push(reportType); }
+  if (siteId) { conditions.push(`site_id=$${i++}`); params.push(siteId); }
+  const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+  const { rows } = await pool.query(`SELECT * FROM tir_equipment ${where} ORDER BY equipment_number`, params);
+  return rows;
+}
+
+async function getTirEquipmentById(equipNum, reportType) {
+  const { rows } = await pool.query(
+    'SELECT * FROM tir_equipment WHERE equipment_number=$1 AND report_type=$2',
+    [equipNum, reportType]
+  );
+  return rows[0] || null;
+}
+
+async function deleteTirEquipment(equipId) {
+  const { rowCount } = await pool.query('DELETE FROM tir_equipment WHERE id=$1', [equipId]);
+  return rowCount > 0;
+}
+
+async function getAllTirEquipment() {
+  const { rows } = await pool.query('SELECT * FROM tir_equipment ORDER BY equipment_number');
+  return rows;
+}
+
 module.exports = {
   pool,
   initDB,
@@ -921,5 +1427,23 @@ module.exports = {
   saveJsaRecord, getJsaRecords, getJsaRecordPdf, deleteJsaRecord,
   SAFETY_FORM_TYPES, getFormType, saveFormRecord, getFormRecords, getFormRecordPdf, deleteFormRecord, bulkDeleteFormRecords, getFormStats,
   getTrackerRowsPaginated, getAuditLogPaginated, getJsaRecordsPaginated,
-  migrateFromJSON
+  migrateFromJSON,
+  // TIR Users
+  tirLogin, getTirUsers, createTirUser, updateTirUser, deleteTirUser,
+  // TIR Sites
+  getTirSites, createTirSite, updateTirSite, deleteTirSite,
+  assignTirUserToSite, removeTirUserFromSite, getTirUserSites,
+  // TIR Reports
+  getTirReports, createTirReport, getTirReport, updateTirReportStatus, deleteTirReport,
+  tirSaveSection, tirAcquireLock, tirReleaseLock, tirForceUnlock,
+  // TIR Photos
+  tirAddPhoto, tirDeletePhoto,
+  // TIR Attachments
+  getTirAttachments, tirAddAttachment, tirDeleteAttachment,
+  // TIR Versions
+  tirCreateVersion, getTirVersions,
+  // TIR Final Reports
+  tirFinalizeReport, getTirFinalReports, deleteTirFinalReport,
+  // TIR Equipment
+  tirImportEquipment, getTirEquipment, getTirEquipmentById, deleteTirEquipment, getAllTirEquipment
 };
