@@ -314,6 +314,18 @@ body {
 .orient-placeholder {
     color: var(--gray-300); font-style: italic; font-size: 13px;
 }
+.orient-photo-actions {
+    display: flex; justify-content: center; gap: 8px; padding: 8px;
+    background: var(--gray-50); border-top: 1px solid var(--gray-200);
+}
+.orient-photo-actions .btn {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 12px;
+    padding: 4px 12px; border-radius: 4px; cursor: pointer;
+    background: #fff; border: 1px solid var(--gray-300); color: #333;
+}
+.orient-photo-actions .btn:hover {
+    background: var(--primary); color: #fff; border-color: var(--primary);
+}
 .orient-upload-row {
     display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
 }
@@ -480,6 +492,7 @@ body {
         object-fit: contain !important;
     }
     .orient-placeholder { display: block; text-align: center; }
+    .orient-photo-actions { display: none !important; }
     #orient-upload-panel { display: none !important; }
 
     /* Text wrapping */

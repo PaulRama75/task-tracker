@@ -739,10 +739,10 @@ const App = (() => {
 
         orientBox.innerHTML = data.orientation_photo
             ? `<img src="${data.orientation_photo}" alt="Orientation">`
-            : '<span class="orient-placeholder">Click to upload</span>';
+            : '<span class="orient-placeholder">Click to upload or use buttons below</span>';
         dataplateBox.innerHTML = data.dataplate_photo
             ? `<img src="${data.dataplate_photo}" alt="Data Plate">`
-            : '<span class="orient-placeholder">Click to upload</span>';
+            : '<span class="orient-placeholder">Click to upload or use buttons below</span>';
 
         $$('.photo-file-input').forEach(el => el.classList.toggle('hidden', !hasLock));
         orientBox.style.cursor = hasLock ? 'pointer' : 'default';
@@ -1800,25 +1800,32 @@ const App = (() => {
             bindRemoveInspector(list); markDirty();
         });
 
-        // Orientation photos
-        $('#orient-file').addEventListener('change', async (e) => {
-            const file = e.target.files[0]; if (!file || !currentReport) return;
+        // Orientation photos — shared handler for file/camera inputs
+        async function handleOrientPhoto(file, field, label) {
+            if (!file || !currentReport) return;
             const user = Auth.getUser();
             const compressed = await compressImage(file, 800, 600, 0.7);
             const data = getSectionData('orientation_photos');
-            data.orientation_photo = compressed;
-            try { await API.saveSection(currentReport.id, 'orientation_photos', data, user.id); currentReport = await API.getReport(currentReport.id); renderOrientPhotos(); toast('Orientation photo saved!', 'success'); } catch (err) { toast(err.message, 'error'); }
-            e.target.value = '';
-        });
-        $('#dataplate-file').addEventListener('change', async (e) => {
-            const file = e.target.files[0]; if (!file || !currentReport) return;
-            const user = Auth.getUser();
-            const compressed = await compressImage(file, 800, 600, 0.7);
-            const data = getSectionData('orientation_photos');
-            data.dataplate_photo = compressed;
-            try { await API.saveSection(currentReport.id, 'orientation_photos', data, user.id); currentReport = await API.getReport(currentReport.id); renderOrientPhotos(); toast('Data Plate photo saved!', 'success'); } catch (err) { toast(err.message, 'error'); }
-            e.target.value = '';
-        });
+            data[field] = compressed;
+            try {
+                await API.saveSection(currentReport.id, 'orientation_photos', data, user.id);
+                currentReport = await API.getReport(currentReport.id);
+                renderOrientPhotos();
+                toast(label + ' photo saved!', 'success');
+            } catch (err) { toast(err.message, 'error'); }
+        }
+
+        // Orientation — file upload + camera
+        $('#orient-file').addEventListener('change', async (e) => { await handleOrientPhoto(e.target.files[0], 'orientation_photo', 'Orientation'); e.target.value = ''; });
+        $('#orient-camera').addEventListener('change', async (e) => { await handleOrientPhoto(e.target.files[0], 'orientation_photo', 'Orientation'); e.target.value = ''; });
+        $('#btn-orient-upload').addEventListener('click', () => $('#orient-file').click());
+        $('#btn-orient-camera').addEventListener('click', () => $('#orient-camera').click());
+
+        // Data Plate — file upload + camera
+        $('#dataplate-file').addEventListener('change', async (e) => { await handleOrientPhoto(e.target.files[0], 'dataplate_photo', 'Data Plate'); e.target.value = ''; });
+        $('#dataplate-camera').addEventListener('change', async (e) => { await handleOrientPhoto(e.target.files[0], 'dataplate_photo', 'Data Plate'); e.target.value = ''; });
+        $('#btn-dataplate-upload').addEventListener('click', () => $('#dataplate-file').click());
+        $('#btn-dataplate-camera').addEventListener('click', () => $('#dataplate-camera').click());
 
         // Photo upload — shared handler for file input and drag-drop
         async function handlePhotoFiles(files) {

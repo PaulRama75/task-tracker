@@ -103,18 +103,28 @@
                 <div class="section-view">
                     <div class="orient-dataplate-grid">
                         <div class="orient-photo-box">
-                            <div class="orient-photo-label">Orientation</div>
+                            <div class="orient-photo-label">ORIENTATION</div>
                             <div class="orient-photo-img" id="orientation-img">
-                                <span class="orient-placeholder">No photo</span>
+                                <span class="orient-placeholder">Click to upload</span>
                             </div>
-                            <input type="file" id="orient-file" accept="image/*" class="photo-file-input hidden">
+                            <div class="orient-photo-actions photo-file-input hidden">
+                                <button type="button" class="btn btn-sm" id="btn-orient-camera" title="Take Photo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+                                <button type="button" class="btn btn-sm" id="btn-orient-upload" title="Upload Photo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload</button>
+                            </div>
+                            <input type="file" id="orient-file" accept="image/*" style="display:none;">
+                            <input type="file" id="orient-camera" accept="image/*" capture="environment" style="display:none;">
                         </div>
                         <div class="orient-photo-box">
-                            <div class="orient-photo-label">Data Plate</div>
+                            <div class="orient-photo-label">DATA PLATE</div>
                             <div class="orient-photo-img" id="dataplate-img">
-                                <span class="orient-placeholder">No photo</span>
+                                <span class="orient-placeholder">Click to upload</span>
                             </div>
-                            <input type="file" id="dataplate-file" accept="image/*" class="photo-file-input hidden">
+                            <div class="orient-photo-actions photo-file-input hidden">
+                                <button type="button" class="btn btn-sm" id="btn-dataplate-camera" title="Take Photo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg> Camera</button>
+                                <button type="button" class="btn btn-sm" id="btn-dataplate-upload" title="Upload Photo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload</button>
+                            </div>
+                            <input type="file" id="dataplate-file" accept="image/*" style="display:none;">
+                            <input type="file" id="dataplate-camera" accept="image/*" capture="environment" style="display:none;">
                         </div>
                     </div>
                 </div>
