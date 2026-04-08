@@ -426,6 +426,14 @@
     return '';
   }
 
+  function getToken() {
+    try { if (window.parent && window.parent.authToken) return window.parent.authToken; } catch(e) {}
+    try { var t = localStorage.getItem('authToken'); if (t) return t; } catch(e) {}
+    try { var t = window.parent.sessionStorage.getItem('authToken'); if (t) return t; } catch(e) {}
+    try { return sessionStorage.getItem('authToken') || ''; } catch(e) {}
+    return '';
+  }
+
   async function saveToDB(pdf) {
     const pdfBase64 = pdf.output('datauristring').split(',')[1];
     const siteName = getSiteName();
@@ -433,7 +441,7 @@
 
     const res = await fetch('/safety/api/forms/observation/save', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
       body: JSON.stringify({ siteName, descriptionOfWork, pdfBase64 })
     });
     const data = await res.json();
