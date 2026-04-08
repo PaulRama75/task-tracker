@@ -99,17 +99,17 @@ router.delete('/api/tir/sites/:id', authRequired, asyncHandler(async (req, res) 
 }));
 
 router.post('/api/tir/sites/:id/assign-user', authRequired, asyncHandler(async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+  const siteId = parseInt(req.params.id, 10);
   const { userId } = req.body;
-  const result = await db.assignTirUserToSite(id, userId);
-  res.json(result);
+  const result = await db.assignTirUserToSite(userId, siteId);
+  res.json(result || { ok: true });
 }));
 
 router.post('/api/tir/sites/:id/remove-user', authRequired, asyncHandler(async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+  const siteId = parseInt(req.params.id, 10);
   const { userId } = req.body;
-  const result = await db.removeTirUserFromSite(id, userId);
-  res.json(result);
+  const result = await db.removeTirUserFromSite(userId, siteId);
+  res.json(result || { ok: true });
 }));
 
 router.get('/api/tir/users/:id/sites', authRequired, asyncHandler(async (req, res) => {

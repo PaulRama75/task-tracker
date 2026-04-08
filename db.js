@@ -1111,7 +1111,7 @@ async function updateTirSite(siteId, fields) {
   if (fields.location !== undefined) { sets.push(`location=$${i++}`); vals.push(fields.location); }
   if (fields.db_site_id !== undefined) { sets.push(`db_site_id=$${i++}`); vals.push(fields.db_site_id); }
   if (fields.enabled_types !== undefined) { sets.push(`enabled_types=$${i++}`); vals.push(fields.enabled_types); }
-  if (!sets.length) return;
+  if (!sets.length) return { id: siteId };
   vals.push(siteId);
   const { rows } = await pool.query(`UPDATE tir_sites SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
   return rows[0];
