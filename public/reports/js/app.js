@@ -1397,6 +1397,7 @@ const App = (() => {
             'equipment_name': 'equipment_name', 'name': 'equipment_name',
             'equipment_type': 'equipment_type', 'type': 'equipment_type',
             'report_type': 'report_type',
+            'site_id': 'site_id', 'site': 'site_id', 'site_name': 'site_id',
             'shell_material': 'shell_material', 'shell_thickness': 'shell_thickness',
             'height': 'height', 'internal_diameter': 'internal_diameter',
             'head_material': 'head_material', 'head_thickness': 'head_thickness',
@@ -1595,6 +1596,22 @@ const App = (() => {
             if (!rows || !rows.length) { toast('Upload a file first.', 'error'); return; }
             const defaultType = $('#import-type').value;
             const defaultSiteId = $('#import-site').value ? parseSiteId($('#import-site').value) : null;
+            const sites = await API.getSites();
+
+            // Helper: resolve site_id — if it's a string name like "ERGON - ERGON", look up the numeric id
+            function resolveSiteId(val) {
+                if (!val) return null;
+                const n = parseInt(val);
+                if (!isNaN(n)) return n;
+                // Try matching "client - plant" or just plant name
+                const lower = String(val).toLowerCase().trim();
+                const match = sites.find(s =>
+                    `${s.client_name} - ${s.plant_name}`.toLowerCase() === lower ||
+                    s.plant_name.toLowerCase() === lower ||
+                    s.client_name.toLowerCase() === lower
+                );
+                return match ? match.id : null;
+            }
 
             const mapped = rows.map(r => {
                 const m = mapRow(r);
@@ -1602,7 +1619,9 @@ const App = (() => {
                 if (!m.report_type && defaultType) m.report_type = defaultType;
                 if (!m.report_type) m.report_type = 'tower';
                 if (!m.site_id && defaultSiteId) m.site_id = defaultSiteId;
-                if (m.site_id) m.site_id = parseSiteId(m.site_id);
+                // Resolve site_id: convert name strings to numeric IDs
+                if (m.site_id) m.site_id = resolveSiteId(m.site_id);
+                if (!m.site_id && defaultSiteId) m.site_id = defaultSiteId;
                 if (!m.equipment_number) { toast('Each row needs equipment_number.', 'error'); return null; }
                 return m;
             }).filter(Boolean);

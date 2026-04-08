@@ -1383,7 +1383,7 @@ async function tirImportEquipment(items) {
        VALUES ($1,$2,$3,$4)
        ON CONFLICT (equipment_number, report_type) DO UPDATE SET header_fields=$4, site_id=$3, updated_at=NOW()
        RETURNING xmax`,
-      [equipment_number, report_type, site_id || null, JSON.stringify(hf)]
+      [equipment_number, report_type, (site_id && !isNaN(parseInt(site_id))) ? parseInt(site_id) : null, JSON.stringify(hf)]
     );
     // xmax = 0 means INSERT, > 0 means UPDATE
     if (rows[0] && parseInt(rows[0].xmax) === 0) added++; else updated++;
