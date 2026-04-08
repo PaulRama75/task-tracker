@@ -93,16 +93,24 @@ function parseTrackerWorkbook(wb) {
   }
   const headers = raw[headerIdx].map(h => String(h || '').trim());
   const taskCols = [], infoCols = [];
-  const datePattern = /-DATE$/i;
+  // Match headers ending with -DATE, - Date, -date, " - Date", etc.
+  const datePattern = /\s*-\s*DATE$/i;
+  // Match headers ending with -INITIALS, - Initials, -Initial, etc.
+  const initPattern = /\s*-\s*INITIALS?$/i;
   const usedIdx = new Set();
   headers.forEach((h, i) => {
     if (datePattern.test(h)) {
-      const baseName = h.replace(/-DATE$/i, '');
+      const baseName = h.replace(datePattern, '').trim();
       let initIdx = -1;
+      // Check next column for matching initials
       if (i + 1 < headers.length) {
         const next = headers[i + 1];
-        if (next && (next.toLowerCase().includes('initial') || next.replace(/[-\s]*(initial|INITIAL)$/i, '').trim() === baseName)) initIdx = i + 1;
+        if (next && (initPattern.test(next) || next.toLowerCase().includes('initial'))) {
+          const nextBase = next.replace(initPattern, '').trim();
+          if (nextBase === baseName || next.includes(baseName.split('/')[0])) initIdx = i + 1;
+        }
       }
+      // Search nearby columns for matching initials
       if (initIdx === -1) {
         for (let j = Math.max(0, i - 2); j < Math.min(headers.length, i + 3); j++) {
           if (j !== i && headers[j] && headers[j].toLowerCase().includes('initial') && headers[j].includes(baseName.split('/')[0])) { initIdx = j; break; }
@@ -114,7 +122,7 @@ function parseTrackerWorkbook(wb) {
     }
   });
   headers.forEach((h, i) => {
-    if (!usedIdx.has(i) && h && !h.toLowerCase().includes('initial')) infoCols.push({ name: h, idx: i });
+    if (!usedIdx.has(i) && h && !initPattern.test(h) && !h.toLowerCase().includes('initial')) infoCols.push({ name: h, idx: i });
   });
   const finalInfoCols = infoCols.length > 15 ? infoCols.slice(0, 15) : infoCols;
   const rows = [];
