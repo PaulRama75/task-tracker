@@ -94,33 +94,34 @@ const Auth = (() => {
 
     return {
         async init() {
-            // First check if running inside task-tracker iframe
+            // === Strategy 1: Read parent window user (iframe inside task-tracker) ===
             const parentUser = getParentUser();
             if (parentUser) {
                 try {
-                    await loadParentSites();
                     const user = await API.login(parentUser.name, parentUser.role, '');
 
                     // Sync admin status from parent
                     if (parentUser.is_admin && !user.is_admin) {
-                        await API.updateUser(user.id, { is_admin: true });
-                        user.is_admin = true;
+                        try { await API.updateUser(user.id, { is_admin: true }); user.is_admin = true; } catch(e) { console.warn('Failed to sync admin:', e); }
                     }
 
-                    // Sync site access via API
-                    await syncSiteAccess(user, parentUser.allowedSites, parentUser.parentRole === 'superadmin');
+                    // Load parent sites & sync access (non-fatal if fails)
+                    try {
+                        await loadParentSites();
+                        await syncSiteAccess(user, parentUser.allowedSites, parentUser.parentRole === 'superadmin');
+                    } catch(e) { console.warn('Site sync failed (non-fatal):', e); }
 
                     currentUser = user;
                     parentAllowedSites = parentUser.allowedSites;
                     sessionStorage.setItem('tir_user', JSON.stringify(user));
                     return currentUser;
                 } catch(e) {
-                    console.error('[Auth] Error in parent auth flow:', e);
-                    // Don't return null — throw so app.js can show the error
-                    throw new Error('Parent auth failed: ' + e.message);
+                    console.error('[Auth] Parent auth flow error:', e);
+                    // Fall through to token-based auth
                 }
             }
-            // Fallback: try API-based auth using token from parent sessionStorage
+
+            // === Strategy 2: Token-based auth via /reports/api/me ===
             const token = getToken();
             if (token) {
                 try {
@@ -130,27 +131,26 @@ const Auth = (() => {
                         const roleName = me.role === 'superadmin' ? 'Supervisor' : me.role === 'admin' ? 'Engineer' : 'Inspector';
                         const isAdmin = me.role === 'superadmin' || me.role === 'admin';
 
-                        // Load sites
-                        await loadParentSites();
-
                         const user = await API.login(me.username, roleName, '');
                         if (isAdmin && !user.is_admin) {
-                            await API.updateUser(user.id, { is_admin: true });
-                            user.is_admin = true;
+                            try { await API.updateUser(user.id, { is_admin: true }); user.is_admin = true; } catch(e) {}
                         }
 
-                        // Sync site access via API
-                        await syncSiteAccess(user, me.allowedSites, me.role === 'superadmin');
+                        // Load sites & sync (non-fatal)
+                        try {
+                            await loadParentSites();
+                            await syncSiteAccess(user, me.allowedSites, me.role === 'superadmin');
+                        } catch(e) { console.warn('Site sync failed (non-fatal):', e); }
 
                         currentUser = user;
                         parentAllowedSites = me.allowedSites || [];
                         sessionStorage.setItem('tir_user', JSON.stringify(user));
                         return currentUser;
                     }
-                } catch(e) { console.error('API auth fallback failed:', e); }
+                } catch(e) { console.error('Token auth fallback failed:', e); }
             }
 
-            // Final fallback: check sessionStorage for standalone mode
+            // === Strategy 3: sessionStorage for standalone mode ===
             const raw = sessionStorage.getItem('tir_user');
             currentUser = raw ? JSON.parse(raw) : null;
             return currentUser;
