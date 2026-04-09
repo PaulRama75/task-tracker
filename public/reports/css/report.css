@@ -623,12 +623,8 @@ body {
         margin: 0 !important;
     }
 
-    /* Footer */
-    .report-footer {
-        margin: 8px 12px 0 !important;
-        font-size: 10px !important;
-        text-align: center;
-    }
+    /* Footer - hidden in print/PDF */
+    .report-footer { display: none !important; }
 
     /* Page breaks */
     .page-break { page-break-before: always; }
@@ -701,7 +697,7 @@ body {
     word-wrap: break-word; overflow-wrap: break-word;
 }
 .pdf-mode .report-header { margin: 0; padding: 0; }
-.pdf-mode .report-footer { margin: 0; font-size: 11px; padding: 2px 4px; }
+.pdf-mode .report-footer { display: none !important; }
 /* page breaks handled naturally by html2pdf avoid rules */
 .pdf-mode .ext510-header-block {
     padding: 4px 8px; gap: 8px; margin: 0 !important;
@@ -719,19 +715,23 @@ body {
 .pdf-mode .ext510-insp-label {
     background: #222 !important; color: #fff !important;
 }
-.pdf-mode .checklist-table { font-size: 11px; margin: 0 !important; border-collapse: collapse; border-spacing: 0; width: 100%; }
-.pdf-mode .checklist-table td, .pdf-mode .checklist-table th { padding: 2px 4px; border: 1px solid #999; white-space: nowrap; }
+.pdf-mode .checklist-table { font-size: 11px; margin: 0 !important; border-collapse: collapse; border-spacing: 0; width: 100%; table-layout: fixed; }
+.pdf-mode .checklist-table td, .pdf-mode .checklist-table th { padding: 2px 3px; border: 1px solid #999; overflow: hidden; word-wrap: break-word; }
 .pdf-mode .cl-toolbar { display: none !important; }
 .pdf-mode .cl-comment { font-size: 11px; border: none; padding: 0; background: transparent; }
 .pdf-mode .checklist-table thead th {
     background: #222222 !important; color: #ffffff !important;
     border: 1px solid #999; font-size: 11px; text-align: center;
 }
-.pdf-mode .cl-cat-cell { background: #eee !important; font-weight: 600; text-align: center; font-size: 11px; }
+.pdf-mode .cl-cat-col, .pdf-mode .cl-cat-cell { width: 10%; }
+.pdf-mode .cl-item-col, .pdf-mode .cl-item-cell { width: 20%; }
+.pdf-mode .cl-check-col, .pdf-mode .cl-check-cell { width: 4%; text-align: center; }
+.pdf-mode .cl-loc-col, .pdf-mode .cl-loc-cell { width: 12%; }
+.pdf-mode .cl-comment-col, .pdf-mode .cl-comment-cell { width: auto; }
+.pdf-mode .cl-cat-cell { background: #eee !important; font-weight: 600; text-align: center; font-size: 11px; white-space: normal; }
 .pdf-mode .cl-item-cell { white-space: nowrap; }
-.pdf-mode .cl-check-cell { text-align: center; white-space: nowrap; }
+.pdf-mode .cl-check-cell { white-space: nowrap; }
 .pdf-mode .cl-loc-cell { white-space: nowrap; }
-.pdf-mode .cl-comment-cell { width: auto; }
 .pdf-mode .orient-dataplate-grid { gap: 2px; margin: 0; }
 .pdf-mode .orient-photo-box { padding: 2px; }
 .pdf-mode .orient-photo-label {
@@ -1144,22 +1144,30 @@ body {
 /* ─── Checklist Table (510 EXT) ────────────────────────────────────────── */
 .checklist-table {
     width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px;
+    table-layout: fixed;
 }
 .checklist-table th, .checklist-table td {
     border: 1px solid var(--gray-300); padding: 2px 4px; text-align: left; vertical-align: middle;
+    overflow: hidden; word-wrap: break-word;
 }
 .checklist-table thead th {
     background: var(--gray-900); color: var(--white); font-weight: 600; text-align: center; font-size: 11px;
     white-space: nowrap;
 }
+/* Column widths — fixed layout, proportional to screen view */
+.cl-cat-col, .cl-cat-cell { width: 10%; }
+.cl-item-col, .cl-item-cell { width: 20%; }
+.cl-check-col, .cl-check-cell { width: 4%; text-align: center; }
+.cl-loc-col, .cl-loc-cell { width: 12%; }
+.cl-comment-col, .cl-comment-cell { width: auto; }
 .cl-cat-cell {
     background: var(--gray-100); font-weight: 600; text-align: center; writing-mode: horizontal-tb;
-    font-size: 11px; width: 1%;
+    font-size: 11px; white-space: normal;
 }
-.cl-item-cell { white-space: nowrap; width: 1%; }
-.cl-check-cell { text-align: center; vertical-align: middle; white-space: nowrap; width: 1%; }
-.cl-loc-cell { white-space: nowrap; width: 1%; }
-.cl-comment-cell { vertical-align: top; width: auto; }
+.cl-item-cell { white-space: nowrap; }
+.cl-check-cell { vertical-align: middle; white-space: nowrap; }
+.cl-loc-cell { white-space: nowrap; }
+.cl-comment-cell { vertical-align: top; }
 .cl-comment {
     min-height: 20px; font-size: 11px; line-height: 1.4;
     word-wrap: break-word; overflow-wrap: break-word;
