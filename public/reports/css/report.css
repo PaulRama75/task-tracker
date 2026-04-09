@@ -426,7 +426,7 @@ body {
 /* Both @media print AND .pdf-mode apply the same styles */
 @page {
     size: 8.5in 11in;
-    margin: 0.5in 0.4in 0.6in 0.4in;
+    margin: 0.3in 0.2in 0.4in 0.2in;
 }
 
 @media print {
@@ -455,7 +455,7 @@ body {
 
     body { background: white !important; margin: 0; padding: 0; }
     .report-container { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
-    .report-content { box-shadow: none !important; border-radius: 0; overflow: visible !important; }
+    .report-content { box-shadow: none !important; border-radius: 0; overflow: visible !important; zoom: 0.85 !important; }
 
     /* Section boxes with borders */
     .report-section {
