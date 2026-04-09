@@ -494,8 +494,9 @@ body {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
+    .orient-photo-img { min-height: 240px !important; }
     .orient-photo-img img {
-        max-height: 200px !important;
+        max-height: 280px !important;
         object-fit: contain !important;
     }
     .orient-placeholder { display: block; text-align: center; }
@@ -763,6 +764,8 @@ body {
     padding: 0; box-sizing: border-box;
     border: 1px solid #ccc; overflow: hidden;
 }
+.pdf-mode .orient-photo-img { min-height: 240px; }
+.pdf-mode .orient-photo-img img { max-height: 280px !important; object-fit: contain !important; }
 .pdf-mode .orient-photo-label {
     background: #222 !important; color: #fff !important;
 }
