@@ -641,9 +641,20 @@ body {
 .pdf-mode .ql-container.ql-snow { border: none !important; }
 .pdf-mode .ql-editor { padding: 0 !important; min-height: auto !important; }
 .pdf-mode .report-container { margin: 0; padding: 0; max-width: 100%; }
-.pdf-mode .report-content { box-shadow: none; overflow: visible !important; }
+.pdf-mode .report-content { box-shadow: none; overflow: hidden !important; width: 100% !important; max-width: 100% !important; }
 .pdf-mode .photo-delete { display: none !important; }
 .pdf-mode .toast-container { display: none !important; }
+.pdf-mode #photo-upload-area,
+.pdf-mode #photo-upload-panel,
+.pdf-mode .photo-file-input,
+.pdf-mode .orient-photo-actions,
+.pdf-mode .save-bar,
+.pdf-mode .version-banner,
+.pdf-mode .import-bar,
+.pdf-mode .lock-status,
+.pdf-mode #btn-lock, .pdf-mode #btn-unlock, .pdf-mode #btn-pdf,
+.pdf-mode .btn-edit, .pdf-mode .btn-save, .pdf-mode .btn-cancel,
+.pdf-mode .top-bar { display: none !important; }
 .pdf-mode * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -654,10 +665,10 @@ body {
     margin: 0 !important; padding: 0 !important; overflow: visible;
     box-shadow: none;
 }
-.pdf-mode .report-section .section-view { padding: 0 4px; margin: 0; }
+.pdf-mode .report-section .section-view { padding: 0; margin: 0; }
 .pdf-mode .report-section .section-view h3 {
     background: #000 !important; color: #fff !important;
-    margin: 0 -4px 1px -4px; padding: 2px 8px;
+    margin: 0 0 1px 0; padding: 2px 8px;
     border-bottom: none; font-size: 13px; letter-spacing: 1px;
     text-align: center;
 }

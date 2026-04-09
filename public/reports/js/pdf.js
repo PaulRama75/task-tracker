@@ -93,6 +93,24 @@ const PDF = (() => {
         document.querySelectorAll('.ql-toolbar').forEach(tb => tb.style.display = 'none');
         document.querySelectorAll('.ql-container.ql-snow').forEach(c => { c.style.border = 'none'; });
 
+        // Hide upload UI, buttons, and interactive elements for PDF
+        const hideSelectors = [
+            '#photo-upload-area', '#photo-upload-panel', '.photo-file-input',
+            '.orient-photo-actions', '.save-bar', '.version-banner',
+            '.import-bar', '.lock-status', '.top-bar',
+            '#btn-lock', '#btn-unlock', '#btn-pdf',
+            '.btn-edit', '.btn-save', '.btn-cancel',
+            '.section-toolbar', '.cl-toolbar',
+            'input[type="file"]'
+        ];
+        const hiddenEls = [];
+        hideSelectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                hiddenEls.push({ el, prev: el.style.display });
+                el.style.display = 'none';
+            });
+        });
+
         // Ensure checklist table fits within page width
         content.querySelectorAll('.checklist-table').forEach(tbl => {
             tbl.style.width = '100%';
@@ -170,6 +188,8 @@ const PDF = (() => {
             // Restore Quill toolbars
             document.querySelectorAll('.ql-toolbar').forEach(tb => tb.style.display = '');
             document.querySelectorAll('.ql-container.ql-snow').forEach(c => { c.style.border = ''; });
+            // Restore hidden UI elements
+            hiddenEls.forEach(({ el, prev }) => { el.style.display = prev; });
         }
     }
 
