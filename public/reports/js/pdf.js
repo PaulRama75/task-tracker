@@ -89,6 +89,23 @@ const PDF = (() => {
             inp.parentNode.appendChild(span);
         });
 
+        // Force checklist table to fit within page width
+        content.querySelectorAll('.checklist-table').forEach(tbl => {
+            tbl.style.tableLayout = 'fixed';
+            tbl.style.width = '100%';
+            tbl.style.fontSize = '10px';
+        });
+        content.querySelectorAll('.cl-item-cell, .cl-cat-cell, .cl-loc-cell').forEach(cell => {
+            cell.style.whiteSpace = 'normal';
+            cell.style.wordWrap = 'break-word';
+            cell.style.overflowWrap = 'break-word';
+            cell.style.overflow = 'hidden';
+        });
+        content.querySelectorAll('.checklist-table td, .checklist-table th').forEach(cell => {
+            cell.style.whiteSpace = 'normal';
+            cell.style.overflow = 'hidden';
+        });
+
         // Wait for DOM to settle
         await new Promise(r => setTimeout(r, 300));
 
@@ -152,6 +169,18 @@ const PDF = (() => {
             // Remove caption spans added for PDF
             content.querySelectorAll('.photo-caption-pdf').forEach(s => s.remove());
             content.querySelectorAll('.caption-input').forEach(inp => inp.style.display = '');
+            // Restore checklist table inline styles
+            content.querySelectorAll('.checklist-table').forEach(tbl => {
+                tbl.style.tableLayout = '';
+                tbl.style.width = '';
+                tbl.style.fontSize = '';
+            });
+            content.querySelectorAll('.cl-item-cell, .cl-cat-cell, .cl-loc-cell, .checklist-table td, .checklist-table th').forEach(cell => {
+                cell.style.whiteSpace = '';
+                cell.style.wordWrap = '';
+                cell.style.overflowWrap = '';
+                cell.style.overflow = '';
+            });
         }
     }
 

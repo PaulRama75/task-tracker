@@ -676,15 +676,19 @@ body {
 .pdf-mode .ext510-insp-label {
     background: #222 !important; color: #fff !important;
 }
-.pdf-mode .checklist-table { font-size: 12px; margin: 0 !important; border-collapse: collapse; border-spacing: 0; }
-.pdf-mode .checklist-table td, .pdf-mode .checklist-table th { padding: 1px 3px; border: 1px solid #999; }
+.pdf-mode .checklist-table { font-size: 10px; margin: 0 !important; border-collapse: collapse; border-spacing: 0; table-layout: fixed; width: 100%; }
+.pdf-mode .checklist-table td, .pdf-mode .checklist-table th { padding: 1px 2px; border: 1px solid #999; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; overflow: hidden; }
 .pdf-mode .cl-toolbar { display: none !important; }
-.pdf-mode .cl-comment { font-size: 12px; border: none; padding: 0; background: transparent; }
+.pdf-mode .cl-comment { font-size: 10px; border: none; padding: 0; background: transparent; }
 .pdf-mode .checklist-table thead th {
     background: #222222 !important; color: #ffffff !important;
-    border: 1px solid #999;
+    border: 1px solid #999; font-size: 9px; white-space: normal;
 }
-.pdf-mode .cl-cat-cell { background: #eee !important; }
+.pdf-mode .cl-cat-cell { background: #eee !important; white-space: normal !important; width: 8% !important; }
+.pdf-mode .cl-item-cell { white-space: normal !important; word-wrap: break-word; width: 20% !important; }
+.pdf-mode .cl-check-cell { width: 5% !important; text-align: center; }
+.pdf-mode .cl-loc-cell { white-space: normal !important; width: 12% !important; }
+.pdf-mode .cl-comment-cell { width: auto; white-space: normal !important; }
 .pdf-mode .orient-dataplate-grid { gap: 2px; margin: 0; }
 .pdf-mode .orient-photo-box { padding: 2px; }
 .pdf-mode .orient-photo-label {
@@ -694,7 +698,7 @@ body {
 .pdf-mode .ext510-inspector-table td { padding: 2px 4px; font-size: 12px; }
 .pdf-mode #ext510-inspector-container,
 .pdf-mode #ext510-narrative-container,
-.pdf-mode #checklist-section-container { margin: 0 !important; padding: 0 !important; }
+.pdf-mode #checklist-section-container { margin: 0 !important; padding: 0 !important; overflow: visible !important; max-width: 100% !important; }
 .pdf-mode .report-header + .report-section,
 .pdf-mode .report-section + .report-section { margin-top: 0 !important; }
 .pdf-mode .report-content > * { margin-bottom: 0 !important; }
@@ -1145,10 +1149,15 @@ body {
     padding: 2px 4px; font-size: 11px; background: var(--white);
 }
 @media print {
-    .checklist-table { page-break-inside: auto; }
+    .checklist-table { page-break-inside: auto; table-layout: fixed; width: 100%; font-size: 10px; }
     .checklist-table tr { page-break-inside: avoid; }
+    .checklist-table td, .checklist-table th { white-space: normal !important; word-wrap: break-word; overflow-wrap: break-word; }
+    .cl-item-cell { white-space: normal !important; width: 20% !important; }
+    .cl-cat-cell { white-space: normal !important; width: 8% !important; }
+    .cl-check-cell { width: 5% !important; }
+    .cl-loc-cell { white-space: normal !important; width: 12% !important; }
     .cl-toolbar { display: none !important; }
-    .cl-comment { border: none !important; padding: 0 !important; background: transparent !important; }
+    .cl-comment { border: none !important; padding: 0 !important; background: transparent !important; font-size: 10px; }
 }
 .ext510-page-break-before { page-break-before: always; break-before: page; }
 
