@@ -89,6 +89,10 @@ const PDF = (() => {
             inp.parentNode.appendChild(span);
         });
 
+        // Hide Quill toolbars and editor chrome for PDF
+        document.querySelectorAll('.ql-toolbar').forEach(tb => tb.style.display = 'none');
+        document.querySelectorAll('.ql-container.ql-snow').forEach(c => { c.style.border = 'none'; });
+
         // Ensure checklist table fits within page width
         content.querySelectorAll('.checklist-table').forEach(tbl => {
             tbl.style.width = '100%';
@@ -163,6 +167,9 @@ const PDF = (() => {
                 tbl.style.width = '';
                 tbl.style.fontSize = '';
             });
+            // Restore Quill toolbars
+            document.querySelectorAll('.ql-toolbar').forEach(tb => tb.style.display = '');
+            document.querySelectorAll('.ql-container.ql-snow').forEach(c => { c.style.border = ''; });
         }
     }
 

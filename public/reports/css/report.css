@@ -637,6 +637,9 @@ body {
 /* ─── PDF Mode (screen preview of print layout) ───────────────────────── */
 .pdf-mode .section-toolbar { display: none !important; }
 .pdf-mode .section-edit { display: none !important; }
+.pdf-mode .ql-toolbar { display: none !important; }
+.pdf-mode .ql-container.ql-snow { border: none !important; }
+.pdf-mode .ql-editor { padding: 0 !important; min-height: auto !important; }
 .pdf-mode .report-container { margin: 0; padding: 0; max-width: 100%; }
 .pdf-mode .report-content { box-shadow: none; overflow: visible !important; }
 .pdf-mode .photo-delete { display: none !important; }
