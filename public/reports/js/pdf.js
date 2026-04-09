@@ -143,18 +143,33 @@ const PDF = (() => {
             inp.parentNode.appendChild(span);
         });
 
-        // ── Force ALL tables to fit within fixed width ───────────────────
+        // ── Force tables to fit within fixed width ─────────────────────
+        // Default: all tables get auto layout and 100% width
         content.querySelectorAll('table').forEach(tbl => {
-            setStyle(tbl, 'tableLayout', 'fixed', styleTracker);
+            setStyle(tbl, 'tableLayout', 'auto', styleTracker);
             setStyle(tbl, 'width', '100%', styleTracker);
+        });
+        // Checklist & equipment tables: smaller font to fit
+        content.querySelectorAll('.checklist-table, .ext510-equip-table').forEach(tbl => {
+            setStyle(tbl, 'fontSize', '10px', styleTracker);
+        });
+        // All tables: constrain max width
+        content.querySelectorAll('table').forEach(tbl => {
             setStyle(tbl, 'maxWidth', '100%', styleTracker);
         });
-        // Force all cells to wrap text
+        // Force cells to wrap text (prevent overflow)
         content.querySelectorAll('td, th').forEach(cell => {
-            setStyle(cell, 'whiteSpace', 'normal', styleTracker);
             setStyle(cell, 'wordWrap', 'break-word', styleTracker);
             setStyle(cell, 'overflowWrap', 'break-word', styleTracker);
             setStyle(cell, 'overflow', 'hidden', styleTracker);
+        });
+        // Checklist cells: keep nowrap for compact columns, wrap for item/category
+        content.querySelectorAll('.cl-cat-cell, .cl-item-cell, .cl-comment-cell, .cl-loc-cell').forEach(cell => {
+            setStyle(cell, 'whiteSpace', 'normal', styleTracker);
+        });
+        content.querySelectorAll('.cl-check-cell').forEach(cell => {
+            setStyle(cell, 'whiteSpace', 'nowrap', styleTracker);
+            setStyle(cell, 'width', 'auto', styleTracker);
         });
 
         // Force images and divs to stay within width
