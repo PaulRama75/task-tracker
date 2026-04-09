@@ -269,9 +269,10 @@ const App = (() => {
             orientSection.classList.remove('ext510-page-break-before');
         }
 
-        // Hide inspection type checkboxes for ext reports (always external)
+        // Hide inspection type section for ext reports (always external)
         const inspectionSection = document.querySelector('[data-section="inspection_type"]');
         if (inspectionSection) {
+            inspectionSection.style.display = isExtReport ? 'none' : '';
             inspectionSection.classList.toggle('hidden', isExtReport);
         }
         if (!isExtReport) {
