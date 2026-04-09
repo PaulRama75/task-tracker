@@ -1,9 +1,9 @@
 // ─── PDF Generation ────────────────────────────────────────────────────────
 
-const PDF = (() => {
+var PDF = (() => {
 
-    const CONTENT_WIDTH = 1300; // px — fixed width for PDF rendering (wider to fit all columns)
-    const WINDOW_WIDTH = CONTENT_WIDTH + 20; // slightly wider viewport
+    const CONTENT_WIDTH = 940; // px — desired content width for PDF layout
+    const WINDOW_WIDTH  = 940; // viewport for CSS rendering
 
     function addHeaderFooter(pdf, equipNum, reportTitle) {
         const pageCount = pdf.internal.getNumberOfPages();
@@ -77,15 +77,29 @@ const PDF = (() => {
         content.classList.add('pdf-mode');
         document.body.classList.add('printing');
 
-        // ── Force fixed width on container chain ─────────────────────────
+        // ── Force body to have zero margin/padding and no scrollbar ─────
+        setStyle(document.body, 'margin', '0', styleTracker);
+        setStyle(document.body, 'padding', '0', styleTracker);
+        setStyle(document.body, 'overflow', 'hidden', styleTracker);
+        setStyle(document.documentElement, 'margin', '0', styleTracker);
+        setStyle(document.documentElement, 'padding', '0', styleTracker);
+        setStyle(document.documentElement, 'overflow', 'hidden', styleTracker);
+
+        // ── Force container to top-left origin so html2canvas captures from x=0 ──
+        setStyle(document.body, 'position', 'relative', styleTracker);
         setStyle(container, 'width', CONTENT_WIDTH + 'px', styleTracker);
         setStyle(container, 'maxWidth', CONTENT_WIDTH + 'px', styleTracker);
         setStyle(container, 'margin', '0', styleTracker);
         setStyle(container, 'padding', '0', styleTracker);
+        setStyle(container, 'position', 'absolute', styleTracker);
+        setStyle(container, 'left', '0px', styleTracker);
+        setStyle(container, 'top', '0px', styleTracker);
         setStyle(content, 'width', CONTENT_WIDTH + 'px', styleTracker);
         setStyle(content, 'maxWidth', CONTENT_WIDTH + 'px', styleTracker);
-        setStyle(content, 'overflow', 'hidden', styleTracker);
+        setStyle(content, 'overflow', 'visible', styleTracker);
         setStyle(content, 'boxSizing', 'border-box', styleTracker);
+        setStyle(content, 'padding', '0 10px', styleTracker);
+        setStyle(content, 'margin', '0', styleTracker);
 
         // Ensure ALL sections are visible and expanded for PDF capture
         content.querySelectorAll('.report-section').forEach(sec => {
@@ -95,6 +109,50 @@ const PDF = (() => {
         content.querySelectorAll('[id$="-container"]').forEach(el => {
             el.classList.remove('hidden');
             el.style.display = '';
+        });
+
+        // ── Force zero padding/margin on all section-views for tight fit ──
+        content.querySelectorAll('.section-view').forEach(sv => {
+            setStyle(sv, 'padding', '0', styleTracker);
+            setStyle(sv, 'margin', '0', styleTracker);
+        });
+        // Force header block to flex layout for html2canvas compatibility
+        content.querySelectorAll('.ext510-header-block').forEach(hb => {
+            setStyle(hb, 'display', 'flex', styleTracker);
+            setStyle(hb, 'flexWrap', 'nowrap', styleTracker);
+            setStyle(hb, 'alignItems', 'center', styleTracker);
+            setStyle(hb, 'padding', '8px 12px', styleTracker);
+            setStyle(hb, 'margin', '0', styleTracker);
+            setStyle(hb, 'width', '100%', styleTracker);
+            setStyle(hb, 'maxWidth', '100%', styleTracker);
+            setStyle(hb, 'boxSizing', 'border-box', styleTracker);
+            setStyle(hb, 'overflow', 'hidden', styleTracker);
+        });
+
+        // Force orientation/data plate grid to flex (html2canvas doesn't support CSS Grid)
+        content.querySelectorAll('.orient-dataplate-grid').forEach(grid => {
+            setStyle(grid, 'display', 'flex', styleTracker);
+            setStyle(grid, 'flexWrap', 'nowrap', styleTracker);
+            setStyle(grid, 'gap', '8px', styleTracker);
+            setStyle(grid, 'margin', '0', styleTracker);
+        });
+        content.querySelectorAll('.orient-photo-box').forEach(box => {
+            setStyle(box, 'width', 'calc(50% - 4px)', styleTracker);
+            setStyle(box, 'flexShrink', '0', styleTracker);
+            setStyle(box, 'boxSizing', 'border-box', styleTracker);
+        });
+
+        // Force photo grid to flex layout (html2canvas doesn't support CSS Grid)
+        content.querySelectorAll('.photo-grid').forEach(grid => {
+            setStyle(grid, 'display', 'flex', styleTracker);
+            setStyle(grid, 'flexWrap', 'wrap', styleTracker);
+            setStyle(grid, 'gap', '6px', styleTracker);
+            setStyle(grid, 'margin', '0', styleTracker);
+        });
+        content.querySelectorAll('.photo-card').forEach(card => {
+            setStyle(card, 'width', 'calc(50% - 3px)', styleTracker);
+            setStyle(card, 'flexShrink', '0', styleTracker);
+            setStyle(card, 'boxSizing', 'border-box', styleTracker);
         });
 
         // ── Hide all UI / interactive elements ───────────────────────────
@@ -110,6 +168,7 @@ const PDF = (() => {
             '.photo-drop-zone', '#photo-drop-zone',
             '#btn-choose-photos', '#btn-camera',
             '#photo-file-count', '#photo-preview', '.report-footer',
+            '[data-section="inspection_type"]',
         ];
         const hiddenEls = [];
         hideSelectors.forEach(sel => {
@@ -143,18 +202,38 @@ const PDF = (() => {
             setStyle(tbl, 'width', '100%', styleTracker);
             setStyle(tbl, 'maxWidth', '100%', styleTracker);
         });
-        // Equipment tables: slightly smaller font
+        // Equipment table: use fixed layout so columns share space equally
         content.querySelectorAll('.ext510-equip-table').forEach(tbl => {
-            setStyle(tbl, 'fontSize', '10px', styleTracker);
+            setStyle(tbl, 'tableLayout', 'fixed', styleTracker);
+            setStyle(tbl, 'width', '100%', styleTracker);
+            setStyle(tbl, 'maxWidth', '100%', styleTracker);
+            setStyle(tbl, 'fontSize', '9px', styleTracker);
+        });
+        content.querySelectorAll('.ext510-equip-table td, .ext510-equip-table th').forEach(cell => {
+            setStyle(cell, 'whiteSpace', 'normal', styleTracker);
+            setStyle(cell, 'wordWrap', 'break-word', styleTracker);
+            setStyle(cell, 'overflowWrap', 'break-word', styleTracker);
+            setStyle(cell, 'overflow', 'hidden', styleTracker);
+            setStyle(cell, 'padding', '2px 3px', styleTracker);
         });
 
         // Force images and divs to stay within width
         content.querySelectorAll('img').forEach(img => {
             setStyle(img, 'maxWidth', '100%', styleTracker);
         });
-        content.querySelectorAll('.ext510-header-block').forEach(el => {
+
+        // Force all direct children to respect container width
+        content.querySelectorAll('.report-section, [id$="-container"]').forEach(el => {
             setStyle(el, 'maxWidth', '100%', styleTracker);
+            setStyle(el, 'overflow', 'hidden', styleTracker);
             setStyle(el, 'boxSizing', 'border-box', styleTracker);
+        });
+
+        // Force checklist comment cells to clip properly
+        content.querySelectorAll('.cl-comment').forEach(el => {
+            setStyle(el, 'maxWidth', '100%', styleTracker);
+            setStyle(el, 'overflow', 'hidden', styleTracker);
+            setStyle(el, 'wordWrap', 'break-word', styleTracker);
         });
 
         // Wait for DOM to settle
@@ -163,44 +242,167 @@ const PDF = (() => {
         // Force inline colors for html2canvas
         const originals = forceInlineColors(content);
 
-        if (opts.autoDownload && typeof html2pdf !== 'undefined') {
+        if (opts.autoDownload && typeof html2canvas !== 'undefined' && typeof jspdf !== 'undefined') {
             const filename = `${equipNum}_Final_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
 
-            // Letter size: 8.5 x 11 inches = 215.9 x 279.4 mm
-            const pdfOpt = {
-                margin: [12, 6, 14, 6],  // top, right, bottom, left in mm
-                filename,
-                image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: {
-                    scale: 2,
-                    useCORS: true,
-                    scrollY: 0,
-                    scrollX: 0,
-                    windowWidth: WINDOW_WIDTH,
-                    width: CONTENT_WIDTH,
-                    logging: false,
-                    backgroundColor: '#ffffff',
-                    removeContainer: true,
-                    letterRendering: true,
-                    x: 0,
-                    y: 0,
-                },
-                jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-                pagebreak: {
-                    mode: ['css', 'legacy'],
-                    before: '.page-break-before',
-                    after: '.page-break-after',
-                    avoid: ['.photo-card', '.info-table', 'tr', '.orient-photo-box', '.ext510-header-block', '.checklist-table thead'],
-                },
-            };
+            // Scroll to top before capture to avoid offset issues
+            window.scrollTo(0, 0);
 
             try {
-                const worker = html2pdf().set(pdfOpt).from(content);
-                const pdf = await worker.toPdf().get('pdf');
+                // Capture the content element directly with html2canvas
+                // Use the element's own bounding rect to crop precisely
+                const rect = content.getBoundingClientRect();
+                const canvas = await html2canvas(content, {
+                    scale: 2,
+                    useCORS: true,
+                    scrollY: -window.scrollY,
+                    scrollX: 0,
+                    x: rect.left,
+                    y: rect.top,
+                    width: CONTENT_WIDTH,
+                    height: rect.height,
+                    windowWidth: WINDOW_WIDTH,
+                    logging: false,
+                    backgroundColor: '#ffffff',
+                    letterRendering: true,
+                    onclone: function(clonedDoc) {
+                        var cloneBody = clonedDoc.body;
+                        cloneBody.style.margin = '0';
+                        cloneBody.style.padding = '0';
+                        var cloneContainer = clonedDoc.getElementById('report-container');
+                        if (cloneContainer) {
+                            cloneContainer.style.position = 'absolute';
+                            cloneContainer.style.left = '0px';
+                            cloneContainer.style.top = '0px';
+                            cloneContainer.style.margin = '0';
+                            cloneContainer.style.padding = '0';
+                            cloneContainer.style.width = CONTENT_WIDTH + 'px';
+                            cloneContainer.style.maxWidth = CONTENT_WIDTH + 'px';
+                        }
+                        var cloneContent = clonedDoc.getElementById('report-content');
+                        if (cloneContent) {
+                            cloneContent.style.width = CONTENT_WIDTH + 'px';
+                            cloneContent.style.maxWidth = CONTENT_WIDTH + 'px';
+                            cloneContent.style.margin = '0';
+                            cloneContent.style.padding = '0 10px';
+                            cloneContent.style.boxSizing = 'border-box';
+                        }
+                        var style = clonedDoc.createElement('style');
+                        style.textContent = '#report-container, .report-container { position: absolute !important; left: 0 !important; top: 0 !important; margin: 0 !important; padding: 0 !important; max-width: ' + CONTENT_WIDTH + 'px !important; width: ' + CONTENT_WIDTH + 'px !important; } ' +
+                            '#report-content { margin: 0 !important; padding: 0 10px !important; max-width: ' + CONTENT_WIDTH + 'px !important; width: ' + CONTENT_WIDTH + 'px !important; box-sizing: border-box !important; }';
+                        clonedDoc.head.appendChild(style);
+
+                        // Replace all input fields with plain text in the clone
+                        clonedDoc.querySelectorAll('.inline-input').forEach(function(inp) {
+                            var span = clonedDoc.createElement('span');
+                            span.textContent = inp.value || '';
+                            span.style.cssText = 'font-size:inherit;color:inherit;';
+                            inp.parentNode.replaceChild(span, inp);
+                        });
+                        clonedDoc.querySelectorAll('.cl-input').forEach(function(inp) {
+                            var span = clonedDoc.createElement('span');
+                            span.textContent = inp.value || '';
+                            span.style.cssText = 'font-size:11px;color:#333;';
+                            inp.parentNode.replaceChild(span, inp);
+                        });
+                        clonedDoc.querySelectorAll('.cl-comment-editable').forEach(function(el) {
+                            el.contentEditable = 'false';
+                            el.classList.remove('cl-comment-editable');
+                            el.style.border = 'none';
+                            el.style.outline = 'none';
+                            el.style.padding = '0';
+                        });
+                        clonedDoc.querySelectorAll('[data-section="ext510_inspector"] input').forEach(function(inp) {
+                            var span = clonedDoc.createElement('span');
+                            span.textContent = inp.value || '';
+                            span.style.cssText = 'font-size:12px;color:#333;';
+                            inp.parentNode.replaceChild(span, inp);
+                        });
+                        // Convert signature canvas to image in clone
+                        var liveSigCanvas = document.getElementById('sig-canvas');
+                        var cloneSigCanvas = clonedDoc.getElementById('sig-canvas');
+                        if (liveSigCanvas && cloneSigCanvas) {
+                            var sigImg = clonedDoc.createElement('img');
+                            sigImg.src = liveSigCanvas.toDataURL('image/png');
+                            sigImg.style.cssText = 'max-height:60px;max-width:100%;';
+                            cloneSigCanvas.parentNode.replaceChild(sigImg, cloneSigCanvas);
+                        }
+                        // Hide clear button in PDF
+                        var cloneSigClear = clonedDoc.getElementById('sig-clear');
+                        if (cloneSigClear) cloneSigClear.style.display = 'none';
+                    },
+                });
+
+                // Letter: 215.9 x 279.4 mm
+                const marginTop = 12, marginRight = 10, marginBottom = 12, marginLeft = 10;
+                const pageW = 215.9, pageH = 279.4;
+                const usableW = pageW - marginLeft - marginRight;
+                const usableH = pageH - marginTop - marginBottom;
+
+                // Scale canvas to fit page width
+                const imgWidth = usableW;
+                const imgHeight = (canvas.height / canvas.width) * imgWidth;
+
+                const { jsPDF } = jspdf;
+                const pdf = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
+
+                // Collect section boundaries (in mm) for smart page breaks
+                const contentRect = content.getBoundingClientRect();
+                const pxToMm = imgWidth / canvas.width * 2; // scale=2
+                const sectionBreaks = [];
+                content.querySelectorAll('.report-section, .orient-dataplate-grid, .ext510-inspector-table, .checklist-table, .ext510-equip-table, .section-view, .ql-editor').forEach(function(el) {
+                    const elRect = el.getBoundingClientRect();
+                    const topMm = (elRect.top - contentRect.top) * pxToMm;
+                    const bottomMm = (elRect.bottom - contentRect.top) * pxToMm;
+                    sectionBreaks.push({ top: topMm, bottom: bottomMm });
+                });
+
+                // Smart page splitting — avoid cutting through sections
+                let yOffset = 0;
+                let pageNum = 0;
+                while (yOffset < imgHeight) {
+                    if (pageNum > 0) pdf.addPage();
+                    let sliceH = Math.min(usableH, imgHeight - yOffset);
+
+                    // If not the last page, find a better break point
+                    if (yOffset + sliceH < imgHeight) {
+                        const cutY = yOffset + sliceH;
+                        // Check if cut goes through any section
+                        for (let i = 0; i < sectionBreaks.length; i++) {
+                            const s = sectionBreaks[i];
+                            if (s.top < cutY && s.bottom > cutY) {
+                                // Cut goes through this section — break before it if possible
+                                const breakBefore = s.top - yOffset;
+                                if (breakBefore > usableH * 0.3) {
+                                    sliceH = breakBefore;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    const srcY = (yOffset / imgHeight) * canvas.height;
+                    const srcH = (sliceH / imgHeight) * canvas.height;
+
+                    const pageCanvas = document.createElement('canvas');
+                    pageCanvas.width = canvas.width;
+                    pageCanvas.height = Math.ceil(srcH);
+                    const ctx = pageCanvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                    ctx.drawImage(canvas, 0, Math.floor(srcY), canvas.width, Math.ceil(srcH),
+                                  0, 0, pageCanvas.width, Math.ceil(srcH));
+
+                    const imgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+                    pdf.addImage(imgData, 'JPEG', marginLeft, marginTop, usableW, sliceH);
+                    yOffset += sliceH;
+                    pageNum++;
+                }
+
                 addHeaderFooter(pdf, equipNum, reportTitle);
-                await worker.save();
+                pdf.save(filename);
             } catch (err) {
-                console.error('html2pdf error:', err);
+                console.error('PDF generation error:', err);
                 window.print();
             } finally {
                 cleanup();

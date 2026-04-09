@@ -504,13 +504,83 @@ const App = (() => {
         $$('[data-section="ext510_inspector"] [data-field]').forEach(td => {
             const key = td.dataset.field;
             const val = data[key] || '';
-            if (hasLock) {
+            if (key === 'ext510_inspector_signature') {
+                // Signature field — canvas when editable, image when view-only
+                if (hasLock) {
+                    td.innerHTML = `<div class="sig-pad-wrap">
+                        <canvas class="sig-canvas" id="sig-canvas" width="300" height="80"></canvas>
+                        <button type="button" class="btn btn-sm sig-clear-btn" id="sig-clear">Clear</button>
+                    </div>`;
+                    requestAnimationFrame(() => initSignaturePad(val));
+                } else {
+                    if (val) {
+                        td.innerHTML = `<img src="${val}" class="sig-image" alt="Signature">`;
+                    } else {
+                        td.textContent = '';
+                    }
+                }
+            } else if (hasLock) {
                 const inputType = key === 'ext510_inspector_date' ? 'date' : 'text';
                 td.innerHTML = `<input type="${inputType}" class="inline-input" data-skey="ext510_inspector" data-fkey="${key}" value="${esc(val)}">`;
             } else {
                 td.textContent = val;
             }
         });
+    }
+
+    // ─── Signature Pad ─────────────────────────────────────────────────────
+    let sigCanvas, sigCtx, sigDrawing = false;
+    function initSignaturePad(existingData) {
+        sigCanvas = document.getElementById('sig-canvas');
+        if (!sigCanvas) return;
+        sigCtx = sigCanvas.getContext('2d');
+        sigCtx.lineWidth = 2;
+        sigCtx.lineCap = 'round';
+        sigCtx.strokeStyle = '#000';
+        // Load existing signature
+        if (existingData) {
+            const img = new Image();
+            img.onload = () => sigCtx.drawImage(img, 0, 0);
+            img.src = existingData;
+        }
+        function getPos(e) {
+            const rect = sigCanvas.getBoundingClientRect();
+            const t = e.touches ? e.touches[0] : e;
+            return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+        }
+        function startDraw(e) {
+            e.preventDefault();
+            sigDrawing = true;
+            const p = getPos(e);
+            sigCtx.beginPath();
+            sigCtx.moveTo(p.x, p.y);
+        }
+        function draw(e) {
+            if (!sigDrawing) return;
+            e.preventDefault();
+            const p = getPos(e);
+            sigCtx.lineTo(p.x, p.y);
+            sigCtx.stroke();
+        }
+        function stopDraw() { sigDrawing = false; if (typeof markDirty === 'function') markDirty(); }
+        sigCanvas.addEventListener('mousedown', startDraw);
+        sigCanvas.addEventListener('mousemove', draw);
+        sigCanvas.addEventListener('mouseup', stopDraw);
+        sigCanvas.addEventListener('mouseleave', stopDraw);
+        sigCanvas.addEventListener('touchstart', startDraw, { passive: false });
+        sigCanvas.addEventListener('touchmove', draw, { passive: false });
+        sigCanvas.addEventListener('touchend', stopDraw);
+        document.getElementById('sig-clear').addEventListener('click', () => {
+            sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+            markDirty();
+        });
+    }
+    function getSignatureData() {
+        if (!sigCanvas) return '';
+        const ctx = sigCanvas.getContext('2d');
+        const px = ctx.getImageData(0, 0, sigCanvas.width, sigCanvas.height).data;
+        for (let i = 3; i < px.length; i += 4) { if (px[i] > 0) return sigCanvas.toDataURL('image/png'); }
+        return ''; // blank canvas
     }
 
     // ─── Build Checklist Section (510 EXT) ─────────────────────────────────
@@ -1105,6 +1175,7 @@ const App = (() => {
                 // Inspector info
                 const inspData = {};
                 $$('.inline-input[data-skey="ext510_inspector"]').forEach(inp => inspData[inp.dataset.fkey] = inp.value);
+                inspData.ext510_inspector_signature = getSignatureData();
                 if (Object.keys(inspData).length) await API.saveSection(currentReport.id, 'ext510_inspector', inspData, user.id);
                 // Checklist
                 await API.saveSection(currentReport.id, 'checklist', collectChecklistData(), user.id);

@@ -426,7 +426,7 @@ body {
 /* Both @media print AND .pdf-mode apply the same styles */
 @page {
     size: 8.5in 11in;
-    margin: 0.3in 0.2in 0.4in 0.2in;
+    margin: 0.3in 0.3in 0.4in 0.3in;
 }
 
 @media print {
@@ -467,12 +467,12 @@ body {
         break-inside: auto;
     }
     .report-section .section-view {
-        padding: 0 4px !important;
+        padding: 0 2px !important;
     }
     .report-section .section-view h3 {
         background: #000 !important;
         color: #fff !important;
-        margin: 0 -4px 2px -4px !important;
+        margin: 0 0 2px 0 !important;
         padding: 2px 8px !important;
         border-bottom: none !important;
         font-size: 13px !important;
@@ -596,7 +596,7 @@ body {
         print-color-adjust: exact;
     }
     .cl-cat-cell { font-weight: 600 !important; text-align: center !important; font-size: 11px !important; background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .cl-item-cell { white-space: nowrap !important; }
+    .cl-item-cell { white-space: normal !important; word-wrap: break-word !important; }
     .cl-check-cell { text-align: center !important; white-space: nowrap !important; }
     .cl-loc-cell { white-space: nowrap !important; }
     .cl-comment-cell { width: auto !important; }
@@ -636,8 +636,8 @@ body {
 .pdf-mode .ql-toolbar { display: none !important; }
 .pdf-mode .ql-container.ql-snow { border: none !important; }
 .pdf-mode .ql-editor { padding: 0 !important; min-height: auto !important; }
-.pdf-mode .report-container { margin: 0; padding: 0; max-width: 100%; }
-.pdf-mode .report-content { box-shadow: none; overflow: hidden !important; width: 100% !important; max-width: 100% !important; }
+.pdf-mode .report-container { margin: 0; padding: 0; max-width: 100%; width: 100%; }
+.pdf-mode .report-content { box-shadow: none; overflow: visible !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
 .pdf-mode .photo-delete { display: none !important; }
 .pdf-mode .toast-container { display: none !important; }
 .pdf-mode #photo-upload-area,
@@ -661,7 +661,7 @@ body {
     margin: 0 !important; padding: 0 !important; overflow: visible;
     box-shadow: none;
 }
-.pdf-mode .report-section .section-view { padding: 0; margin: 0; }
+.pdf-mode .report-section .section-view { padding: 0 !important; margin: 0 !important; }
 .pdf-mode .report-section .section-view h3 {
     background: #000 !important; color: #fff !important;
     margin: 0 0 1px 0; padding: 2px 8px;
@@ -683,66 +683,93 @@ body {
 .pdf-mode .info-table .label { width: 22%; white-space: normal; }
 .pdf-mode .info-table .value { width: 28%; }
 .pdf-mode .photo-grid {
-    grid-template-columns: repeat(2, 1fr); gap: 3px; padding: 0 2px; margin: 0;
+    display: flex !important; flex-wrap: wrap !important;
+    gap: 6px; padding: 0 2px; margin: 0;
 }
 .pdf-mode .photo-card {
+    width: calc(50% - 3px); flex-shrink: 0;
     margin: 0; padding: 0; border: 1px solid #ccc;
+    box-sizing: border-box;
 }
 .pdf-mode .photo-card img {
-    width: 100%; height: auto; max-height: 200px;
+    width: 100%; height: auto; max-height: 220px;
     object-fit: contain; background: #f5f5f5;
 }
 .pdf-mode .photo-card .photo-caption {
-    font-size: 11px; padding: 1px 4px; margin: 0;
+    font-size: 11px; padding: 2px 4px; margin: 0;
     word-wrap: break-word; overflow-wrap: break-word;
 }
 .pdf-mode .report-header { margin: 0; padding: 0; }
 .pdf-mode .report-footer { display: none !important; }
 /* page breaks handled naturally by html2pdf avoid rules */
 .pdf-mode .ext510-header-block {
-    padding: 4px 8px; gap: 8px; margin: 0 !important;
+    display: flex !important; flex-wrap: nowrap !important;
+    align-items: center;
+    padding: 8px 12px; gap: 10px; margin: 0 !important;
     background: #a0a0a0 !important;
+    width: 100% !important; max-width: 100% !important;
+    box-sizing: border-box !important; overflow: hidden;
 }
-.pdf-mode .ext510-title-area h1 { font-size: 18px; color: #222 !important; }
+.pdf-mode .ext510-title-area { flex: 1; text-align: center; min-width: 0; }
+.pdf-mode .ext510-title-area h1 { font-size: 19px; color: #000 !important; font-weight: 700; }
+.pdf-mode .ext510-meta-area { flex-shrink: 0; text-align: right; }
+.pdf-mode .ext510-meta { color: #000 !important; font-size: 11px; }
 .pdf-mode .ext510-equip-id {
-    padding: 2px 10px; margin: 0 !important; font-size: 13px;
+    padding: 6px 10px; margin: 4px 0 6px 0 !important; font-size: 13px;
     background: #888888 !important; color: #fff !important;
+    text-align: center; width: 100% !important; box-sizing: border-box !important;
 }
+.pdf-mode .ext510-logo { flex-shrink: 0; }
 .pdf-mode .ext510-logo img { width: 80px; }
-.pdf-mode .ext510-equip-table { table-layout: fixed; width: 100%; font-size: 10px; }
+.pdf-mode .ext510-equip-table { table-layout: fixed !important; width: 100% !important; max-width: 100% !important; font-size: 11px; border-collapse: collapse; color: #000 !important; }
 .pdf-mode .ext510-equip-table td, .pdf-mode .ext510-equip-table th {
-    white-space: normal !important; word-wrap: break-word; overflow: hidden; padding: 2px 3px;
+    white-space: normal !important; word-wrap: break-word !important; overflow-wrap: break-word !important;
+    overflow: hidden !important; padding: 6px 6px !important; color: #000; vertical-align: middle !important; text-align: center !important;
 }
+.pdf-mode .ext510-equip-table .value { padding: 6px 6px !important; color: #000 !important; }
 .pdf-mode .ext510-tbl-hdr {
-    background: #222 !important; color: #fff !important; font-size: 9px; padding: 2px 3px; letter-spacing: 0;
+    background: #222 !important; color: #ffffff !important; font-size: 10px !important; padding: 6px 6px !important; letter-spacing: 0.3px !important; text-align: center;
 }
+/* Override info-table label/value widths for 5-column ext510 equipment tables */
+.pdf-mode .ext510-equip-table .label,
+.pdf-mode .ext510-equip-table .value { width: auto !important; }
 .pdf-mode .ext510-insp-label {
-    background: #222 !important; color: #fff !important;
+    background: #222 !important; color: #ffffff !important;
 }
-.pdf-mode .checklist-table { font-size: 11px; margin: 0 !important; border-collapse: collapse; border-spacing: 0; width: 100%; table-layout: fixed; }
-.pdf-mode .checklist-table td, .pdf-mode .checklist-table th { padding: 2px 3px; border: 1px solid #999; overflow: hidden; word-wrap: break-word; }
+.pdf-mode .checklist-table { font-size: 11px; margin: 0 !important; border-collapse: collapse; border-spacing: 0; width: 100%; table-layout: fixed; color: #000 !important; }
+.pdf-mode .checklist-table td { padding: 2px 3px; border: 1px solid #999; overflow: hidden; word-wrap: break-word; color: #000 !important; }
+.pdf-mode .checklist-table th { padding: 2px 3px; border: 1px solid #999; overflow: hidden; word-wrap: break-word; }
 .pdf-mode .cl-toolbar { display: none !important; }
-.pdf-mode .cl-comment { font-size: 11px; border: none; padding: 0; background: transparent; }
+.pdf-mode .cl-comment { font-size: 10px; border: none; padding: 0; background: transparent; overflow: hidden; word-wrap: break-word; max-height: 36px; line-height: 1.2; color: #000 !important; }
 .pdf-mode .checklist-table thead th {
     background: #222222 !important; color: #ffffff !important;
-    border: 1px solid #999; font-size: 11px; text-align: center;
+    border: 1px solid #999; font-size: 10px; text-align: center;
 }
 .pdf-mode .cl-cat-col, .pdf-mode .cl-cat-cell { width: 10%; }
-.pdf-mode .cl-item-col, .pdf-mode .cl-item-cell { width: 20%; }
-.pdf-mode .cl-check-col, .pdf-mode .cl-check-cell { width: 4%; text-align: center; }
-.pdf-mode .cl-loc-col, .pdf-mode .cl-loc-cell { width: 12%; }
-.pdf-mode .cl-comment-col, .pdf-mode .cl-comment-cell { width: auto; }
-.pdf-mode .cl-cat-cell { background: #eee !important; font-weight: 600; text-align: center; font-size: 11px; white-space: normal; }
-.pdf-mode .cl-item-cell { white-space: nowrap; }
+.pdf-mode .cl-item-col, .pdf-mode .cl-item-cell { width: 24%; }
+.pdf-mode .cl-check-col, .pdf-mode .cl-check-cell { width: 3.5%; text-align: center; }
+.pdf-mode .cl-loc-col, .pdf-mode .cl-loc-cell { width: 7%; }
+.pdf-mode .cl-comment-col, .pdf-mode .cl-comment-cell { width: 30%; overflow: hidden !important; word-wrap: break-word !important; white-space: normal !important; }
+.pdf-mode .cl-cat-cell { background: #eee !important; font-weight: 600; text-align: center; font-size: 11px; white-space: normal; color: #000 !important; }
+.pdf-mode .cl-item-cell { white-space: normal !important; word-wrap: break-word !important; font-size: 11px; color: #000 !important; }
 .pdf-mode .cl-check-cell { white-space: nowrap; }
 .pdf-mode .cl-loc-cell { white-space: nowrap; }
-.pdf-mode .orient-dataplate-grid { gap: 2px; margin: 0; }
-.pdf-mode .orient-photo-box { padding: 2px; }
+.pdf-mode .orient-dataplate-grid {
+    display: flex !important; flex-wrap: nowrap !important;
+    gap: 8px; margin: 0;
+}
+.pdf-mode .orient-photo-box {
+    width: calc(50% - 4px); flex-shrink: 0;
+    padding: 0; box-sizing: border-box;
+    border: 1px solid #ccc; overflow: hidden;
+}
 .pdf-mode .orient-photo-label {
     background: #222 !important; color: #fff !important;
 }
-.pdf-mode .ext510-inspector-table { margin-bottom: 0; }
-.pdf-mode .ext510-inspector-table td { padding: 2px 4px; font-size: 12px; }
+.pdf-mode .ext510-inspector-table { margin-bottom: 4px; margin-top: 6px; }
+.pdf-mode .ext510-inspector-table td { padding: 5px 8px; font-size: 13px; color: #000; }
+.pdf-mode .ext510-inspector-table td.ext510-insp-label { color: #ffffff !important; }
+.pdf-mode .ext510-insp-label { font-size: 11px !important; padding: 5px 8px !important; }
 .pdf-mode #ext510-inspector-container,
 .pdf-mode #ext510-narrative-container,
 .pdf-mode #checklist-section-container { margin: 0 !important; padding: 0 !important; overflow: visible !important; max-width: 100% !important; }
@@ -1144,6 +1171,18 @@ body {
     background: var(--gray-900); color: var(--white); font-weight: 700;
     font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
 }
+
+/* ─── Signature Pad ────────────────────────────────────────────────────── */
+.sig-pad-wrap { display: flex; align-items: center; gap: 6px; }
+.sig-canvas {
+    border: 1px solid var(--gray-300); border-radius: 4px;
+    background: #fff; cursor: crosshair; touch-action: none;
+    max-width: 100%; height: 80px;
+}
+.sig-clear-btn { font-size: 10px !important; padding: 2px 8px !important; }
+.sig-image { max-height: 70px; max-width: 100%; }
+.pdf-mode .sig-canvas { border: none; }
+.pdf-mode .sig-image { max-height: 60px; }
 
 /* ─── Checklist Table (510 EXT) ────────────────────────────────────────── */
 .checklist-table {
