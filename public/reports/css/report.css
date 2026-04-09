@@ -776,6 +776,15 @@ body {
 .pdf-mode .report-header + .report-section,
 .pdf-mode .report-section + .report-section { margin-top: 0 !important; }
 .pdf-mode .report-content > * { margin-bottom: 0 !important; }
+.pdf-mode #ext510-narrative-container .ql-editor,
+.pdf-mode #narrative-sections-container .ql-editor {
+    min-height: 120px !important; padding: 10px 4px !important; line-height: 1.6 !important;
+    font-size: 12px !important; color: #000 !important;
+}
+.pdf-mode #ext510-narrative-container .report-section,
+.pdf-mode #narrative-sections-container .report-section { margin-bottom: 16px !important; }
+.pdf-mode #ext510-narrative-container .section-view h3,
+.pdf-mode #narrative-sections-container .section-view h3 { margin-bottom: 6px !important; }
 /* info-table rules consolidated above */
 
 /* ─── Quill Overrides ───────────────────────────────────────────────────── */

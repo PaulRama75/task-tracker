@@ -217,6 +217,32 @@ var PDF = (() => {
             setStyle(cell, 'padding', '2px 3px', styleTracker);
         });
 
+        // Add page break markers for PDF layout control
+        // Page 1: header + orient/dataplate + inspector
+        // Page 2: checklist
+        // Page 3: inspection photos
+        const checklistContainer = content.querySelector('#checklist-section-container');
+        if (checklistContainer && !checklistContainer.classList.contains('hidden')) {
+            checklistContainer.classList.add('pdf-page-break');
+        }
+        const photoSec = content.querySelector('[data-section="photos"]');
+        if (photoSec) {
+            photoSec.classList.add('pdf-page-break');
+        }
+
+        // Add padding to summary/recommendations for cleaner look
+        content.querySelectorAll('#ext510-narrative-container .report-section').forEach(sec => {
+            setStyle(sec, 'marginBottom', '20px', styleTracker);
+        });
+        content.querySelectorAll('#ext510-narrative-container .ql-editor, #narrative-sections-container .ql-editor').forEach(ed => {
+            setStyle(ed, 'minHeight', '120px', styleTracker);
+            setStyle(ed, 'padding', '10px 4px', styleTracker);
+            setStyle(ed, 'lineHeight', '1.6', styleTracker);
+        });
+        content.querySelectorAll('#ext510-narrative-container .section-view h3, #narrative-sections-container .section-view h3').forEach(h3 => {
+            setStyle(h3, 'marginBottom', '8px', styleTracker);
+        });
+
         // Force images and divs to stay within width
         content.querySelectorAll('img').forEach(img => {
             setStyle(img, 'maxWidth', '100%', styleTracker);
@@ -346,33 +372,53 @@ var PDF = (() => {
                 const { jsPDF } = jspdf;
                 const pdf = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
 
-                // Collect section boundaries (in mm) for smart page breaks
+                // Collect forced page break positions (in mm)
                 const contentRect = content.getBoundingClientRect();
                 const pxToMm = imgWidth / canvas.width * 2; // scale=2
+                const forcedBreaks = [];
+                content.querySelectorAll('.pdf-page-break').forEach(function(el) {
+                    const elRect = el.getBoundingClientRect();
+                    const topMm = (elRect.top - contentRect.top) * pxToMm;
+                    if (topMm > 10) forcedBreaks.push(topMm);
+                });
+                forcedBreaks.sort(function(a, b) { return a - b; });
+
+                // Also collect section boundaries for fallback smart breaks
                 const sectionBreaks = [];
-                content.querySelectorAll('.report-section, .orient-dataplate-grid, .ext510-inspector-table, .checklist-table, .ext510-equip-table, .section-view, .ql-editor').forEach(function(el) {
+                content.querySelectorAll('.report-section, .orient-dataplate-grid, .ext510-inspector-table, .checklist-table, .ext510-equip-table').forEach(function(el) {
                     const elRect = el.getBoundingClientRect();
                     const topMm = (elRect.top - contentRect.top) * pxToMm;
                     const bottomMm = (elRect.bottom - contentRect.top) * pxToMm;
                     sectionBreaks.push({ top: topMm, bottom: bottomMm });
                 });
 
-                // Smart page splitting — avoid cutting through sections
+                // Build page break points: use forced breaks first, then smart fill
                 let yOffset = 0;
                 let pageNum = 0;
                 while (yOffset < imgHeight) {
                     if (pageNum > 0) pdf.addPage();
                     let sliceH = Math.min(usableH, imgHeight - yOffset);
 
-                    // If not the last page, find a better break point
-                    if (yOffset + sliceH < imgHeight) {
-                        const cutY = yOffset + sliceH;
-                        // Check if cut goes through any section
-                        for (let i = 0; i < sectionBreaks.length; i++) {
-                            const s = sectionBreaks[i];
+                    // Check for forced page break within this page's range
+                    var nextForced = null;
+                    for (var fi = 0; fi < forcedBreaks.length; fi++) {
+                        var fb = forcedBreaks[fi];
+                        if (fb > yOffset + 5 && fb < yOffset + sliceH) {
+                            nextForced = fb;
+                            break;
+                        }
+                    }
+
+                    if (nextForced !== null) {
+                        // Break at the forced position
+                        sliceH = nextForced - yOffset;
+                    } else if (yOffset + sliceH < imgHeight) {
+                        // No forced break — use smart section-aware breaking
+                        var cutY = yOffset + sliceH;
+                        for (var si = 0; si < sectionBreaks.length; si++) {
+                            var s = sectionBreaks[si];
                             if (s.top < cutY && s.bottom > cutY) {
-                                // Cut goes through this section — break before it if possible
-                                const breakBefore = s.top - yOffset;
+                                var breakBefore = s.top - yOffset;
                                 if (breakBefore > usableH * 0.3) {
                                     sliceH = breakBefore;
                                 }
@@ -430,6 +476,8 @@ var PDF = (() => {
             styleTracker.forEach(({ el, prop, prev }) => { el.style[prop] = prev; });
             // Restore hidden UI elements
             hiddenEls.forEach(({ el, prev }) => { el.style.display = prev; });
+            // Remove page break markers
+            content.querySelectorAll('.pdf-page-break').forEach(el => el.classList.remove('pdf-page-break'));
         }
     }
 
