@@ -352,6 +352,30 @@ var PDF = (() => {
                             span.style.cssText = 'font-size:12px;color:#333;';
                             inp.parentNode.replaceChild(span, inp);
                         });
+                        // Remove white background from logo
+                        var logoImg = clonedDoc.querySelector('.ext510-logo img');
+                        if (logoImg) {
+                            try {
+                                var c = document.createElement('canvas');
+                                var cctx = c.getContext('2d');
+                                var img = new Image();
+                                img.crossOrigin = 'anonymous';
+                                img.src = logoImg.src;
+                                c.width = img.naturalWidth || 173;
+                                c.height = img.naturalHeight || 124;
+                                cctx.drawImage(img, 0, 0);
+                                var imgData = cctx.getImageData(0, 0, c.width, c.height);
+                                var d = imgData.data;
+                                for (var i = 0; i < d.length; i += 4) {
+                                    // Make near-white pixels transparent
+                                    if (d[i] > 200 && d[i+1] > 200 && d[i+2] > 200) {
+                                        d[i+3] = 0;
+                                    }
+                                }
+                                cctx.putImageData(imgData, 0, 0);
+                                logoImg.src = c.toDataURL('image/png');
+                            } catch(e) { /* cross-origin or other error, skip */ }
+                        }
                         // Convert signature canvas to image in clone
                         var liveSigCanvas = document.getElementById('sig-canvas');
                         var cloneSigCanvas = clonedDoc.getElementById('sig-canvas');
