@@ -218,16 +218,24 @@ var PDF = (() => {
         });
 
         // Add page break markers for PDF layout control
-        // Page 1: header + orient/dataplate + inspector
+        // Page 1: header + orient/dataplate + inspector + summary/recommendations
         // Page 2: checklist
         // Page 3: inspection photos
         const checklistContainer = content.querySelector('#checklist-section-container');
         if (checklistContainer && !checklistContainer.classList.contains('hidden')) {
             checklistContainer.classList.add('pdf-page-break');
+            // Also mark the table itself in case container has no height
+            const checklistTable = checklistContainer.querySelector('.checklist-table');
+            if (checklistTable) checklistTable.classList.add('pdf-page-break');
         }
         const photoSec = content.querySelector('[data-section="photos"]');
         if (photoSec) {
             photoSec.classList.add('pdf-page-break');
+        }
+        // Mark narrative containers that come before checklist
+        const narrativeContainer = content.querySelector('#ext510-narrative-container');
+        if (narrativeContainer && !narrativeContainer.classList.contains('hidden')) {
+            // Narrative should stay on page 1 — no break needed
         }
 
         // Add padding to summary/recommendations for cleaner look
@@ -395,16 +403,20 @@ var PDF = (() => {
                 // Build page break points: use forced breaks first, then smart fill
                 let yOffset = 0;
                 let pageNum = 0;
+                var usedBreaks = {};
                 while (yOffset < imgHeight) {
                     if (pageNum > 0) pdf.addPage();
                     let sliceH = Math.min(usableH, imgHeight - yOffset);
 
                     // Check for forced page break within this page's range
+                    // Find the FIRST unused forced break in range
                     var nextForced = null;
                     for (var fi = 0; fi < forcedBreaks.length; fi++) {
                         var fb = forcedBreaks[fi];
-                        if (fb > yOffset + 5 && fb < yOffset + sliceH) {
+                        if (usedBreaks[fi]) continue;
+                        if (fb > yOffset + 5 && fb <= yOffset + sliceH) {
                             nextForced = fb;
+                            usedBreaks[fi] = true;
                             break;
                         }
                     }
