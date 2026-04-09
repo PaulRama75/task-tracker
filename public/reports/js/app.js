@@ -1883,7 +1883,7 @@ const App = (() => {
         $('#btn-pdf').addEventListener('click', async () => {
             if (!currentReport) return;
             if (dirty) await saveAll();
-            await PDF.generate(currentReport);
+            await PDF.generate(currentReport, { autoDownload: true });
         });
 
         // Admin
