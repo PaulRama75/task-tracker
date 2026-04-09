@@ -1275,6 +1275,11 @@ async function tirForceUnlock(reportId) {
 
 // ========== TIR PHOTO OPERATIONS ==========
 async function tirAddPhoto(reportId, photoData) {
+  // Assign unique ID to photo
+  const report = await pool.query('SELECT photos FROM tir_reports WHERE id=$1', [reportId]);
+  const existing = report.rows.length ? (report.rows[0].photos || []) : [];
+  const maxId = existing.reduce((max, p) => Math.max(max, p.id || 0), 0);
+  photoData.id = maxId + 1;
   const { rows } = await pool.query(
     `UPDATE tir_reports SET photos = COALESCE(photos, '[]'::jsonb) || $2::jsonb, updated_at=NOW() WHERE id=$1 RETURNING photos`,
     [reportId, JSON.stringify([photoData])]
@@ -1282,8 +1287,21 @@ async function tirAddPhoto(reportId, photoData) {
   return rows[0];
 }
 
+async function tirUpdatePhoto(reportId, photoId, updates) {
+  const report = await pool.query('SELECT photos FROM tir_reports WHERE id=$1', [reportId]);
+  if (!report.rows.length) return null;
+  const photos = (report.rows[0].photos || []).map(p => {
+    if (p.id === photoId) return { ...p, ...updates };
+    return p;
+  });
+  const { rows } = await pool.query(
+    'UPDATE tir_reports SET photos=$2, updated_at=NOW() WHERE id=$1 RETURNING photos',
+    [reportId, JSON.stringify(photos)]
+  );
+  return rows[0];
+}
+
 async function tirDeletePhoto(reportId, photoId) {
-  // Remove photo with matching id from JSONB array
   const report = await pool.query('SELECT photos FROM tir_reports WHERE id=$1', [reportId]);
   if (!report.rows.length) return null;
   const photos = (report.rows[0].photos || []).filter(p => p.id !== photoId);
@@ -1469,7 +1487,7 @@ module.exports = {
   getTirReports, createTirReport, getTirReport, updateTirReportStatus, deleteTirReport,
   tirSaveSection, tirAcquireLock, tirReleaseLock, tirForceUnlock,
   // TIR Photos
-  tirAddPhoto, tirDeletePhoto,
+  tirAddPhoto, tirUpdatePhoto, tirDeletePhoto,
   // TIR Attachments
   getTirAttachments, tirAddAttachment, tirDeleteAttachment,
   // TIR Versions

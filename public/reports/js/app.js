@@ -897,11 +897,13 @@ const App = (() => {
             });
         });
         grid.querySelectorAll('.caption-input').forEach(inp => {
-            inp.addEventListener('change', () => {
-                const data = JSON.parse(localStorage.getItem('tir_data'));
-                const report = data.reports.find(r => r.id === currentReport.id);
-                const photo = (report.photos || []).find(p => p.id === parseInt(inp.dataset.photoId));
-                if (photo) { photo.caption = inp.value; localStorage.setItem('tir_data', JSON.stringify(data)); }
+            inp.addEventListener('change', async () => {
+                const photoId = parseInt(inp.dataset.photoId);
+                try {
+                    await API.updatePhoto(currentReport.id, photoId, { caption: inp.value });
+                    currentReport = await API.getReport(currentReport.id);
+                    toast('Caption saved', 'success');
+                } catch (err) { toast('Failed to save caption: ' + err.message, 'error'); }
             });
         });
     }

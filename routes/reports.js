@@ -194,6 +194,13 @@ router.post('/api/tir/reports/:id/photos', authRequired, asyncHandler(async (req
   res.json(result);
 }));
 
+router.put('/api/tir/reports/:id/photos/:photoId', authRequired, asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const photoId = parseInt(req.params.photoId, 10);
+  const result = await db.tirUpdatePhoto(id, photoId, req.body);
+  res.json(result);
+}));
+
 router.delete('/api/tir/reports/:id/photos/:photoId', authRequired, asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const photoId = parseInt(req.params.photoId, 10);

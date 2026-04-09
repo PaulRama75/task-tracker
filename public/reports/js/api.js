@@ -417,6 +417,11 @@ const API = (() => {
             return handleRes(res);
         },
 
+        async updatePhoto(reportId, photoId, updates) {
+            const res = await jsonPut(`${BASE}/reports/${reportId}/photos/${photoId}`, updates);
+            return handleRes(res);
+        },
+
         async deletePhoto(reportId, photoId) {
             const res = await jsonDelete(`${BASE}/reports/${reportId}/photos/${photoId}`);
             return handleRes(res);
