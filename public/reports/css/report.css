@@ -424,6 +424,11 @@ body {
 /* ─── Print / PDF Styles ────────────────────────────────────────────────── */
 
 /* Both @media print AND .pdf-mode apply the same styles */
+@page {
+    size: 8.5in 11in;
+    margin: 0.5in 0.4in 0.6in 0.4in;
+}
+
 @media print {
     /* Hide UI elements */
     .top-bar, .section-toolbar, .btn-edit, .btn-save, .btn-cancel,
@@ -431,7 +436,9 @@ body {
     #photo-upload-panel, #photo-upload-area, #inspector-edit-area,
     .save-bar, .photo-file-input, .ql-toolbar, .version-banner,
     .library-container, #admin-modal, #version-modal, .import-bar,
-    .rejection-banner, #attachment-upload-area, #att-viewer-modal { display: none !important; }
+    .rejection-banner, #attachment-upload-area, #att-viewer-modal,
+    .orient-photo-actions, .lock-status, #btn-lock, #btn-unlock,
+    #btn-pdf, .photo-caption-area input { display: none !important; }
     .ql-container.ql-snow { border: none !important; background: transparent !important; }
     .ql-editor { padding: 0 !important; min-height: auto !important; }
 
@@ -448,16 +455,16 @@ body {
 
     body { background: white !important; margin: 0; padding: 0; }
     .report-container { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
-    .report-content { box-shadow: none !important; border-radius: 0; }
+    .report-content { box-shadow: none !important; border-radius: 0; overflow: visible !important; }
 
     /* Section boxes with borders */
     .report-section {
         border: none !important;
         border-radius: 0 !important;
         margin: 0 !important;
-        overflow: hidden !important;
-        page-break-inside: avoid;
-        break-inside: avoid;
+        overflow: visible !important;
+        page-break-inside: auto;
+        break-inside: auto;
     }
     .report-section .section-view {
         padding: 0 4px !important;
@@ -602,7 +609,7 @@ body {
 .pdf-mode .section-toolbar { display: none !important; }
 .pdf-mode .section-edit { display: none !important; }
 .pdf-mode .report-container { margin: 0; padding: 0; max-width: 100%; }
-.pdf-mode .report-content { box-shadow: none; }
+.pdf-mode .report-content { box-shadow: none; overflow: visible !important; }
 .pdf-mode .photo-delete { display: none !important; }
 .pdf-mode .toast-container { display: none !important; }
 .pdf-mode * {
@@ -612,7 +619,7 @@ body {
 }
 .pdf-mode .report-section {
     border: none; border-radius: 0;
-    margin: 0 !important; padding: 0 !important; overflow: hidden;
+    margin: 0 !important; padding: 0 !important; overflow: visible;
     box-shadow: none;
 }
 .pdf-mode .report-section .section-view { padding: 0 4px; margin: 0; }

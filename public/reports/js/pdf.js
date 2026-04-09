@@ -15,17 +15,17 @@ const PDF = (() => {
             pdf.setTextColor(80, 80, 80);
             const headerText = `${equipNum} - ${reportTitle}`;
             const headerW = pdf.getStringUnitWidth(headerText) * 9 / pdf.internal.scaleFactor;
-            pdf.text(headerText, (pageW - headerW) / 2, 6);
+            pdf.text(headerText, (pageW - headerW) / 2, 8);
 
             // Bottom left: Ferinspection.com
             pdf.setFontSize(8);
             pdf.setTextColor(120, 120, 120);
-            pdf.text('Ferinspection.com', 8, pageH - 4);
+            pdf.text('Ferinspection.com', 10, pageH - 6);
 
             // Bottom right: Page X / Y
             const pageText = `Page ${i} / ${pageCount}`;
             const pageTextW = pdf.getStringUnitWidth(pageText) * 8 / pdf.internal.scaleFactor;
-            pdf.text(pageText, pageW - pageTextW - 8, pageH - 4);
+            pdf.text(pageText, pageW - pageTextW - 10, pageH - 6);
         }
     }
 
@@ -68,7 +68,29 @@ const PDF = (() => {
         // Apply PDF mode
         content.classList.add('pdf-mode');
         document.body.classList.add('printing');
-        await new Promise(r => setTimeout(r, 150));
+
+        // Ensure ALL sections are visible and expanded for PDF capture
+        content.querySelectorAll('.report-section').forEach(sec => {
+            sec.style.display = '';
+            sec.classList.remove('hidden');
+        });
+        content.querySelectorAll('[id$="-container"]').forEach(el => {
+            el.classList.remove('hidden');
+            el.style.display = '';
+        });
+
+        // Show photo captions as text (not input fields) for PDF
+        content.querySelectorAll('.caption-input').forEach(inp => {
+            const span = document.createElement('span');
+            span.className = 'photo-caption-pdf';
+            span.textContent = inp.value || '';
+            span.style.cssText = 'font-size:11px;display:block;padding:2px 4px;color:#333;';
+            inp.style.display = 'none';
+            inp.parentNode.appendChild(span);
+        });
+
+        // Wait for DOM to settle
+        await new Promise(r => setTimeout(r, 300));
 
         // Force inline colors for html2canvas
         const originals = forceInlineColors(content);
@@ -76,21 +98,28 @@ const PDF = (() => {
         if (opts.autoDownload && typeof html2pdf !== 'undefined') {
             const filename = `${equipNum}_Final_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
 
+            // Letter size: 8.5 x 11 inches = 215.9 x 279.4 mm
             const pdfOpt = {
-                margin: [8, 5, 10, 5],
+                margin: [12, 8, 14, 8],  // top, right, bottom, left in mm
                 filename,
-                image: { type: 'jpeg', quality: 0.92 },
+                image: { type: 'jpeg', quality: 0.95 },
                 html2canvas: {
                     scale: 2,
                     useCORS: true,
                     scrollY: 0,
-                    windowWidth: 850,
+                    windowWidth: 980,
                     logging: false,
                     backgroundColor: '#ffffff',
                     removeContainer: true,
+                    letterRendering: true,
                 },
                 jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: ['.photo-card', '.info-table', 'tr'] },
+                pagebreak: {
+                    mode: ['css', 'legacy'],
+                    before: '.page-break-before',
+                    after: '.page-break-after',
+                    avoid: ['.photo-card', '.info-table', 'tr', '.orient-photo-box', '.ext510-header-block', '.checklist-table thead'],
+                },
             };
 
             try {
@@ -98,24 +127,15 @@ const PDF = (() => {
                 const pdf = await worker.toPdf().get('pdf');
                 addHeaderFooter(pdf, equipNum, reportTitle);
                 await worker.save();
-                restoreInlineColors(originals);
-                content.classList.remove('pdf-mode');
-                document.body.classList.remove('printing');
-                return true;
             } catch (err) {
-                restoreInlineColors(originals);
-                content.classList.remove('pdf-mode');
-                document.body.classList.remove('printing');
+                console.error('html2pdf error:', err);
                 window.print();
-                setTimeout(() => {
-                    content.classList.remove('pdf-mode');
-                    document.body.classList.remove('printing');
-                }, 500);
-                return true;
+            } finally {
+                cleanup();
             }
+            return true;
         } else {
-            restoreInlineColors(originals);
-            // Browser print — use CSS for headers/footers
+            cleanup();
             window.print();
             setTimeout(() => {
                 content.classList.remove('pdf-mode');
@@ -123,6 +143,15 @@ const PDF = (() => {
                 App.toast('Use "Save as PDF" in the print dialog.', 'info');
             }, 500);
             return true;
+        }
+
+        function cleanup() {
+            restoreInlineColors(originals);
+            content.classList.remove('pdf-mode');
+            document.body.classList.remove('printing');
+            // Remove caption spans added for PDF
+            content.querySelectorAll('.photo-caption-pdf').forEach(s => s.remove());
+            content.querySelectorAll('.caption-input').forEach(inp => inp.style.display = '');
         }
     }
 
