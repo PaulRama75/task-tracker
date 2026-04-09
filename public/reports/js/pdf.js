@@ -2,7 +2,7 @@
 
 const PDF = (() => {
 
-    const CONTENT_WIDTH = 1120; // px — fixed width for PDF rendering (wider to fit all columns)
+    const CONTENT_WIDTH = 1300; // px — fixed width for PDF rendering (wider to fit all columns)
     const WINDOW_WIDTH = CONTENT_WIDTH + 20; // slightly wider viewport
 
     function addHeaderFooter(pdf, equipNum, reportTitle) {

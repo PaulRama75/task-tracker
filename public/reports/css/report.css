@@ -709,8 +709,12 @@ body {
     background: #888888 !important; color: #fff !important;
 }
 .pdf-mode .ext510-logo img { width: 80px; }
+.pdf-mode .ext510-equip-table { table-layout: fixed; width: 100%; font-size: 10px; }
+.pdf-mode .ext510-equip-table td, .pdf-mode .ext510-equip-table th {
+    white-space: normal !important; word-wrap: break-word; overflow: hidden; padding: 2px 3px;
+}
 .pdf-mode .ext510-tbl-hdr {
-    background: #222 !important; color: #fff !important;
+    background: #222 !important; color: #fff !important; font-size: 9px; padding: 2px 3px; letter-spacing: 0;
 }
 .pdf-mode .ext510-insp-label {
     background: #222 !important; color: #fff !important;
