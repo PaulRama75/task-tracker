@@ -304,7 +304,7 @@ body {
     text-transform: uppercase; letter-spacing: .5px;
 }
 .orient-photo-img {
-    min-height: 220px; display: flex; align-items: center;
+    min-height: 240px; display: flex; align-items: center;
     justify-content: center; background: var(--gray-50);
 }
 .orient-photo-img img {
