@@ -204,7 +204,8 @@ router.put('/api/tir/reports/:id/photos/:photoId', authRequired, asyncHandler(as
 router.delete('/api/tir/reports/:id/photos/:photoId', authRequired, asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const photoId = parseInt(req.params.photoId, 10);
-  const result = await db.tirDeletePhoto(id, photoId);
+  const bodyIdx = req.body && req.body._idx != null ? parseInt(req.body._idx) : undefined;
+  const result = await db.tirDeletePhoto(id, photoId, bodyIdx);
   res.json(result);
 }));
 

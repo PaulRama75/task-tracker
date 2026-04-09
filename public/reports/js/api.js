@@ -417,13 +417,13 @@ const API = (() => {
             return handleRes(res);
         },
 
-        async updatePhoto(reportId, photoId, updates) {
-            const res = await jsonPut(`${BASE}/reports/${reportId}/photos/${photoId}`, updates);
+        async updatePhoto(reportId, photoId, updates, idx) {
+            const res = await jsonPut(`${BASE}/reports/${reportId}/photos/${photoId}`, { ...updates, _idx: idx });
             return handleRes(res);
         },
 
-        async deletePhoto(reportId, photoId) {
-            const res = await jsonDelete(`${BASE}/reports/${reportId}/photos/${photoId}`);
+        async deletePhoto(reportId, photoId, idx) {
+            const res = await jsonDelete(`${BASE}/reports/${reportId}/photos/${photoId}`, { _idx: idx });
             return handleRes(res);
         },
 

@@ -1290,10 +1290,13 @@ async function tirAddPhoto(reportId, photoData) {
 async function tirUpdatePhoto(reportId, photoId, updates) {
   const report = await pool.query('SELECT photos FROM tir_reports WHERE id=$1', [reportId]);
   if (!report.rows.length) return null;
-  const photos = (report.rows[0].photos || []).map(p => {
-    if (p.id === photoId) return { ...p, ...updates };
-    return p;
-  });
+  const photos = report.rows[0].photos || [];
+  const idx = updates._idx;
+  delete updates._idx;
+  // Find photo by id, or fall back to array index for legacy photos without ids
+  const targetIdx = photos.findIndex(p => p.id === photoId);
+  const useIdx = targetIdx >= 0 ? targetIdx : (typeof idx === 'number' && idx >= 0 && idx < photos.length ? idx : -1);
+  if (useIdx >= 0) photos[useIdx] = { ...photos[useIdx], ...updates };
   const { rows } = await pool.query(
     'UPDATE tir_reports SET photos=$2, updated_at=NOW() WHERE id=$1 RETURNING photos',
     [reportId, JSON.stringify(photos)]
@@ -1301,10 +1304,19 @@ async function tirUpdatePhoto(reportId, photoId, updates) {
   return rows[0];
 }
 
-async function tirDeletePhoto(reportId, photoId) {
+async function tirDeletePhoto(reportId, photoId, bodyIdx) {
   const report = await pool.query('SELECT photos FROM tir_reports WHERE id=$1', [reportId]);
   if (!report.rows.length) return null;
-  const photos = (report.rows[0].photos || []).filter(p => p.id !== photoId);
+  let photos = report.rows[0].photos || [];
+  // Find by id first, fall back to index for legacy photos
+  const targetIdx = photos.findIndex(p => p.id === photoId);
+  if (targetIdx >= 0) {
+    photos.splice(targetIdx, 1);
+  } else if (typeof bodyIdx === 'number' && bodyIdx >= 0 && bodyIdx < photos.length) {
+    photos.splice(bodyIdx, 1);
+  } else {
+    photos = photos.filter(p => p.id !== photoId);
+  }
   const { rows } = await pool.query(
     'UPDATE tir_reports SET photos=$2, updated_at=NOW() WHERE id=$1 RETURNING photos',
     [reportId, JSON.stringify(photos)]

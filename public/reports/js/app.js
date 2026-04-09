@@ -879,28 +879,37 @@ const App = (() => {
             return;
         }
 
-        grid.innerHTML = photos.map(p => `
-            <div class="photo-card" data-photo-id="${p.id}">
+        // Use array index as fallback ID for photos that don't have one
+        grid.innerHTML = photos.map((p, idx) => {
+            const pid = p.id != null ? p.id : idx;
+            return `
+            <div class="photo-card" data-photo-id="${pid}" data-photo-idx="${idx}">
                 <img src="${p.dataUrl || p.filepath}" alt="${esc(p.caption || '')}">
                 <div class="photo-caption-area">
-                    <input type="text" class="caption-input" data-photo-id="${p.id}" value="${esc(p.caption || '')}" placeholder="Add description..." ${hasLock ? '' : 'readonly'}>
+                    <input type="text" class="caption-input" data-photo-id="${pid}" data-photo-idx="${idx}" value="${esc(p.caption || '')}" placeholder="Add description..." ${hasLock ? '' : 'readonly'}>
                 </div>
                 ${hasLock ? '<button class="photo-delete" title="Delete">&times;</button>' : ''}
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
 
         grid.querySelectorAll('.photo-delete').forEach(btn => {
             btn.addEventListener('click', async () => {
-                await API.deletePhoto(currentReport.id, parseInt(btn.closest('.photo-card').dataset.photoId));
-                currentReport = await API.getReport(currentReport.id);
-                renderPhotos(); toast('Photo deleted', 'info');
+                const card = btn.closest('.photo-card');
+                const photoId = parseInt(card.dataset.photoId);
+                const photoIdx = parseInt(card.dataset.photoIdx);
+                try {
+                    await API.deletePhoto(currentReport.id, photoId, photoIdx);
+                    currentReport = await API.getReport(currentReport.id);
+                    renderPhotos(); toast('Photo deleted', 'info');
+                } catch(e) { toast(e.message, 'error'); }
             });
         });
         grid.querySelectorAll('.caption-input').forEach(inp => {
             inp.addEventListener('change', async () => {
                 const photoId = parseInt(inp.dataset.photoId);
+                const photoIdx = parseInt(inp.dataset.photoIdx);
                 try {
-                    await API.updatePhoto(currentReport.id, photoId, { caption: inp.value });
+                    await API.updatePhoto(currentReport.id, photoId, { caption: inp.value }, photoIdx);
                     currentReport = await API.getReport(currentReport.id);
                     toast('Caption saved', 'success');
                 } catch (err) { toast('Failed to save caption: ' + err.message, 'error'); }
