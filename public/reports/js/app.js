@@ -602,6 +602,7 @@ const App = (() => {
             <button type="button" data-cmd="foreColor" data-val="#e74c3c" title="Red Text" style="color:#e74c3c;"><b>A</b></button>
             <button type="button" data-cmd="removeFormat" title="Clear Formatting">&#10005;</button>
         </div>`;
+        html += '<h3>CHECKLIST</h3>';
         html += '<table class="checklist-table"><thead><tr>';
         html += '<th class="cl-cat-col">Category</th><th class="cl-item-col">Item</th>';
         html += '<th class="cl-check-col">Yes</th><th class="cl-check-col">No</th><th class="cl-check-col">N/A</th>';
