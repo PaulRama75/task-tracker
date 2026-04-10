@@ -782,7 +782,7 @@ body {
 .pdf-mode #ext510-narrative-container .ql-editor,
 .pdf-mode #narrative-sections-container .ql-editor {
     min-height: 120px !important; padding: 10px 4px !important; line-height: 1.6 !important;
-    font-size: 13px !important; color: #000 !important;
+    font-size: 14px !important; color: #000 !important;
 }
 .pdf-mode #ext510-narrative-container .report-section,
 .pdf-mode #narrative-sections-container .report-section { margin-bottom: 16px !important; }
