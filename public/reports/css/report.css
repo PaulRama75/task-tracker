@@ -786,6 +786,8 @@ body {
 }
 .pdf-mode #ext510-narrative-container .report-section,
 .pdf-mode #narrative-sections-container .report-section { margin-bottom: 16px !important; }
+.pdf-mode #ext510-narrative-container,
+.pdf-mode #narrative-sections-container { margin-bottom: 30px !important; }
 .pdf-mode #ext510-narrative-container .section-view h3,
 .pdf-mode #narrative-sections-container .section-view h3 { margin-bottom: 6px !important; }
 /* info-table rules consolidated above */
