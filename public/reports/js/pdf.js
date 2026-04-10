@@ -224,9 +224,6 @@ var PDF = (() => {
         const checklistContainer = content.querySelector('#checklist-section-container');
         if (checklistContainer && !checklistContainer.classList.contains('hidden')) {
             checklistContainer.classList.add('pdf-page-break');
-            // Also mark the table itself in case container has no height
-            const checklistTable = checklistContainer.querySelector('.checklist-table');
-            if (checklistTable) checklistTable.classList.add('pdf-page-break');
         }
         const photoSec = content.querySelector('[data-section="photos"]');
         if (photoSec) {
