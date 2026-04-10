@@ -2,28 +2,28 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --primary: #111;
-    --primary-light: #333;
+    --primary: #1F3A5F;
+    --primary-light: #4A90A4;
     --success: #27ae60;
     --warning: #f39c12;
     --danger: #e74c3c;
-    --gray-50: #f8f9fa;
-    --gray-100: #f0f0f0;
-    --gray-200: #e0e0e0;
-    --gray-300: #ccc;
-    --gray-500: #888;
-    --gray-700: #444;
-    --gray-900: #222;
+    --gray-50: #F4F6F8;
+    --gray-100: #eef1f4;
+    --gray-200: #dde2e8;
+    --gray-300: #c5ccd4;
+    --gray-500: #7a8694;
+    --gray-700: #333333;
+    --gray-900: #1F3A5F;
     --white: #fff;
-    --shadow: 0 2px 8px rgba(0,0,0,.08);
+    --shadow: 0 2px 8px rgba(31,58,95,.1);
     --radius: 6px;
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 14px;
-    color: var(--gray-900);
-    background: #000;
+    color: #333333;
+    background: #1a2a3a;
     line-height: 1.5;
 }
 
@@ -43,7 +43,7 @@ body {
 .btn-warning { background: var(--warning); color: var(--white); border-color: var(--warning); }
 .btn-danger { background: var(--danger); color: var(--white); border-color: var(--danger); }
 .btn-outline { background: transparent; }
-.btn-edit { background: #333; color: #fff; border-color: #333; }
+.btn-edit { background: #1F3A5F; color: #fff; border-color: #1F3A5F; }
 .btn-save { background: var(--success); color: #fff; border-color: var(--success); }
 .btn-cancel { background: var(--gray-500); color: #fff; border-color: var(--gray-500); }
 
@@ -110,7 +110,7 @@ body {
 }
 
 .report-header {
-    background: #a0a0a0; color: var(--gray-900);
+    background: #4A90A4; color: var(--gray-900);
     padding: 24px 32px; text-align: center;
 }
 .report-header h1 { font-size: 22px; letter-spacing: 1px; margin-bottom: 4px; color: var(--gray-900); }
@@ -128,7 +128,7 @@ body {
 .section-view { padding: 16px 24px; }
 .section-view h3 {
     font-size: 14px; color: var(--white); margin-bottom: 10px;
-    padding: 6px 14px; background: #000; text-align: center;
+    padding: 6px 14px; background: #1F3A5F; text-align: center;
     text-transform: uppercase; letter-spacing: .5px;
     margin-left: -24px; margin-right: -24px; margin-top: -16px;
 }
@@ -139,14 +139,14 @@ body {
     border-radius: 3px; font-size: 12px; background: #fffef5;
     text-align: center;
 }
-.inline-input:focus { outline: 2px solid #333; border-color: #333; }
+.inline-input:focus { outline: 2px solid #4A90A4; border-color: #4A90A4; }
 .inline-textarea {
     width: 100%; padding: 8px 10px; border: 1px solid var(--gray-300);
     border-radius: 4px; font-size: 13px; font-family: inherit;
     min-height: 80px; resize: vertical; background: #fffef5;
     line-height: 1.6;
 }
-.inline-textarea:focus { outline: 2px solid #333; border-color: #333; }
+.inline-textarea:focus { outline: 2px solid #4A90A4; border-color: #4A90A4; }
 .narrative-wrap { min-height: 40px; }
 
 /* ─── Photo Drop Zone ──────────────────────────────────────────────────── */
@@ -161,7 +161,7 @@ body {
 }
 .photo-drop-zone:hover {
     border-color: #666;
-    background: #f5f5f0;
+    background: #F4F6F8;
 }
 .photo-drop-zone.drag-over {
     border-color: #f0a500;
@@ -187,11 +187,11 @@ body {
 }
 .import-bar.hidden { display: none; }
 .btn-import {
-    background: #2c3e50; color: #fff; border: 2px solid #2c3e50;
+    background: #1F3A5F; color: #fff; border: 2px solid #1F3A5F;
     padding: 8px 20px; font-size: 14px; font-weight: 700;
     border-radius: 6px; cursor: pointer; letter-spacing: 0.3px;
 }
-.btn-import:hover { background: #1a252f; }
+.btn-import:hover { background: #162d4a; }
 
 /* ─── Review Badge ──────────────────────────────────────────────────────── */
 .review-count-badge {
@@ -299,7 +299,7 @@ body {
     overflow: hidden;
 }
 .orient-photo-label {
-    background: #000; color: #fff; text-align: center;
+    background: #1F3A5F; color: #fff; text-align: center;
     font-weight: 700; font-size: 13px; padding: 5px 10px;
     text-transform: uppercase; letter-spacing: .5px;
 }
@@ -470,7 +470,7 @@ body {
         padding: 0 2px !important;
     }
     .report-section .section-view h3 {
-        background: #000 !important;
+        background: #1F3A5F !important;
         color: #fff !important;
         margin: 0 0 2px 0 !important;
         padding: 2px 8px !important;
@@ -489,7 +489,7 @@ body {
         gap: 2px !important;
     }
     .orient-photo-label {
-        background: #000 !important;
+        background: #1F3A5F !important;
         color: #fff !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
@@ -528,14 +528,14 @@ body {
     .info-table .label {
         width: 22% !important;
         white-space: normal !important;
-        background: #f8f9fa !important;
-        background: #f8f9fa !important;
+        background: #F4F6F8 !important;
+        background: #F4F6F8 !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
     .info-table .value { width: 28% !important; }
     .info-table th {
-        background: #000 !important;
+        background: #1F3A5F !important;
         color: #fff !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
@@ -567,7 +567,7 @@ body {
         height: auto !important;
         max-height: 220px !important;
         object-fit: contain !important;
-        background: #f5f5f5 !important;
+        background: #F4F6F8 !important;
     }
     .photo-card .photo-caption {
         font-size: 11px !important;
@@ -589,14 +589,14 @@ body {
         border: 1px solid #999 !important;
     }
     .checklist-table thead th {
-        background: #222 !important;
+        background: #1F3A5F !important;
         color: #fff !important;
         font-size: 11px !important;
         text-align: center !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
-    .cl-cat-cell { font-weight: 600 !important; text-align: center !important; font-size: 11px !important; background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .cl-cat-cell { font-weight: 600 !important; text-align: center !important; font-size: 11px !important; background: #F4F6F8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .cl-item-cell { white-space: normal !important; word-wrap: break-word !important; }
     .cl-check-cell { text-align: center !important; white-space: nowrap !important; }
     .cl-loc-cell { white-space: nowrap !important; }
@@ -607,8 +607,8 @@ body {
 
     /* Checkboxes - force color */
     .checkbox.checked {
-        background: #000 !important;
-        border-color: #000 !important;
+        background: #1F3A5F !important;
+        border-color: #1F3A5F !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
@@ -617,8 +617,8 @@ body {
 
     /* Header */
     .report-header {
-        background: #a0a0a0 !important;
-        color: #222 !important;
+        background: #4A90A4 !important;
+        color: #1F3A5F !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
         margin: 0 !important;
@@ -664,7 +664,7 @@ body {
 }
 .pdf-mode .report-section .section-view { padding: 0 !important; margin: 0 !important; }
 .pdf-mode .report-section .section-view h3 {
-    background: #000 !important; color: #fff !important;
+    background: #1F3A5F !important; color: #fff !important;
     margin: 0 0 1px 0; padding: 2px 8px;
     border-bottom: none; font-size: 13px; letter-spacing: 1px;
     text-align: center;
@@ -694,7 +694,7 @@ body {
 }
 .pdf-mode .photo-card img {
     width: 100%; height: auto; max-height: 220px;
-    object-fit: contain; background: #f5f5f5;
+    object-fit: contain; background: #F4F6F8;
 }
 .pdf-mode .photo-card .photo-caption {
     font-size: 11px; padding: 2px 4px; margin: 0;
@@ -707,7 +707,7 @@ body {
     display: flex !important; flex-wrap: nowrap !important;
     align-items: center;
     padding: 8px 12px; gap: 10px; margin: 0 !important;
-    background: #a0a0a0 !important;
+    background: #4A90A4 !important;
     width: 100% !important; max-width: 100% !important;
     box-sizing: border-box !important; overflow: hidden;
 }
@@ -717,7 +717,7 @@ body {
 .pdf-mode .ext510-meta { color: #000 !important; font-size: 12px; }
 .pdf-mode .ext510-equip-id {
     padding: 6px 10px; margin: 4px 0 6px 0 !important; font-size: 13px;
-    background: #888888 !important; color: #fff !important;
+    background: #4A90A4 !important; color: #fff !important;
     text-align: center; width: 100% !important; box-sizing: border-box !important;
 }
 .pdf-mode .ext510-logo { flex-shrink: 0; }
@@ -729,13 +729,13 @@ body {
 }
 .pdf-mode .ext510-equip-table .value { padding: 6px 6px !important; color: #000 !important; }
 .pdf-mode .ext510-tbl-hdr {
-    background: #222 !important; color: #ffffff !important; font-size: 13px !important; padding: 6px 6px !important; letter-spacing: 0.3px !important; text-align: center;
+    background: #1F3A5F !important; color: #ffffff !important; font-size: 13px !important; padding: 6px 6px !important; letter-spacing: 0.3px !important; text-align: center;
 }
 /* Override info-table label/value widths for 5-column ext510 equipment tables */
 .pdf-mode .ext510-equip-table .label,
 .pdf-mode .ext510-equip-table .value { width: auto !important; }
 .pdf-mode .ext510-insp-label {
-    background: #222 !important; color: #ffffff !important;
+    background: #1F3A5F !important; color: #ffffff !important;
 }
 .pdf-mode .checklist-table { font-size: 13px; margin: 0 !important; border-collapse: collapse; border-spacing: 0; width: 100%; table-layout: fixed; color: #000 !important; }
 .pdf-mode .checklist-table td { padding: 2px 3px; border: 1px solid #999; overflow: hidden; word-wrap: break-word; color: #000 !important; }
@@ -751,7 +751,7 @@ body {
 .pdf-mode .cl-check-col, .pdf-mode .cl-check-cell { width: 3.5%; text-align: center; }
 .pdf-mode .cl-loc-col, .pdf-mode .cl-loc-cell { width: 7%; }
 .pdf-mode .cl-comment-col, .pdf-mode .cl-comment-cell { width: 30%; overflow: hidden !important; word-wrap: break-word !important; white-space: normal !important; }
-.pdf-mode .cl-cat-cell { background: #eee !important; font-weight: 600; text-align: center; font-size: 13px; white-space: normal; color: #000 !important; }
+.pdf-mode .cl-cat-cell { background: #F4F6F8 !important; font-weight: 600; text-align: center; font-size: 13px; white-space: normal; color: #000 !important; }
 .pdf-mode .cl-item-cell { white-space: normal !important; word-wrap: break-word !important; font-size: 13px; color: #000 !important; }
 .pdf-mode .cl-check-cell { white-space: nowrap; }
 .pdf-mode .cl-loc-cell { white-space: nowrap; }
@@ -767,7 +767,7 @@ body {
 .pdf-mode .orient-photo-img { min-height: 240px; }
 .pdf-mode .orient-photo-img img { max-height: 280px !important; object-fit: contain !important; }
 .pdf-mode .orient-photo-label {
-    background: #222 !important; color: #fff !important;
+    background: #1F3A5F !important; color: #fff !important;
 }
 .pdf-mode .ext510-inspector-table { margin-bottom: 4px; margin-top: 6px; }
 .pdf-mode .ext510-inspector-table td { padding: 5px 8px; font-size: 14px; color: #000; }
@@ -947,7 +947,7 @@ body {
     cursor: pointer !important;
 }
 .ql-snow .ql-color-picker .ql-picker-item:hover {
-    border-color: #000 !important;
+    border-color: #1F3A5F !important;
 }
 /* Header picker option items */
 .ql-snow .ql-header .ql-picker-item::before,
@@ -1075,7 +1075,7 @@ body {
 .lib-filter { padding: 6px 8px; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 13px; }
 .library-table { width: 100%; border-collapse: collapse; }
 .library-table th, .library-table td { padding: 10px 12px; border-bottom: 1px solid var(--gray-200); font-size: 13px; text-align: left; }
-.library-table th { font-weight: 700; background: #000; color: #fff; }
+.library-table th { font-weight: 700; background: #1F3A5F; color: #fff; }
 .library-table tr:hover td { background: var(--gray-50); }
 
 /* ─── Version History ───────────────────────────────────────────────────── */
@@ -1138,7 +1138,7 @@ body {
 }
 .ext510-header-block {
     display: flex; align-items: center; gap: 16px;
-    background: #a0a0a0; color: var(--gray-900);
+    background: #4A90A4; color: var(--gray-900);
     padding: 14px 20px;
 }
 .ext510-logo img {
