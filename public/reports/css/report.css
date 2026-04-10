@@ -59,7 +59,7 @@ body {
     width: 90%; max-width: 440px; box-shadow: 0 8px 32px rgba(0,0,0,.2);
     max-height: 90vh; overflow-y: auto;
 }
-.modal-content h2 { color: var(--primary); margin-bottom: 4px; font-size: 20px; }
+.modal-content h2 { color: #000; margin-bottom: 4px; font-size: 20px; }
 .modal-content > p { color: var(--gray-500); margin-bottom: 20px; font-size: 13px; }
 
 .form-group { margin-bottom: 14px; }
@@ -113,7 +113,7 @@ body {
     background: #4A90A4; color: var(--gray-900);
     padding: 24px 32px; text-align: center;
 }
-.report-header h1 { font-size: 22px; letter-spacing: 1px; margin-bottom: 4px; color: var(--gray-900); }
+.report-header h1 { font-size: 22px; letter-spacing: 1px; margin-bottom: 4px; color: #000; }
 .report-subtitle { font-size: 14px; color: var(--gray-700); }
 
 /* ─── Sections ──────────────────────────────────────────────────────────── */
@@ -127,8 +127,9 @@ body {
 
 .section-view { padding: 16px 24px; }
 .section-view h3 {
-    font-size: 14px; color: var(--white); margin-bottom: 10px;
-    padding: 6px 14px; background: #1F3A5F; text-align: center;
+    font-size: 14px; color: #000; margin-bottom: 10px;
+    padding: 6px 14px; background: #F4F6F8; text-align: center;
+    border-bottom: 2px solid #1F3A5F;
     text-transform: uppercase; letter-spacing: .5px;
     margin-left: -24px; margin-right: -24px; margin-top: -16px;
 }
@@ -470,11 +471,11 @@ body {
         padding: 0 2px !important;
     }
     .report-section .section-view h3 {
-        background: #1F3A5F !important;
-        color: #fff !important;
+        background: #F4F6F8 !important;
+        color: #000 !important;
         margin: 0 0 2px 0 !important;
-        padding: 2px 8px !important;
-        border-bottom: none !important;
+        padding: 4px 8px !important;
+        border-bottom: 2px solid #1F3A5F !important;
         font-size: 13px !important;
         letter-spacing: 1px;
         text-align: center !important;
@@ -664,9 +665,9 @@ body {
 }
 .pdf-mode .report-section .section-view { padding: 0 !important; margin: 0 !important; }
 .pdf-mode .report-section .section-view h3 {
-    background: #1F3A5F !important; color: #fff !important;
-    margin: 0 0 1px 0; padding: 2px 8px;
-    border-bottom: none; font-size: 13px; letter-spacing: 1px;
+    background: #F4F6F8 !important; color: #000 !important;
+    margin: 0 0 1px 0; padding: 4px 8px;
+    border-bottom: 2px solid #1F3A5F !important; font-size: 13px; letter-spacing: 1px;
     text-align: center;
 }
 .pdf-mode .narrative {
@@ -1152,7 +1153,7 @@ body {
 }
 .ext510-title-area { flex: 1; text-align: center; }
 .ext510-title-area h1 {
-    font-size: 26px; font-weight: 700; color: var(--gray-900);
+    font-size: 26px; font-weight: 700; color: #000;
     margin: 0; letter-spacing: 0.5px;
 }
 .ext510-meta-area {
