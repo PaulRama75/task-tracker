@@ -466,13 +466,37 @@
       const margin = 8;
       const contentW = pageW - margin * 2;
       const imgH = (canvas.height / canvas.width) * contentW;
+      const pxToMm = contentW / form.offsetWidth;
 
+      // Smart page breaking: collect row/section boundaries
+      const formRect = form.getBoundingClientRect();
+      const breakPoints = [];
+      form.querySelectorAll('tr, .section-header, h2, h3, h4, .employee-block, .sig-row').forEach(el => {
+        const r = el.getBoundingClientRect();
+        const topMm = (r.top - formRect.top) * pxToMm;
+        if (topMm > 5) breakPoints.push(topMm);
+      });
+      breakPoints.sort((a, b) => a - b);
+
+      // Build pages using smart breaks
       let yOffset = 0;
       const usableH = pageH - margin * 2;
       while (yOffset < imgH) {
         if (yOffset > 0) pdf.addPage();
+        // Find best break: last breakpoint before exceeding usableH
+        let nextBreak = yOffset + usableH;
+        const pageEnd = yOffset + usableH;
+        let best = null;
+        for (let i = 0; i < breakPoints.length; i++) {
+          if (breakPoints[i] > yOffset + 10 && breakPoints[i] <= pageEnd) {
+            best = breakPoints[i];
+          }
+        }
+        if (best && best > yOffset + usableH * 0.5) {
+          nextBreak = best;
+        }
         pdf.addImage(imgData, 'JPEG', margin, margin - yOffset, contentW, imgH);
-        yOffset += usableH;
+        yOffset = nextBreak;
       }
 
       return pdf;
