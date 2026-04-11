@@ -2813,7 +2813,10 @@ async function switchApp(appId) {
     const reportsFrame = document.getElementById('reportsAppFrame');
     reportsFrame.style.display = '';
     const iframe = document.getElementById('reportsIframe');
-    iframe.src = '/reports/?_=' + Date.now();
+    // Only load iframe if not already loaded — avoids full reload/flash on every click
+    if (!iframe.src || iframe.src === 'about:blank' || iframe.src === window.location.origin + '/') {
+      iframe.src = '/reports/';
+    }
     toast('Switched to Reports', 'success');
     return;
   }
