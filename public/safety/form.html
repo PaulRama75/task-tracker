@@ -629,7 +629,7 @@
     });
 
     try {
-      const canvas = await html2canvas(form, { scale: 2, useCORS: true, logging: false });
+      const canvas = await html2canvas(form, { scale: 2, useCORS: true, logging: false, windowWidth: 1060 });
       const imgData = canvas.toDataURL('image/jpeg', 0.85);
 
       const { jsPDF } = window.jspdf;
