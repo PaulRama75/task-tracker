@@ -258,7 +258,7 @@ var PDF = (() => {
             const clH3 = checklistContainer.querySelector('h3');
             if (clH3) {
                 clH3.classList.add('pdf-page-break');
-                setStyle(clH3, 'marginTop', '8px', styleTracker);
+                setStyle(clH3, 'marginTop', '20px', styleTracker);
             }
         }
 
@@ -267,7 +267,7 @@ var PDF = (() => {
             const phH3 = photoSec.querySelector('h3');
             if (phH3) {
                 phH3.classList.add('pdf-page-break');
-                setStyle(phH3, 'marginTop', '8px', styleTracker);
+                setStyle(phH3, 'marginTop', '20px', styleTracker);
             }
         }
         // Mark narrative containers that come before checklist
@@ -451,9 +451,9 @@ var PDF = (() => {
                 const forcedBreaks = [];
                 content.querySelectorAll('.pdf-page-break').forEach(function(el) {
                     const elRect = el.getBoundingClientRect();
-                    // Offset by 2mm before the element so the heading text
+                    // Offset by 10mm before the element so the heading text
                     // is NOT included in the previous page slice
-                    const topMm = (elRect.top - contentRect.top) * pxToMm - 2;
+                    const topMm = (elRect.top - contentRect.top) * pxToMm - 10;
                     if (topMm > 10) forcedBreaks.push(topMm);
                 });
                 forcedBreaks.sort(function(a, b) { return a - b; });
