@@ -1259,7 +1259,9 @@ body {
 }
 @media print {
     .checklist-table { page-break-inside: auto; }
-    .checklist-table tr { page-break-inside: avoid; }
+    .checklist-table tr { page-break-inside: avoid; break-inside: avoid; }
+    .checklist-table thead { display: table-header-group; } /* repeat header on each page */
+    #checklist-section-container { page-break-before: auto; break-before: auto; }
 }
 .ext510-page-break-before { page-break-before: always; break-before: page; }
 

@@ -143,16 +143,49 @@ var PDF = (() => {
         });
 
         // Force photo grid to flex layout (html2canvas doesn't support CSS Grid)
+        // Split photos into groups of 8 per page with page breaks between groups
         content.querySelectorAll('.photo-grid').forEach(grid => {
-            setStyle(grid, 'display', 'flex', styleTracker);
-            setStyle(grid, 'flexWrap', 'wrap', styleTracker);
-            setStyle(grid, 'gap', '6px', styleTracker);
+            const cards = Array.from(grid.querySelectorAll('.photo-card'));
+            if (cards.length > 8) {
+                // Wrap cards into groups of 8, each in its own container
+                grid.innerHTML = '';
+                for (let i = 0; i < cards.length; i += 8) {
+                    const group = document.createElement('div');
+                    group.className = 'photo-page-group';
+                    group.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;width:100%;';
+                    if (i > 0) {
+                        // Force page break before groups after the first 8
+                        group.classList.add('pdf-page-break');
+                        group.style.paddingTop = '4px';
+                    }
+                    const slice = cards.slice(i, i + 8);
+                    slice.forEach(card => group.appendChild(card));
+                    grid.appendChild(group);
+                }
+                setStyle(grid, 'display', 'block', styleTracker);
+            } else {
+                setStyle(grid, 'display', 'flex', styleTracker);
+                setStyle(grid, 'flexWrap', 'wrap', styleTracker);
+            }
+            setStyle(grid, 'gap', '4px', styleTracker);
             setStyle(grid, 'margin', '0', styleTracker);
         });
         content.querySelectorAll('.photo-card').forEach(card => {
-            setStyle(card, 'width', 'calc(50% - 3px)', styleTracker);
+            setStyle(card, 'width', 'calc(50% - 2px)', styleTracker);
             setStyle(card, 'flexShrink', '0', styleTracker);
             setStyle(card, 'boxSizing', 'border-box', styleTracker);
+        });
+        // Force 240px height on photo images for PDF only (editor stays unchanged)
+        content.querySelectorAll('.photo-card img').forEach(img => {
+            setStyle(img, 'height', '240px', styleTracker);
+            setStyle(img, 'maxHeight', '240px', styleTracker);
+            setStyle(img, 'objectFit', 'contain', styleTracker);
+            setStyle(img, 'background', '#F4F6F8', styleTracker);
+        });
+        content.querySelectorAll('.photo-card .photo-caption, .photo-card .photo-caption-pdf').forEach(cap => {
+            setStyle(cap, 'fontSize', '10px', styleTracker);
+            setStyle(cap, 'padding', '2px 4px', styleTracker);
+            setStyle(cap, 'lineHeight', '1.3', styleTracker);
         });
 
         // ── Hide all UI / interactive elements ───────────────────────────
@@ -218,16 +251,24 @@ var PDF = (() => {
         });
 
         // Add page break markers for PDF layout control
-        // Page 1: header + orient/dataplate + inspector + summary/recommendations
-        // Page 2: checklist
-        // Page 3: inspection photos
+        // Mark the HEADING elements (h3) inside checklist and photos so the break
+        // happens right before the heading text — keeping heading + content together.
         const checklistContainer = content.querySelector('#checklist-section-container');
         if (checklistContainer && !checklistContainer.classList.contains('hidden')) {
-            checklistContainer.classList.add('pdf-page-break');
+            const clH3 = checklistContainer.querySelector('h3');
+            if (clH3) {
+                clH3.classList.add('pdf-page-break');
+                setStyle(clH3, 'marginTop', '8px', styleTracker);
+            }
         }
+
         const photoSec = content.querySelector('[data-section="photos"]');
         if (photoSec) {
-            photoSec.classList.add('pdf-page-break');
+            const phH3 = photoSec.querySelector('h3');
+            if (phH3) {
+                phH3.classList.add('pdf-page-break');
+                setStyle(phH3, 'marginTop', '8px', styleTracker);
+            }
         }
         // Mark narrative containers that come before checklist
         const narrativeContainer = content.querySelector('#ext510-narrative-container');
@@ -410,14 +451,24 @@ var PDF = (() => {
                 const forcedBreaks = [];
                 content.querySelectorAll('.pdf-page-break').forEach(function(el) {
                     const elRect = el.getBoundingClientRect();
-                    const topMm = (elRect.top - contentRect.top) * pxToMm;
+                    // Offset by 2mm before the element so the heading text
+                    // is NOT included in the previous page slice
+                    const topMm = (elRect.top - contentRect.top) * pxToMm - 2;
                     if (topMm > 10) forcedBreaks.push(topMm);
                 });
                 forcedBreaks.sort(function(a, b) { return a - b; });
 
                 // Also collect section boundaries for fallback smart breaks
+                // Include individual checklist rows to avoid splitting rows across pages
                 const sectionBreaks = [];
-                content.querySelectorAll('.report-section, .orient-dataplate-grid, .ext510-inspector-table, .checklist-table, .ext510-equip-table').forEach(function(el) {
+                content.querySelectorAll('.report-section, .orient-dataplate-grid, .ext510-inspector-table, .ext510-equip-table').forEach(function(el) {
+                    const elRect = el.getBoundingClientRect();
+                    const topMm = (elRect.top - contentRect.top) * pxToMm;
+                    const bottomMm = (elRect.bottom - contentRect.top) * pxToMm;
+                    sectionBreaks.push({ top: topMm, bottom: bottomMm });
+                });
+                // Add checklist table rows as break boundaries so rows aren't split
+                content.querySelectorAll('.checklist-table tr').forEach(function(el) {
                     const elRect = el.getBoundingClientRect();
                     const topMm = (elRect.top - contentRect.top) * pxToMm;
                     const bottomMm = (elRect.bottom - contentRect.top) * pxToMm;
@@ -514,6 +565,15 @@ var PDF = (() => {
             hiddenEls.forEach(({ el, prev }) => { el.style.display = prev; });
             // Remove page break markers
             content.querySelectorAll('.pdf-page-break').forEach(el => el.classList.remove('pdf-page-break'));
+            // Restore photo grid from page groups back to flat list
+            content.querySelectorAll('.photo-grid').forEach(grid => {
+                const groups = grid.querySelectorAll('.photo-page-group');
+                if (groups.length > 0) {
+                    const cards = Array.from(grid.querySelectorAll('.photo-card'));
+                    groups.forEach(g => g.remove());
+                    cards.forEach(c => grid.appendChild(c));
+                }
+            });
         }
     }
 
