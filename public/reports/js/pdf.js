@@ -175,10 +175,10 @@ var PDF = (() => {
             setStyle(card, 'flexShrink', '0', styleTracker);
             setStyle(card, 'boxSizing', 'border-box', styleTracker);
         });
-        // Force 270px height on photo images for PDF only (editor stays unchanged)
+        // Force 260px height on photo images for PDF only (editor stays unchanged)
         content.querySelectorAll('.photo-card img').forEach(img => {
-            setStyle(img, 'height', '270px', styleTracker);
-            setStyle(img, 'maxHeight', '270px', styleTracker);
+            setStyle(img, 'height', '260px', styleTracker);
+            setStyle(img, 'maxHeight', '260px', styleTracker);
             setStyle(img, 'objectFit', 'contain', styleTracker);
             setStyle(img, 'background', '#F4F6F8', styleTracker);
         });
