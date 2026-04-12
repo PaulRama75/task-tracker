@@ -1401,13 +1401,19 @@ const App = (() => {
                 toast('Please select equipment.', 'error'); return;
             }
 
-            const report = await API.createReport({
-                unit_number: unitNum,
-                equipment_number: equipNumber,
-                nb_serial_number: serialNum,
-                project_name: '',
-                created_by: user.id, report_type: reportType, site_id: siteId,
-            });
+            let report;
+            try {
+                report = await API.createReport({
+                    unit_number: unitNum,
+                    equipment_number: equipNumber,
+                    nb_serial_number: serialNum,
+                    project_name: '',
+                    created_by: user.id, report_type: reportType, site_id: siteId,
+                });
+            } catch(e) {
+                toast(e.message || 'Failed to create report', 'error');
+                return;
+            }
 
             // Auto-fill header section with all equipment master data
             if (Object.keys(headerOverrides).length) {

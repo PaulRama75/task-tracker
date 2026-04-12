@@ -126,6 +126,15 @@ router.get('/api/tir/reports', authRequired, asyncHandler(async (req, res) => {
 }));
 
 router.post('/api/tir/reports', authRequired, asyncHandler(async (req, res) => {
+  // Check for duplicate equipment number + report type
+  const { equipment_number, report_type } = req.body;
+  if (equipment_number) {
+    const existing = await db.getTirReports();
+    const dupe = existing.find(r => r.equipment_number === equipment_number && (r.report_type || 'tower') === (report_type || 'tower'));
+    if (dupe) {
+      return res.status(409).json({ error: `A ${report_type || 'tower'} report for equipment "${equipment_number}" already exists.` });
+    }
+  }
   const report = await db.createTirReport(req.body);
   res.json(report);
 }));
