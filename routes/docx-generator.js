@@ -749,7 +749,7 @@ async function generateDocx(report) {
 
         for (let i = 0; i < photos.length; i++) {
             const photo = photos[i];
-            const buf = base64ToBuffer(photo.data_url);
+            const buf = base64ToBuffer(photo.dataUrl || photo.data_url);
             if (buf) {
                 children.push(new Paragraph({
                     children: [new ImageRun({ data: buf, transformation: { width: 350, height: 260 } })],
