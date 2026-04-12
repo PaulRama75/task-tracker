@@ -565,7 +565,13 @@ async function generateDocx(report) {
             ]}),
             new TableRow({ children: [
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'INSPECTOR SIGNATURE', bold: true, size: 18, font: 'Arial' })] })], width: { size: COL4_IL, type: WidthType.DXA }, borders: thinBorders, shading: { type: ShadingType.CLEAR, fill: LIGHT_GRAY } }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: inspData.ext510_inspector_signature || '', size: 18, font: 'Arial' })] })], width: { size: COL4_IV, type: WidthType.DXA }, borders: thinBorders }),
+                (() => {
+                    const sigBuf = base64ToBuffer(inspData.ext510_inspector_signature);
+                    const sigChildren = sigBuf
+                        ? [new Paragraph({ children: [new ImageRun({ data: sigBuf, transformation: { width: 150, height: 40 }, type: 'png' })], alignment: AlignmentType.CENTER })]
+                        : [new Paragraph({ children: [new TextRun({ text: '', size: 18, font: 'Arial' })] })];
+                    return new TableCell({ children: sigChildren, width: { size: COL4_IV, type: WidthType.DXA }, borders: thinBorders, verticalAlign: VerticalAlign.CENTER });
+                })(),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'DATE', bold: true, size: 18, font: 'Arial' })] })], width: { size: COL4_IL, type: WidthType.DXA }, borders: thinBorders, shading: { type: ShadingType.CLEAR, fill: LIGHT_GRAY } }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: inspData.ext510_inspector_date || '', size: 18, font: 'Arial' })] })], width: { size: COL4_IV, type: WidthType.DXA }, borders: thinBorders }),
             ]}),
