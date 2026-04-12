@@ -518,8 +518,16 @@
       swaps.push({ img, canvas });
     });
 
+    // Force form to full width for PDF capture
+    const origWidth = form.style.width;
+    const origMinWidth = form.style.minWidth;
+    const origMaxWidth = form.style.maxWidth;
+    form.style.width = '1000px';
+    form.style.minWidth = '1000px';
+    form.style.maxWidth = '1000px';
+
     try {
-      const canvas = await html2canvas(form, { scale: 2, useCORS: true, logging: false, windowWidth: 1060 });
+      const canvas = await html2canvas(form, { scale: 2, useCORS: true, logging: false, width: 1000, windowWidth: 1060 });
       const imgData = canvas.toDataURL('image/jpeg', 0.85);
 
       const { jsPDF } = window.jspdf;
@@ -540,6 +548,10 @@
 
       return pdf;
     } finally {
+      // Restore form width
+      form.style.width = origWidth;
+      form.style.minWidth = origMinWidth;
+      form.style.maxWidth = origMaxWidth;
       swaps.forEach(({ img, canvas }) => {
         canvas.style.display = '';
         img.remove();
