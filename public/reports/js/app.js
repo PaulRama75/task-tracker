@@ -54,6 +54,11 @@ const App = (() => {
 
     function esc(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
+    function cleanHtml(html) {
+        if (!html) return '';
+        return html.replace(/<!--.*?-->/g, '').replace(/&nbsp;/g, ' ');
+    }
+
     // ─── Init ─────────────────────────────────────────────────────────────
     async function init() {
         try { migratePhotos(); } catch(e) { console.error('migratePhotos error:', e); }
@@ -962,9 +967,20 @@ const App = (() => {
                     },
                     placeholder: 'Type here...',
                 });
-                quill.root.innerHTML = htmlContent;
+                quill.root.innerHTML = cleanHtml(htmlContent);
                 quill.on('text-change', markDirty);
                 quillEditors.set(key, quill);
+
+                // Clean clipboard artifacts on paste
+                quill.clipboard.addMatcher(Node.ELEMENT_NODE, (node, delta) => {
+                    delta.ops = delta.ops.map(op => {
+                        if (typeof op.insert === 'string') {
+                            op.insert = op.insert.replace(/\u00A0/g, ' ');
+                        }
+                        return op;
+                    });
+                    return delta;
+                });
 
                 // Custom image handler — compress before inserting
                 quill.getModule('toolbar').addHandler('image', () => {
@@ -979,7 +995,7 @@ const App = (() => {
                     input.click();
                 });
             } else {
-                wrap.innerHTML = `<div class="narrative">${htmlContent || ''}</div>`;
+                wrap.innerHTML = `<div class="narrative">${cleanHtml(htmlContent) || ''}</div>`;
             }
         });
     }
