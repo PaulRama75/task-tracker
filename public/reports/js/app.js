@@ -1221,9 +1221,12 @@ const App = (() => {
             $$('.inline-input[data-skey="header"]').forEach(inp => headerData[inp.dataset.fkey] = inp.value);
             if (Object.keys(headerData).length) await API.saveSection(currentReport.id, 'header', headerData, user.id);
 
-            // Quill narratives
+            // Quill narratives — clean clipboard artifacts before saving
             for (const [sectionKey, quill] of quillEditors) {
-                await API.saveSection(currentReport.id, sectionKey, { content: quill.root.innerHTML }, user.id);
+                const rawHtml = quill.root.innerHTML
+                    .replace(/<!--.*?-->/g, '')
+                    .replace(/&nbsp;/g, ' ');
+                await API.saveSection(currentReport.id, sectionKey, { content: rawHtml }, user.id);
             }
 
             // 510 EXT: Inspector info + Checklist

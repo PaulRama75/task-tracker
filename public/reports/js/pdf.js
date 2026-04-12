@@ -21,6 +21,7 @@ var PDF = (() => {
     function stripHtml(html) {
         if (!html) return '';
         return html
+            .replace(/<!--.*?-->/g, '')
             .replace(/<br\s*\/?>/gi, '\n')
             .replace(/<\/p>\s*<p[^>]*>/gi, '\n')
             .replace(/<\/li>/gi, '\n')
