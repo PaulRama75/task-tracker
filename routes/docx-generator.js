@@ -741,27 +741,55 @@ async function generateDocx(report) {
         children.push(new Paragraph({ spacing: { after: 100 } }));
     }
 
-    // ── Inspection Photos ────────────────────────────────────────────────
+    // ── Inspection Photos (2-column grid) ──────────────────────────────
     const photos = report.photos || [];
     if (photos.length > 0) {
         children.push(new Paragraph({ children: [new PageBreak()] }));
         children.push(sectionHeading('INSPECTION PHOTOS'));
 
-        for (let i = 0; i < photos.length; i++) {
-            const photo = photos[i];
-            const buf = base64ToBuffer(photo.dataUrl || photo.data_url);
-            if (buf) {
-                children.push(new Paragraph({
-                    children: [new ImageRun({ data: buf, transformation: { width: 350, height: 260 } })],
-                    alignment: AlignmentType.CENTER,
-                    spacing: { before: 80, after: 20 },
-                }));
-                children.push(new Paragraph({
-                    children: [new TextRun({ text: photo.caption || `Photo ${i + 1}`, size: 18, italics: true, font: 'Arial' })],
+        const PHOTO_COL_W = TABLE_W / 2; // half table width per column
+        const noBordersPhoto = { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } };
+
+        // Process photos into pairs
+        for (let i = 0; i < photos.length; i += 2) {
+            const cells = [];
+            for (let j = i; j < Math.min(i + 2, photos.length); j++) {
+                const photo = photos[j];
+                const buf = base64ToBuffer(photo.dataUrl || photo.data_url);
+                const cellChildren = [];
+                if (buf) {
+                    cellChildren.push(new Paragraph({
+                        children: [new ImageRun({ data: buf, transformation: { width: 240, height: 180 } })],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 80, after: 20 },
+                    }));
+                }
+                cellChildren.push(new Paragraph({
+                    children: [new TextRun({ text: photo.caption || `Photo ${j + 1}`, size: 16, italics: true, font: 'Arial' })],
                     alignment: AlignmentType.CENTER,
                     spacing: { after: 80 },
                 }));
+                cells.push(new TableCell({
+                    children: cellChildren,
+                    width: { size: PHOTO_COL_W, type: WidthType.DXA },
+                    borders: noBordersPhoto,
+                    verticalAlign: VerticalAlign.TOP,
+                }));
             }
+            // If odd photo, add empty cell
+            if (cells.length === 1) {
+                cells.push(new TableCell({
+                    children: [new Paragraph('')],
+                    width: { size: PHOTO_COL_W, type: WidthType.DXA },
+                    borders: noBordersPhoto,
+                }));
+            }
+            children.push(new Table({
+                rows: [new TableRow({ children: cells })],
+                width: { size: TABLE_W, type: WidthType.DXA },
+                columnWidths: [PHOTO_COL_W, PHOTO_COL_W],
+                layout: TableLayoutType.FIXED,
+            }));
         }
     }
 
