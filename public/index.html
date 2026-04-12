@@ -2816,6 +2816,9 @@ async function switchApp(appId) {
     // Only load iframe if not already loaded — avoids full reload/flash on every click
     if (!iframe.src || iframe.src === 'about:blank' || iframe.src === window.location.origin + '/') {
       iframe.src = '/reports/';
+    } else {
+      // Show library as default view when switching back to Reports tab
+      try { iframe.contentWindow.Library.show(); } catch(e) {}
     }
     toast('Switched to Reports', 'success');
     return;

@@ -68,11 +68,12 @@ const App = (() => {
         // Always show UI - auth comes from parent task-tracker
         $('#login-modal').classList.add('hidden');
         $('#top-bar').classList.remove('hidden');
-        $('#report-container').classList.remove('hidden');
+        $('#report-container').classList.add('hidden');
 
         if (user) {
             await showApp(user);
         } else {
+            $('#report-container').classList.remove('hidden');
             $('#user-info').textContent = 'Not authenticated';
             $('#report-content').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#888;"><h2 style="color:#ccc;margin-bottom:12px;">Authentication Required</h2><p>Please log in to the main application first, then switch to Reports.</p></div>';
         }
@@ -126,10 +127,10 @@ const App = (() => {
         if (Auth.isInIframe()) {
             $('#btn-logout').style.display = 'none';
         }
-        await loadSiteSelector();
-        await loadReportList();
+        try { await loadSiteSelector(); } catch(e) { console.error('loadSiteSelector error:', e); }
+        try { await loadReportList(); } catch(e) { console.error('loadReportList error:', e); }
         // Show Library as default landing page
-        Library.show();
+        try { Library.show(); } catch(e) { console.error('Library.show error:', e); }
     }
 
     // ─── Site Selector ────────────────────────────────────────────────────
@@ -267,6 +268,12 @@ const App = (() => {
         const orientSection = document.querySelector('[data-section="orientation_photos"]');
         if (orientSection) {
             orientSection.classList.remove('ext510-page-break-before');
+            // Hide orientation/data plate for 570 reports (irrelevant for piping)
+            if (currentReport.report_type === 'ext570') {
+                orientSection.style.display = 'none';
+            } else {
+                orientSection.style.display = '';
+            }
         }
 
         // Hide inspection type section for ext reports (always external)
@@ -280,7 +287,7 @@ const App = (() => {
         }
 
         render510InspectorInfo();
-        renderChecklist();
+        await renderChecklist();
         renderNarrativeSections();
         renderPhotos();
         renderRejectionBanner();
@@ -317,7 +324,7 @@ const App = (() => {
     }
 
     // ─── Version Viewing ──────────────────────────────────────────────────
-    function viewVersion(version) {
+    async function viewVersion(version) {
         viewingVersion = version;
         destroyQuills();
 
@@ -332,7 +339,7 @@ const App = (() => {
             renderInspectionType();
         }
         render510InspectorInfo();
-        renderChecklist();
+        await renderChecklist();
         renderNarrativeSections();
 
         currentReport = realReport;
@@ -619,7 +626,7 @@ const App = (() => {
                 html += `<td class="cl-check-cell"><span class="cl-checkbox" data-cl-num="${item.num}" data-cl-val="no"></span></td>`;
                 html += `<td class="cl-check-cell"><span class="cl-checkbox" data-cl-num="${item.num}" data-cl-val="na"></span></td>`;
                 html += `<td class="cl-loc-cell"><span class="cl-text" data-cl-num="${item.num}" data-cl-field="location"></span></td>`;
-                html += `<td class="cl-comment-cell"><div class="cl-comment" data-cl-num="${item.num}" data-cl-field="comments"></div></td>`;
+                html += `<td class="cl-comment-cell"><div class="cl-comment-wrap" data-cl-num="${item.num}"><input type="text" class="cl-comment-input hidden" data-cl-num="${item.num}" placeholder="Type or select comment..."><div class="cl-comment-opts hidden" data-cl-num="${item.num}"></div><span class="cl-comment-display" data-cl-num="${item.num}"></span></div></td>`;
                 html += '</tr>';
             });
         });
@@ -627,7 +634,8 @@ const App = (() => {
         container.innerHTML = html;
     }
 
-    function renderChecklist() {
+    async function renderChecklist() {
+        if (!currentReport) return;
         const config = API.getReportTypeConfig(currentReport.report_type || 'tower');
         if (!config.checklistCategories) return;
         const data = viewingVersion
@@ -678,24 +686,68 @@ const App = (() => {
             }
         });
 
-        // Render comments (rich text)
-        $$('.cl-comment').forEach(el => {
-            const num = el.dataset.clNum;
+        // Load saved comment options for this report type
+        const reportType = currentReport.report_type || 'tower';
+        let savedCommentOpts = {};
+        try {
+            const optRes = await Auth.authFetch(`/reports/api/tir/checklist-options/${reportType}`);
+            if (optRes.ok) savedCommentOpts = await optRes.json();
+        } catch (e) { console.warn('Could not load checklist options', e); }
+
+        // Render comment inputs with dropdown
+        $$('.cl-comment-wrap').forEach(wrap => {
+            const num = wrap.dataset.clNum;
             const itemData = items[num] || {};
             const content = itemData.comments || '';
+            const input = wrap.querySelector('.cl-comment-input');
+            const optsDiv = wrap.querySelector('.cl-comment-opts');
+            const display = wrap.querySelector('.cl-comment-display');
+
+            display.textContent = content;
+
             if (hasLock) {
-                el.contentEditable = 'true';
-                el.classList.add('cl-comment-editable');
-                el.innerHTML = content;
-                el.addEventListener('input', markDirty);
-                el.addEventListener('paste', (e) => {
-                    e.preventDefault();
-                    const text = e.clipboardData.getData('text/html') || e.clipboardData.getData('text/plain');
-                    document.execCommand('insertHTML', false, text);
-                });
+                input.classList.remove('hidden');
+                input.value = content;
+                const itemOpts = savedCommentOpts[num] || [];
+
+                function showOpts(filter) {
+                    const filtered = filter
+                        ? itemOpts.filter(o => o.toLowerCase().includes(filter.toLowerCase()))
+                        : itemOpts;
+                    if (filtered.length === 0) { optsDiv.classList.add('hidden'); return; }
+                    optsDiv.innerHTML = filtered.map(o => `<div class="cl-opt-item">${esc(o)}</div>`).join('');
+                    optsDiv.classList.remove('hidden');
+                    optsDiv.querySelectorAll('.cl-opt-item').forEach(el => {
+                        el.onmousedown = (e) => {
+                            e.preventDefault();
+                            input.value = el.textContent;
+                            display.textContent = el.textContent;
+                            optsDiv.classList.add('hidden');
+                            markDirty();
+                        };
+                    });
+                }
+
+                input.onfocus = () => showOpts(input.value);
+                input.oninput = () => { display.textContent = input.value; showOpts(input.value); markDirty(); };
+                input.onblur = () => {
+                    setTimeout(() => optsDiv.classList.add('hidden'), 200);
+                    // Auto-save new option if it has text and is not already saved
+                    const val = input.value.trim();
+                    if (val && !itemOpts.includes(val)) {
+                        itemOpts.push(val);
+                        Auth.authFetch('/reports/api/tir/checklist-options', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reportType, itemNum: num, optionText: val })
+                        }).catch(() => {});
+                    }
+                };
+                display.classList.add('hidden');
             } else {
-                el.contentEditable = 'false';
-                el.innerHTML = content;
+                input.classList.add('hidden');
+                optsDiv.classList.add('hidden');
+                display.classList.remove('hidden');
             }
         });
 
@@ -737,11 +789,11 @@ const App = (() => {
             if (!items[num]) items[num] = {};
             items[num][field] = inp.value;
         });
-        // Collect rich text comments
-        $$('.cl-comment').forEach(el => {
-            const num = el.dataset.clNum;
+        // Collect comments from input
+        $$('.cl-comment-input').forEach(inp => {
+            const num = inp.dataset.clNum;
             if (!items[num]) items[num] = {};
-            items[num].comments = el.innerHTML.trim();
+            items[num].comments = inp.value.trim();
         });
         return { items };
     }

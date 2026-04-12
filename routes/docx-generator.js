@@ -623,11 +623,11 @@ async function generateDocx(report) {
         }
     }
 
-    // ── Orientation / Data Plate Photos ──────────────────────────────────
+    // ── Orientation / Data Plate Photos (skip for 570) ────────────────────
     const orientData = (sections.orientation_photos || {}).section_data || {};
     const orientBuf = base64ToBuffer(orientData.orientation_photo);
     const dataPlateBuf = base64ToBuffer(orientData.dataplate_photo);
-    if (orientBuf || dataPlateBuf) {
+    if ((orientBuf || dataPlateBuf) && type !== 'ext570') {
         children.push(sectionHeading('ORIENTATION / DATA PLATE'));
         const photoCells = [];
         if (orientBuf) {
@@ -710,9 +710,8 @@ async function generateDocx(report) {
             });
 
             const dataRows = cat.items.map(item => {
-                const key = `item_${item.num}`;
-                const itemData = items[key] || {};
-                const checked = itemData.checked;
+                const itemData = items[String(item.num)] || items[`item_${item.num}`] || {};
+                const checked = itemData.value || itemData.checked;
                 let yes = '', no = '', na = '';
                 if (checked === true || checked === 'yes') yes = '\u2612';
                 else if (checked === false || checked === 'no') no = '\u2612';
@@ -722,7 +721,7 @@ async function generateDocx(report) {
                 return new TableRow({
                     children: [
                         String(item.num), item.label, yes || '\u2610', no || '\u2610', na || '\u2610',
-                        itemData.location || '', itemData.comment || ''
+                        itemData.location || '', itemData.comments || itemData.comment || ''
                     ].map((v, i) =>
                         new TableCell({
                             children: [new Paragraph({ children: [new TextRun({ text: v, size: 16, font: 'Arial' })], alignment: i >= 2 && i <= 4 ? AlignmentType.CENTER : AlignmentType.LEFT })],

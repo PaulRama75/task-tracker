@@ -1,5 +1,4 @@
 // ─── Authentication & Lock Management ──────────────────────────────────────
-
 const Auth = (() => {
     let currentUser = null;
     let parentSites = null; // sites from task-tracker DB

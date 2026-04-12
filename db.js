@@ -419,6 +419,17 @@ async function initDB() {
       )
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tir_checklist_options (
+        id SERIAL PRIMARY KEY,
+        report_type VARCHAR(50) NOT NULL,
+        item_num VARCHAR(20) NOT NULL,
+        option_text TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tir_cl_opts_unique ON tir_checklist_options(report_type, item_num, option_text)`);
+
     // TIR indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_tir_reports_site ON tir_reports(site_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_tir_reports_status ON tir_reports(status)`);
@@ -1324,6 +1335,33 @@ async function tirDeletePhoto(reportId, photoId, bodyIdx) {
   return rows[0];
 }
 
+// ========== TIR CHECKLIST COMMENT OPTIONS ==========
+async function getChecklistOptions(reportType) {
+  const { rows } = await pool.query(
+    'SELECT item_num, option_text FROM tir_checklist_options WHERE report_type=$1 ORDER BY item_num, option_text',
+    [reportType]
+  );
+  // Group by item_num
+  const grouped = {};
+  rows.forEach(r => {
+    if (!grouped[r.item_num]) grouped[r.item_num] = [];
+    grouped[r.item_num].push(r.option_text);
+  });
+  return grouped;
+}
+
+async function addChecklistOption(reportType, itemNum, optionText) {
+  const { rows } = await pool.query(
+    'INSERT INTO tir_checklist_options (report_type, item_num, option_text) VALUES ($1,$2,$3) ON CONFLICT (report_type, item_num, option_text) DO NOTHING RETURNING *',
+    [reportType, String(itemNum), optionText.trim()]
+  );
+  return rows[0] || null;
+}
+
+async function deleteChecklistOption(id) {
+  await pool.query('DELETE FROM tir_checklist_options WHERE id=$1', [id]);
+}
+
 // ========== TIR ATTACHMENT OPERATIONS ==========
 async function getTirAttachments(reportId) {
   const { rows } = await pool.query('SELECT * FROM tir_attachments WHERE report_id=$1 ORDER BY uploaded_at DESC', [reportId]);
@@ -1500,6 +1538,8 @@ module.exports = {
   tirSaveSection, tirAcquireLock, tirReleaseLock, tirForceUnlock,
   // TIR Photos
   tirAddPhoto, tirUpdatePhoto, tirDeletePhoto,
+  // TIR Checklist Options
+  getChecklistOptions, addChecklistOption, deleteChecklistOption,
   // TIR Attachments
   getTirAttachments, tirAddAttachment, tirDeleteAttachment,
   // TIR Versions

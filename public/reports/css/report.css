@@ -603,6 +603,9 @@ body {
     .cl-loc-cell { white-space: nowrap !important; }
     .cl-comment-cell { width: auto !important; }
     .cl-toolbar { display: none !important; }
+    .cl-comment-input { display: none !important; }
+    .cl-comment-opts { display: none !important; }
+    .cl-comment-display { display: block !important; }
     .cl-comment { border: none !important; padding: 0 !important; background: transparent !important; font-size: 11px !important; }
     #checklist-section-container { overflow: visible !important; max-width: 100% !important; }
 
@@ -742,6 +745,9 @@ body {
 .pdf-mode .checklist-table td { padding: 2px 3px; border: 1px solid #999; overflow: hidden; word-wrap: break-word; color: #000 !important; }
 .pdf-mode .checklist-table th { padding: 2px 3px; border: 1px solid #999; overflow: hidden; word-wrap: break-word; }
 .pdf-mode .cl-toolbar { display: none !important; }
+.pdf-mode .cl-comment-input { display: none !important; }
+.pdf-mode .cl-comment-opts { display: none !important; }
+.pdf-mode .cl-comment-display { display: block !important; }
 .pdf-mode .cl-comment { font-size: 12px; border: none; padding: 0; background: transparent; overflow: hidden; word-wrap: break-word; max-height: 36px; line-height: 1.2; color: #000 !important; }
 .pdf-mode .checklist-table thead th {
     background: #222222 !important; color: #ffffff !important;
@@ -1231,6 +1237,27 @@ body {
     word-wrap: break-word; overflow-wrap: break-word;
     max-width: 100%; overflow: hidden;
 }
+.cl-comment-wrap { position: relative; }
+.cl-comment-input {
+    width: 100%; font-size: 11px; padding: 3px 5px;
+    border: 1px solid var(--gray-300); border-radius: 3px;
+    background: var(--white); color: var(--gray-700); box-sizing: border-box;
+}
+.cl-comment-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15); }
+.cl-comment-input::placeholder { color: var(--gray-400); font-size: 10px; }
+.cl-comment-opts {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
+    max-height: 150px; overflow-y: auto; background: var(--white);
+    border: 1px solid var(--gray-300); border-radius: 0 0 4px 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.cl-opt-item {
+    padding: 4px 6px; font-size: 10px; cursor: pointer;
+    border-bottom: 1px solid var(--gray-100); color: var(--gray-700);
+}
+.cl-opt-item:hover { background: #e8f4fd; color: var(--primary); }
+.cl-opt-item:last-child { border-bottom: none; }
+.cl-comment-display { font-size: 11px; line-height: 1.4; min-height: 18px; }
 .cl-comment-editable {
     border: 1px solid var(--gray-300); border-radius: 3px;
     padding: 2px 4px; background: var(--white);

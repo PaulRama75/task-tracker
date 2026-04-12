@@ -230,6 +230,27 @@ router.delete('/api/tir/reports/:id/attachments/:attId', authRequired, asyncHand
   res.json(result);
 }));
 
+// --- TIR Checklist Comment Options ---
+
+router.get('/api/tir/checklist-options/:reportType', authRequired, asyncHandler(async (req, res) => {
+  const options = await db.getChecklistOptions(req.params.reportType);
+  res.json(options);
+}));
+
+router.post('/api/tir/checklist-options', authRequired, asyncHandler(async (req, res) => {
+  const { reportType, itemNum, optionText } = req.body;
+  if (!reportType || !itemNum || !optionText || !optionText.trim()) {
+    return res.status(400).json({ error: 'reportType, itemNum, and optionText required' });
+  }
+  const result = await db.addChecklistOption(reportType, itemNum, optionText);
+  res.json({ ok: true, result });
+}));
+
+router.delete('/api/tir/checklist-options/:id', authRequired, asyncHandler(async (req, res) => {
+  await db.deleteChecklistOption(parseInt(req.params.id, 10));
+  res.json({ ok: true });
+}));
+
 // --- TIR Versions ---
 
 router.get('/api/tir/reports/:id/versions', authRequired, asyncHandler(async (req, res) => {

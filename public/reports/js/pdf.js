@@ -1,580 +1,575 @@
-// ─── PDF Generation ────────────────────────────────────────────────────────
+// ─── PDF Generation (jsPDF programmatic builder) ───────────────────────────
+// Mirrors the Word document format from docx-generator.js + adds signature
 
 var PDF = (() => {
+    // ── Constants ────────────────────────────────────────────────────────
+    const NAVY = [31, 58, 95];
+    const WHITE = [255, 255, 255];
+    const LIGHT_GRAY = [244, 246, 248];
+    const MED_GRAY = [102, 102, 102];
+    const DARK = [34, 34, 34];
+    const BORDER_GRAY = [153, 153, 153];
+    const PAGE_W = 215.9, PAGE_H = 279.4; // Letter mm
+    const MARGIN = 10;
+    const USABLE_W = PAGE_W - 2 * MARGIN;
+    const CONTENT_TOP = 14;
+    const CONTENT_BOTTOM = PAGE_H - 12;
+    const FONT = 'Helvetica';
 
-    const CONTENT_WIDTH = 940; // px — desired content width for PDF layout
-    const WINDOW_WIDTH  = 940; // viewport for CSS rendering
+    // ── Helpers ──────────────────────────────────────────────────────────
 
-    function addHeaderFooter(pdf, equipNum, reportTitle) {
-        const pageCount = pdf.internal.getNumberOfPages();
-        const pageW = pdf.internal.pageSize.getWidth();
-        const pageH = pdf.internal.pageSize.getHeight();
+    function stripHtml(html) {
+        if (!html) return '';
+        return html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>\s*<p[^>]*>/gi, '\n')
+            .replace(/<\/li>/gi, '\n')
+            .replace(/<li[^>]*>/gi, '  \u2022 ')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+            .trim();
+    }
 
+    function checkPage(doc, cursor, needed) {
+        if (cursor.y + needed > CONTENT_BOTTOM) {
+            doc.addPage();
+            cursor.y = CONTENT_TOP;
+        }
+    }
+
+    function newPage(doc, cursor) {
+        doc.addPage();
+        cursor.y = CONTENT_TOP;
+    }
+
+    // Draw a navy bar with centered white text
+    function drawNavyBar(doc, cursor, text, fontSize) {
+        fontSize = fontSize || 11;
+        const barH = fontSize * 0.5 + 4;
+        checkPage(doc, cursor, barH + 2);
+        doc.setFillColor(...NAVY);
+        doc.rect(MARGIN, cursor.y, USABLE_W, barH, 'F');
+        doc.setFont(FONT, 'bold');
+        doc.setFontSize(fontSize);
+        doc.setTextColor(...WHITE);
+        doc.text(text, PAGE_W / 2, cursor.y + barH / 2 + fontSize * 0.15, { align: 'center' });
+        cursor.y += barH + 2;
+    }
+
+    // Draw a simple table. rows = [[{text,bold,bg,color,align,colSpan},...],...]
+    // colWidths = array of mm widths
+    function drawTable(doc, cursor, rows, colWidths, opts) {
+        opts = opts || {};
+        const cellPadX = opts.padX || 1.5;
+        const cellPadY = opts.padY || 1.2;
+        const fontSize = opts.fontSize || 8;
+        const lineH = fontSize * 0.45;
+
+        for (let ri = 0; ri < rows.length; ri++) {
+            const row = rows[ri];
+            // Calculate row height
+            let maxLines = 1;
+            const cellLines = [];
+            let ci = 0;
+            for (let i = 0; i < row.length; i++) {
+                const cell = row[i];
+                const span = cell.colSpan || 1;
+                let cellW = 0;
+                for (let s = 0; s < span; s++) cellW += colWidths[ci + s];
+                const textW = cellW - cellPadX * 2;
+                doc.setFont(FONT, cell.bold ? 'bold' : 'normal');
+                doc.setFontSize(fontSize);
+                const lines = doc.splitTextToSize(String(cell.text || ''), textW);
+                cellLines.push({ lines, cellW, startCol: ci });
+                if (lines.length > maxLines) maxLines = lines.length;
+                ci += span;
+            }
+            const rowH = maxLines * lineH + cellPadY * 2;
+
+            if (!opts.noPageBreak) checkPage(doc, cursor, rowH);
+
+            // Draw cells
+            let x = MARGIN;
+            for (let i = 0; i < row.length; i++) {
+                const cell = row[i];
+                const cw = cellLines[i].cellW;
+                // Background
+                if (cell.bg) {
+                    doc.setFillColor(...cell.bg);
+                    doc.rect(x, cursor.y, cw, rowH, 'F');
+                }
+                // Border
+                doc.setDrawColor(...BORDER_GRAY);
+                doc.setLineWidth(0.2);
+                doc.rect(x, cursor.y, cw, rowH, 'S');
+                // Text
+                doc.setFont(FONT, cell.bold ? 'bold' : 'normal');
+                doc.setFontSize(fontSize);
+                doc.setTextColor(...(cell.color || DARK));
+                const align = cell.align || 'left';
+                const textX = align === 'center' ? x + cw / 2 : align === 'right' ? x + cw - cellPadX : x + cellPadX;
+                const textY = cursor.y + cellPadY + lineH * 0.7;
+                cellLines[i].lines.forEach((line, li) => {
+                    doc.text(line, textX, textY + li * lineH, { align });
+                });
+                x += cw;
+            }
+            cursor.y += rowH;
+        }
+    }
+
+    function drawWrappedText(doc, cursor, text, fontSize, opts) {
+        opts = opts || {};
+        fontSize = fontSize || 9;
+        const lineH = fontSize * 0.45;
+        doc.setFont(FONT, opts.bold ? 'bold' : opts.italic ? 'italic' : 'normal');
+        doc.setFontSize(fontSize);
+        doc.setTextColor(...(opts.color || DARK));
+        const lines = doc.splitTextToSize(text, USABLE_W - 2);
+        for (const line of lines) {
+            checkPage(doc, cursor, lineH + 1);
+            doc.text(line, MARGIN + 1, cursor.y + lineH);
+            cursor.y += lineH;
+        }
+        cursor.y += 1;
+    }
+
+    function loadImage(src) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth;
+                c.height = img.naturalHeight;
+                c.getContext('2d').drawImage(img, 0, 0);
+                resolve({ dataUrl: c.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight });
+            };
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+    }
+
+    function getImageDims(dataUrl) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+            img.onerror = () => resolve({ w: 400, h: 300 });
+            img.src = dataUrl;
+        });
+    }
+
+    function addHeaderFooter(doc, equipNum, reportTitle) {
+        const pageCount = doc.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
-            pdf.setPage(i);
-
-            // Top center: Equipment # - Report Name
-            pdf.setFontSize(9);
-            pdf.setTextColor(80, 80, 80);
-            const headerText = `${equipNum} - ${reportTitle}`;
-            const headerW = pdf.getStringUnitWidth(headerText) * 9 / pdf.internal.scaleFactor;
-            pdf.text(headerText, (pageW - headerW) / 2, 8);
-
-            // Bottom right: Page X / Y
-            const pageText = `Page ${i} / ${pageCount}`;
-            const pageTextW = pdf.getStringUnitWidth(pageText) * 8 / pdf.internal.scaleFactor;
-            pdf.text(pageText, pageW - pageTextW - 10, pageH - 6);
+            doc.setPage(i);
+            // Header
+            doc.setFont(FONT, 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(...MED_GRAY);
+            doc.text(`${equipNum} - ${reportTitle}`, PAGE_W / 2, 7, { align: 'center' });
+            // Footer
+            doc.text(`Page ${i} / ${pageCount}`, PAGE_W - MARGIN, PAGE_H - 5, { align: 'right' });
         }
     }
 
-    // Force inline styles on colored elements so html2canvas picks them up
-    function forceInlineColors(content) {
-        const colorMap = [
-            { sel: '.ext510-header-block', bg: '#a0a0a0', color: '#222' },
-            { sel: '.ext510-equip-id', bg: '#888888', color: '#ffffff' },
-            { sel: '.ext510-tbl-hdr', bg: '#222222', color: '#ffffff' },
-            { sel: '.ext510-insp-label', bg: '#222222', color: '#ffffff' },
-            { sel: '.checklist-table thead th', bg: '#222222', color: '#ffffff' },
-            { sel: '.cl-cat-cell', bg: '#eeeeee', color: '#000000' },
-            { sel: '.orient-photo-label', bg: '#222222', color: '#ffffff' },
-            { sel: '.report-section .section-view h3', bg: '#000000', color: '#ffffff' },
-        ];
-        const originals = [];
-        colorMap.forEach(({ sel, bg, color }) => {
-            content.querySelectorAll(sel).forEach(el => {
-                originals.push({ el, bg: el.style.backgroundColor, color: el.style.color });
-                el.style.backgroundColor = bg;
-                el.style.color = color;
-            });
-        });
-        return originals;
-    }
+    // ── Main Generate Function ───────────────────────────────────────────
 
-    function restoreInlineColors(originals) {
-        originals.forEach(({ el, bg, color }) => {
-            el.style.backgroundColor = bg;
-            el.style.color = color;
-        });
-    }
-
-    // Collect all inline style overrides so cleanup can restore them
-    function setStyle(el, prop, val, tracker) {
-        tracker.push({ el, prop, prev: el.style[prop] });
-        el.style[prop] = val;
-    }
-
-    async function generate(reportData, opts = {}) {
-        const container = document.getElementById('report-container');
-        const content = document.getElementById('report-content');
-        const equipNum = reportData.equipment_number || 'Report';
-        const config = API.getReportTypeConfig(reportData.report_type || 'tower');
-        const reportTitle = config.title || 'INSPECTION REPORT';
-
-        // Track all inline style changes for cleanup
-        const styleTracker = [];
-
-        // Apply PDF mode
-        content.classList.add('pdf-mode');
-        document.body.classList.add('printing');
-
-        // ── Force body to have zero margin/padding and no scrollbar ─────
-        setStyle(document.body, 'margin', '0', styleTracker);
-        setStyle(document.body, 'padding', '0', styleTracker);
-        setStyle(document.body, 'overflow', 'hidden', styleTracker);
-        setStyle(document.documentElement, 'margin', '0', styleTracker);
-        setStyle(document.documentElement, 'padding', '0', styleTracker);
-        setStyle(document.documentElement, 'overflow', 'hidden', styleTracker);
-
-        // ── Force container to top-left origin so html2canvas captures from x=0 ──
-        setStyle(document.body, 'position', 'relative', styleTracker);
-        setStyle(container, 'width', CONTENT_WIDTH + 'px', styleTracker);
-        setStyle(container, 'maxWidth', CONTENT_WIDTH + 'px', styleTracker);
-        setStyle(container, 'margin', '0', styleTracker);
-        setStyle(container, 'padding', '0', styleTracker);
-        setStyle(container, 'position', 'absolute', styleTracker);
-        setStyle(container, 'left', '0px', styleTracker);
-        setStyle(container, 'top', '0px', styleTracker);
-        setStyle(content, 'width', CONTENT_WIDTH + 'px', styleTracker);
-        setStyle(content, 'maxWidth', CONTENT_WIDTH + 'px', styleTracker);
-        setStyle(content, 'overflow', 'visible', styleTracker);
-        setStyle(content, 'boxSizing', 'border-box', styleTracker);
-        setStyle(content, 'padding', '0 10px', styleTracker);
-        setStyle(content, 'margin', '0', styleTracker);
-
-        // Ensure ALL sections are visible and expanded for PDF capture
-        content.querySelectorAll('.report-section').forEach(sec => {
-            sec.style.display = '';
-            sec.classList.remove('hidden');
-        });
-        content.querySelectorAll('[id$="-container"]').forEach(el => {
-            el.classList.remove('hidden');
-            el.style.display = '';
-        });
-
-        // ── Force zero padding/margin on all section-views for tight fit ──
-        content.querySelectorAll('.section-view').forEach(sv => {
-            setStyle(sv, 'padding', '0', styleTracker);
-            setStyle(sv, 'margin', '0', styleTracker);
-        });
-        // Force header block to flex layout for html2canvas compatibility
-        content.querySelectorAll('.ext510-header-block').forEach(hb => {
-            setStyle(hb, 'display', 'flex', styleTracker);
-            setStyle(hb, 'flexWrap', 'nowrap', styleTracker);
-            setStyle(hb, 'alignItems', 'center', styleTracker);
-            setStyle(hb, 'padding', '8px 12px', styleTracker);
-            setStyle(hb, 'margin', '0', styleTracker);
-            setStyle(hb, 'width', '100%', styleTracker);
-            setStyle(hb, 'maxWidth', '100%', styleTracker);
-            setStyle(hb, 'boxSizing', 'border-box', styleTracker);
-            setStyle(hb, 'overflow', 'hidden', styleTracker);
-        });
-
-        // Force orientation/data plate grid to flex (html2canvas doesn't support CSS Grid)
-        content.querySelectorAll('.orient-dataplate-grid').forEach(grid => {
-            setStyle(grid, 'display', 'flex', styleTracker);
-            setStyle(grid, 'flexWrap', 'nowrap', styleTracker);
-            setStyle(grid, 'gap', '8px', styleTracker);
-            setStyle(grid, 'margin', '0', styleTracker);
-        });
-        content.querySelectorAll('.orient-photo-box').forEach(box => {
-            setStyle(box, 'width', 'calc(50% - 4px)', styleTracker);
-            setStyle(box, 'flexShrink', '0', styleTracker);
-            setStyle(box, 'boxSizing', 'border-box', styleTracker);
-        });
-
-        // Force photo grid to flex layout (html2canvas doesn't support CSS Grid)
-        // Split photos into groups of 8 per page with page breaks between groups
-        content.querySelectorAll('.photo-grid').forEach(grid => {
-            const cards = Array.from(grid.querySelectorAll('.photo-card'));
-            if (cards.length > 8) {
-                // Wrap cards into groups of 8, each in its own container
-                grid.innerHTML = '';
-                for (let i = 0; i < cards.length; i += 8) {
-                    const group = document.createElement('div');
-                    group.className = 'photo-page-group';
-                    group.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;width:100%;';
-                    if (i > 0) {
-                        // Force page break before groups after the first 8
-                        group.classList.add('pdf-page-break');
-                        group.style.paddingTop = '4px';
-                    }
-                    const slice = cards.slice(i, i + 8);
-                    slice.forEach(card => group.appendChild(card));
-                    grid.appendChild(group);
-                }
-                setStyle(grid, 'display', 'block', styleTracker);
-            } else {
-                setStyle(grid, 'display', 'flex', styleTracker);
-                setStyle(grid, 'flexWrap', 'wrap', styleTracker);
-            }
-            setStyle(grid, 'gap', '4px', styleTracker);
-            setStyle(grid, 'margin', '0', styleTracker);
-        });
-        content.querySelectorAll('.photo-card').forEach(card => {
-            setStyle(card, 'width', 'calc(50% - 2px)', styleTracker);
-            setStyle(card, 'flexShrink', '0', styleTracker);
-            setStyle(card, 'boxSizing', 'border-box', styleTracker);
-        });
-        // Force 260px height on photo images for PDF only (editor stays unchanged)
-        content.querySelectorAll('.photo-card img').forEach(img => {
-            setStyle(img, 'height', '260px', styleTracker);
-            setStyle(img, 'maxHeight', '260px', styleTracker);
-            setStyle(img, 'objectFit', 'contain', styleTracker);
-            setStyle(img, 'background', '#F4F6F8', styleTracker);
-        });
-        content.querySelectorAll('.photo-card .photo-caption, .photo-card .photo-caption-pdf').forEach(cap => {
-            setStyle(cap, 'fontSize', '10px', styleTracker);
-            setStyle(cap, 'padding', '2px 4px', styleTracker);
-            setStyle(cap, 'lineHeight', '1.3', styleTracker);
-        });
-
-        // ── Hide all UI / interactive elements ───────────────────────────
-        const hideSelectors = [
-            '#photo-upload-area', '#photo-upload-panel', '.photo-file-input',
-            '.orient-photo-actions', '.save-bar', '.version-banner',
-            '.import-bar', '.lock-status', '.top-bar',
-            '#btn-lock', '#btn-unlock', '#btn-pdf',
-            '.btn-edit', '.btn-save', '.btn-cancel',
-            '.section-toolbar', '.cl-toolbar',
-            'input[type="file"]', '.ql-toolbar',
-            '#inspector-edit-area', '#btn-add-inspector',
-            '.photo-drop-zone', '#photo-drop-zone',
-            '#btn-choose-photos', '#btn-camera',
-            '#photo-file-count', '#photo-preview', '.report-footer',
-            '[data-section="inspection_type"]',
-        ];
-        const hiddenEls = [];
-        hideSelectors.forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => {
-                hiddenEls.push({ el, prev: el.style.display });
-                el.style.display = 'none';
-            });
-        });
-
-        // Hide Quill editor chrome
-        document.querySelectorAll('.ql-container.ql-snow').forEach(c => {
-            setStyle(c, 'border', 'none', styleTracker);
-        });
-        document.querySelectorAll('.ql-editor').forEach(ed => {
-            setStyle(ed, 'padding', '0', styleTracker);
-            setStyle(ed, 'minHeight', 'auto', styleTracker);
-        });
-
-        // Show photo captions as text (not input fields) for PDF
-        content.querySelectorAll('.caption-input').forEach(inp => {
-            const span = document.createElement('span');
-            span.className = 'photo-caption-pdf';
-            span.textContent = inp.value || '';
-            span.style.cssText = 'font-size:11px;display:block;padding:2px 4px;color:#333;';
-            inp.style.display = 'none';
-            inp.parentNode.appendChild(span);
-        });
-
-        // ── Force tables to fit within fixed width ─────────────────────
-        content.querySelectorAll('table').forEach(tbl => {
-            setStyle(tbl, 'width', '100%', styleTracker);
-            setStyle(tbl, 'maxWidth', '100%', styleTracker);
-        });
-        // Equipment table: use fixed layout so columns share space equally
-        content.querySelectorAll('.ext510-equip-table').forEach(tbl => {
-            setStyle(tbl, 'tableLayout', 'fixed', styleTracker);
-            setStyle(tbl, 'width', '100%', styleTracker);
-            setStyle(tbl, 'maxWidth', '100%', styleTracker);
-            setStyle(tbl, 'fontSize', '9px', styleTracker);
-        });
-        content.querySelectorAll('.ext510-equip-table td, .ext510-equip-table th').forEach(cell => {
-            setStyle(cell, 'whiteSpace', 'normal', styleTracker);
-            setStyle(cell, 'wordWrap', 'break-word', styleTracker);
-            setStyle(cell, 'overflowWrap', 'break-word', styleTracker);
-            setStyle(cell, 'overflow', 'hidden', styleTracker);
-            setStyle(cell, 'padding', '2px 3px', styleTracker);
-        });
-
-        // Add page break markers for PDF layout control
-        // Mark the HEADING elements (h3) inside checklist and photos so the break
-        // happens right before the heading text — keeping heading + content together.
-        const checklistContainer = content.querySelector('#checklist-section-container');
-        if (checklistContainer && !checklistContainer.classList.contains('hidden')) {
-            const clH3 = checklistContainer.querySelector('h3');
-            if (clH3) {
-                clH3.classList.add('pdf-page-break');
-                setStyle(clH3, 'marginTop', '20px', styleTracker);
-            }
-        }
-
-        const photoSec = content.querySelector('[data-section="photos"]');
-        if (photoSec) {
-            const phH3 = photoSec.querySelector('h3');
-            if (phH3) {
-                phH3.classList.add('pdf-page-break');
-                setStyle(phH3, 'marginTop', '20px', styleTracker);
-            }
-        }
-        // Mark narrative containers that come before checklist
-        const narrativeContainer = content.querySelector('#ext510-narrative-container');
-        if (narrativeContainer && !narrativeContainer.classList.contains('hidden')) {
-            // Narrative should stay on page 1 — no break needed
-        }
-
-        // Add padding to summary/recommendations for cleaner look
-        content.querySelectorAll('#ext510-narrative-container .report-section').forEach(sec => {
-            setStyle(sec, 'marginBottom', '20px', styleTracker);
-        });
-        content.querySelectorAll('#ext510-narrative-container .ql-editor, #narrative-sections-container .ql-editor').forEach(ed => {
-            setStyle(ed, 'minHeight', '120px', styleTracker);
-            setStyle(ed, 'padding', '10px 4px', styleTracker);
-            setStyle(ed, 'lineHeight', '1.6', styleTracker);
-        });
-        content.querySelectorAll('#ext510-narrative-container .section-view h3, #narrative-sections-container .section-view h3').forEach(h3 => {
-            setStyle(h3, 'marginBottom', '8px', styleTracker);
-        });
-
-        // Force images and divs to stay within width
-        content.querySelectorAll('img').forEach(img => {
-            setStyle(img, 'maxWidth', '100%', styleTracker);
-        });
-
-        // Force all direct children to respect container width
-        content.querySelectorAll('.report-section, [id$="-container"]').forEach(el => {
-            setStyle(el, 'maxWidth', '100%', styleTracker);
-            setStyle(el, 'overflow', 'hidden', styleTracker);
-            setStyle(el, 'boxSizing', 'border-box', styleTracker);
-        });
-
-        // Force checklist comment cells to clip properly
-        content.querySelectorAll('.cl-comment').forEach(el => {
-            setStyle(el, 'maxWidth', '100%', styleTracker);
-            setStyle(el, 'overflow', 'hidden', styleTracker);
-            setStyle(el, 'wordWrap', 'break-word', styleTracker);
-        });
-
-        // Pre-process logo: remove white background from live DOM image
-        window._pdfLogoDataUrl = null;
+    async function generate(reportData, opts) {
+        opts = opts || {};
         try {
-            const liveLogoImg = content.querySelector('.ext510-logo img');
-            if (liveLogoImg && liveLogoImg.naturalWidth > 0) {
-                const lc = document.createElement('canvas');
-                lc.width = liveLogoImg.naturalWidth;
-                lc.height = liveLogoImg.naturalHeight;
-                const lctx = lc.getContext('2d');
-                lctx.drawImage(liveLogoImg, 0, 0);
-                const lid = lctx.getImageData(0, 0, lc.width, lc.height);
-                const ld = lid.data;
-                for (let i = 0; i < ld.length; i += 4) {
-                    if (ld[i] > 200 && ld[i+1] > 200 && ld[i+2] > 200) {
-                        ld[i+3] = 0;
-                    }
-                }
-                lctx.putImageData(lid, 0, 0);
-                window._pdfLogoDataUrl = lc.toDataURL('image/png');
+            const type = reportData.report_type || 'tower';
+            const config = API.getReportTypeConfig(type);
+            const sections = reportData.sections || {};
+            const headerData = (sections.header || {}).section_data || {};
+            const isExt = type === 'ext510' || type === 'ext570';
+            const equipNum = headerData.equipment_number || reportData.equipment_number || 'Report';
+            const reportTitle = config.title || 'INSPECTION REPORT';
+            const idLabel = config.idLabel || 'EQUIPMENT ID';
+
+            const { jsPDF } = jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
+            const cursor = { y: CONTENT_TOP };
+
+            // ── 1. Logo ─────────────────────────────────────────────────
+            const logoImg = await loadImage('/reports/images/fer-logo.png');
+            if (logoImg) {
+                const logoW = 22, logoH = (logoImg.h / logoImg.w) * logoW;
+                doc.addImage(logoImg.dataUrl, 'PNG', PAGE_W / 2 - logoW / 2, cursor.y, logoW, logoH);
+                cursor.y += logoH + 3;
             }
-        } catch(e) { /* skip if cross-origin */ }
 
-        // Wait for DOM to settle
-        await new Promise(r => setTimeout(r, 400));
+            // ── 2. Title ────────────────────────────────────────────────
+            doc.setFont(FONT, 'bold');
+            doc.setFontSize(16);
+            doc.setTextColor(...NAVY);
+            doc.text(reportTitle, PAGE_W / 2, cursor.y + 5, { align: 'center' });
+            cursor.y += 10;
 
-        // Force inline colors for html2canvas
-        const originals = forceInlineColors(content);
+            // ── 3. Form Number + Date ───────────────────────────────────
+            const now = new Date().toISOString().slice(0, 10);
+            doc.setFont(FONT, 'normal');
+            doc.setFontSize(7);
+            doc.setTextColor(...MED_GRAY);
+            doc.text(`${config.formNumber}    Issue Date: ${now}`, PAGE_W - MARGIN, cursor.y, { align: 'right' });
+            cursor.y += 5;
 
-        if (opts.autoDownload && typeof html2canvas !== 'undefined' && typeof jspdf !== 'undefined') {
-            const filename = `${equipNum}_Final_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+            // ── 4. Equipment ID Bar ─────────────────────────────────────
+            const idBarH = 7;
+            doc.setFillColor(102, 102, 102);
+            doc.rect(MARGIN, cursor.y, USABLE_W, idBarH, 'F');
+            doc.setFont(FONT, 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(...WHITE);
+            doc.text(`${idLabel}: ${equipNum}`, PAGE_W / 2, cursor.y + idBarH / 2 + 1.5, { align: 'center' });
+            cursor.y += idBarH + 3;
 
-            // Scroll to top before capture to avoid offset issues
-            window.scrollTo(0, 0);
-
-            try {
-                // Capture the content element directly with html2canvas
-                // Use the element's own bounding rect to crop precisely
-                const rect = content.getBoundingClientRect();
-                const canvas = await html2canvas(content, {
-                    scale: 2,
-                    useCORS: true,
-                    scrollY: -window.scrollY,
-                    scrollX: 0,
-                    x: rect.left,
-                    y: rect.top,
-                    width: CONTENT_WIDTH,
-                    height: rect.height,
-                    windowWidth: WINDOW_WIDTH,
-                    logging: false,
-                    backgroundColor: '#ffffff',
-                    letterRendering: true,
-                    onclone: function(clonedDoc) {
-                        var cloneBody = clonedDoc.body;
-                        cloneBody.style.margin = '0';
-                        cloneBody.style.padding = '0';
-                        var cloneContainer = clonedDoc.getElementById('report-container');
-                        if (cloneContainer) {
-                            cloneContainer.style.position = 'absolute';
-                            cloneContainer.style.left = '0px';
-                            cloneContainer.style.top = '0px';
-                            cloneContainer.style.margin = '0';
-                            cloneContainer.style.padding = '0';
-                            cloneContainer.style.width = CONTENT_WIDTH + 'px';
-                            cloneContainer.style.maxWidth = CONTENT_WIDTH + 'px';
-                        }
-                        var cloneContent = clonedDoc.getElementById('report-content');
-                        if (cloneContent) {
-                            cloneContent.style.width = CONTENT_WIDTH + 'px';
-                            cloneContent.style.maxWidth = CONTENT_WIDTH + 'px';
-                            cloneContent.style.margin = '0';
-                            cloneContent.style.padding = '0 10px';
-                            cloneContent.style.boxSizing = 'border-box';
-                        }
-                        var style = clonedDoc.createElement('style');
-                        style.textContent = '#report-container, .report-container { position: absolute !important; left: 0 !important; top: 0 !important; margin: 0 !important; padding: 0 !important; max-width: ' + CONTENT_WIDTH + 'px !important; width: ' + CONTENT_WIDTH + 'px !important; } ' +
-                            '#report-content { margin: 0 !important; padding: 0 10px !important; max-width: ' + CONTENT_WIDTH + 'px !important; width: ' + CONTENT_WIDTH + 'px !important; box-sizing: border-box !important; }';
-                        clonedDoc.head.appendChild(style);
-
-                        // Replace all input fields with plain text in the clone
-                        clonedDoc.querySelectorAll('.inline-input').forEach(function(inp) {
-                            var span = clonedDoc.createElement('span');
-                            span.textContent = inp.value || '';
-                            span.style.cssText = 'font-size:inherit;color:inherit;';
-                            inp.parentNode.replaceChild(span, inp);
-                        });
-                        clonedDoc.querySelectorAll('.cl-input').forEach(function(inp) {
-                            var span = clonedDoc.createElement('span');
-                            span.textContent = inp.value || '';
-                            span.style.cssText = 'font-size:11px;color:#333;';
-                            inp.parentNode.replaceChild(span, inp);
-                        });
-                        clonedDoc.querySelectorAll('.cl-comment-editable').forEach(function(el) {
-                            el.contentEditable = 'false';
-                            el.classList.remove('cl-comment-editable');
-                            el.style.border = 'none';
-                            el.style.outline = 'none';
-                            el.style.padding = '0';
-                        });
-                        clonedDoc.querySelectorAll('[data-section="ext510_inspector"] input').forEach(function(inp) {
-                            var span = clonedDoc.createElement('span');
-                            span.textContent = inp.value || '';
-                            span.style.cssText = 'font-size:12px;color:#333;';
-                            inp.parentNode.replaceChild(span, inp);
-                        });
-                        // Replace logo with pre-processed transparent version
-                        if (window._pdfLogoDataUrl) {
-                            var cloneLogo = clonedDoc.querySelector('.ext510-logo img');
-                            if (cloneLogo) cloneLogo.src = window._pdfLogoDataUrl;
-                        }
-                        // Convert signature canvas to image in clone
-                        var liveSigCanvas = document.getElementById('sig-canvas');
-                        var cloneSigCanvas = clonedDoc.getElementById('sig-canvas');
-                        if (liveSigCanvas && cloneSigCanvas) {
-                            var sigImg = clonedDoc.createElement('img');
-                            sigImg.src = liveSigCanvas.toDataURL('image/png');
-                            sigImg.style.cssText = 'max-height:60px;max-width:100%;';
-                            cloneSigCanvas.parentNode.replaceChild(sigImg, cloneSigCanvas);
-                        }
-                        // Hide clear button in PDF
-                        var cloneSigClear = clonedDoc.getElementById('sig-clear');
-                        if (cloneSigClear) cloneSigClear.style.display = 'none';
-                    },
-                });
-
-                // Letter: 215.9 x 279.4 mm
-                const marginTop = 12, marginRight = 10, marginBottom = 12, marginLeft = 10;
-                const pageW = 215.9, pageH = 279.4;
-                const usableW = pageW - marginLeft - marginRight;
-                const usableH = pageH - marginTop - marginBottom;
-
-                // Scale canvas to fit page width
-                const imgWidth = usableW;
-                const imgHeight = (canvas.height / canvas.width) * imgWidth;
-
-                const { jsPDF } = jspdf;
-                const pdf = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
-
-                // Collect forced page break positions (in mm)
-                const contentRect = content.getBoundingClientRect();
-                const pxToMm = imgWidth / canvas.width * 2; // scale=2
-                const forcedBreaks = [];
-                content.querySelectorAll('.pdf-page-break').forEach(function(el) {
-                    const elRect = el.getBoundingClientRect();
-                    // Offset by 10mm before the element so the heading text
-                    // is NOT included in the previous page slice
-                    const topMm = (elRect.top - contentRect.top) * pxToMm - 10;
-                    if (topMm > 10) forcedBreaks.push(topMm);
-                });
-                forcedBreaks.sort(function(a, b) { return a - b; });
-
-                // Also collect section boundaries for fallback smart breaks
-                // Include individual checklist rows to avoid splitting rows across pages
-                const sectionBreaks = [];
-                content.querySelectorAll('.report-section, .orient-dataplate-grid, .ext510-inspector-table, .ext510-equip-table').forEach(function(el) {
-                    const elRect = el.getBoundingClientRect();
-                    const topMm = (elRect.top - contentRect.top) * pxToMm;
-                    const bottomMm = (elRect.bottom - contentRect.top) * pxToMm;
-                    sectionBreaks.push({ top: topMm, bottom: bottomMm });
-                });
-                // Add checklist table rows as break boundaries so rows aren't split
-                content.querySelectorAll('.checklist-table tr').forEach(function(el) {
-                    const elRect = el.getBoundingClientRect();
-                    const topMm = (elRect.top - contentRect.top) * pxToMm;
-                    const bottomMm = (elRect.bottom - contentRect.top) * pxToMm;
-                    sectionBreaks.push({ top: topMm, bottom: bottomMm });
-                });
-
-                // Build page break points: use forced breaks first, then smart fill
-                let yOffset = 0;
-                let pageNum = 0;
-                var usedBreaks = {};
-                while (yOffset < imgHeight) {
-                    if (pageNum > 0) pdf.addPage();
-                    let sliceH = Math.min(usableH, imgHeight - yOffset);
-
-                    // Check for forced page break within this page's range
-                    // Find the FIRST unused forced break in range
-                    var nextForced = null;
-                    for (var fi = 0; fi < forcedBreaks.length; fi++) {
-                        var fb = forcedBreaks[fi];
-                        if (usedBreaks[fi]) continue;
-                        if (fb > yOffset + 5 && fb <= yOffset + sliceH) {
-                            nextForced = fb;
-                            usedBreaks[fi] = true;
-                            break;
-                        }
+            // ── 5. Equipment Info Table ─────────────────────────────────
+            if (type === 'ext510') {
+                const cw = USABLE_W / 5;
+                const hdr = (t, span) => ({ text: t, bold: true, bg: NAVY, color: WHITE, align: 'center', colSpan: span || 1 });
+                const val = (t, span) => ({ text: t || '', align: 'center', colSpan: span || 1 });
+                drawTable(doc, cursor, [
+                    [hdr('UNIT #'), hdr('EQUIPMENT #', 2), hdr('DESCRIPTION', 2)],
+                    [val(headerData.unit_number || reportData.unit_number), val(headerData.equipment_number || reportData.equipment_number, 2), val(headerData.description, 2)],
+                    [hdr('SERIAL #'), hdr('NATIONAL BD #'), hdr('YEAR BUILT'), hdr('PWHT'), hdr('SYSTEM / SERVICE')],
+                    [val(headerData.nb_serial_number), val(headerData.national_bd_number), val(headerData.year_built), val(headerData.pwht), val(headerData.system_service)],
+                    [hdr('DESIGN PRESSURE'), hdr('DESIGN TEMP.'), hdr('OPER. PRESSURE'), hdr('OPER. TEMP.'), hdr('P&ID')],
+                    [val(headerData.design_pressure ? `${headerData.design_pressure} PSIG` : ''), val(headerData.design_temp ? `${headerData.design_temp} °F` : ''), val(headerData.oper_pressure ? `${headerData.oper_pressure} PSIG` : ''), val(headerData.oper_temp ? `${headerData.oper_temp} °F` : ''), val(headerData.p_and_id)],
+                ], [cw, cw, cw, cw, cw]);
+            } else if (type === 'ext570') {
+                const cw = USABLE_W / 5;
+                const hdr = (t, span) => ({ text: t, bold: true, bg: NAVY, color: WHITE, align: 'center', colSpan: span || 1 });
+                const val = (t, span) => ({ text: t || '', align: 'center', colSpan: span || 1 });
+                drawTable(doc, cursor, [
+                    [hdr('UNIT #'), hdr('SYSTEM / CIRCUIT #', 2), hdr('DESCRIPTION', 2)],
+                    [val(headerData.unit_number || reportData.unit_number), val(headerData.equipment_number || reportData.equipment_number, 2), val(headerData.description, 2)],
+                    [hdr('LINE #'), hdr('MATERIAL'), hdr('PIPE SPEC'), hdr('SYSTEM / SERVICE', 2)],
+                    [val(headerData.line_number), val(headerData.material), val(headerData.pipe_spec), val(headerData.system_service, 2)],
+                    [hdr('DESIGN PRESSURE'), hdr('DESIGN TEMP.'), hdr('OPER. PRESSURE'), hdr('OPER. TEMP.'), hdr('P&ID')],
+                    [val(headerData.design_pressure ? `${headerData.design_pressure} PSIG` : ''), val(headerData.design_temp ? `${headerData.design_temp} °F` : ''), val(headerData.oper_pressure ? `${headerData.oper_pressure} PSIG` : ''), val(headerData.oper_temp ? `${headerData.oper_temp} °F` : ''), val(headerData.p_and_id)],
+                ], [cw, cw, cw, cw, cw]);
+            } else {
+                // Default types: 4-column label/value
+                const lw = USABLE_W * 0.22, vw = USABLE_W * 0.28;
+                const lbl = (t) => ({ text: t, bold: true, bg: LIGHT_GRAY });
+                const valC = (t) => ({ text: t || '' });
+                const valSpan = (t) => ({ text: t || '', colSpan: 3 });
+                const rows = [
+                    [lbl('Unit #'), valC(headerData.unit_number || reportData.unit_number), lbl('Equipment #'), valC(headerData.equipment_number || reportData.equipment_number)],
+                    [lbl('Serial #'), valC(headerData.nb_serial_number || reportData.nb_serial_number), lbl('Project'), valC(headerData.project_name || reportData.project_name)],
+                ];
+                (config.headerFields || []).forEach(([label, key, label2, key2]) => {
+                    if (label2) {
+                        rows.push([lbl(label), valC(headerData[key]), lbl(label2), valC(headerData[key2])]);
+                    } else {
+                        rows.push([lbl(label), valSpan(headerData[key])]);
                     }
+                });
+                drawTable(doc, cursor, rows, [lw, vw, lw, vw]);
+            }
+            cursor.y += 3;
 
-                    if (nextForced !== null) {
-                        // Break at the forced position
-                        sliceH = nextForced - yOffset;
-                    } else if (yOffset + sliceH < imgHeight) {
-                        // No forced break — use smart section-aware breaking
-                        var cutY = yOffset + sliceH;
-                        for (var si = 0; si < sectionBreaks.length; si++) {
-                            var s = sectionBreaks[si];
-                            if (s.top < cutY && s.bottom > cutY) {
-                                var breakBefore = s.top - yOffset;
-                                if (breakBefore > usableH * 0.3) {
-                                    sliceH = breakBefore;
-                                }
-                                break;
-                            }
-                        }
+            // ── 6. Inspector Info ────────────────────────────────────────
+            if (isExt) {
+                const inspData = (sections.ext510_inspector || {}).section_data || {};
+                drawNavyBar(doc, cursor, 'INSPECTOR INFORMATION');
+                const lw = USABLE_W * 0.22, vw = USABLE_W * 0.28;
+                const lbl = (t) => ({ text: t, bold: true, bg: LIGHT_GRAY });
+                const valC = (t) => ({ text: t || '' });
+                drawTable(doc, cursor, [
+                    [lbl('INSPECTOR NAME'), valC(inspData.ext510_inspector_name), lbl('API #'), valC(inspData.ext510_api_number || inspData.ext510_inspector_api_cert)],
+                    [lbl('DATE'), valC(inspData.ext510_inspector_date), lbl('SIGNATURE'), { text: '', _sigPlaceholder: true }],
+                ], [lw, vw, lw, vw]);
+
+                // Draw signature image inside the SIGNATURE cell (last cell, last row)
+                const sigData = inspData.ext510_inspector_signature || getCanvasSignature();
+                if (sigData) {
+                    try {
+                        const sigX = MARGIN + lw + vw + lw + 2;
+                        const sigY = cursor.y - 7; // second row only (bottom row of 2-row table)
+                        doc.addImage(sigData, 'PNG', sigX, sigY, vw - 4, 5.5);
+                    } catch (e) { /* skip bad signature */ }
+                }
+            } else {
+                const inspTypeData = (sections.inspection_type || {}).section_data || {};
+                const inspectors = inspTypeData.inspectors || [];
+                if (inspectors.length > 0) {
+                    drawNavyBar(doc, cursor, 'INSPECTION TYPE');
+                    const checks = [];
+                    if (inspTypeData.internal_inspection) checks.push('Internal Inspection');
+                    if (inspTypeData.external_inspection_check) checks.push('External Inspection');
+                    if (checks.length) {
+                        drawWrappedText(doc, cursor, checks.join(', '), 9);
                     }
+                    // Inspector table
+                    const cw3 = USABLE_W / 3;
+                    const hdr = (t) => ({ text: t, bold: true, bg: NAVY, color: WHITE, align: 'center' });
+                    const inspRows = [
+                        [hdr('Inspector Name'), hdr('API Cert #'), hdr('Date')],
+                    ];
+                    inspectors.forEach(insp => {
+                        inspRows.push([
+                            { text: insp.name || '' },
+                            { text: insp.api_cert || '', align: 'center' },
+                            { text: insp.date || '', align: 'center' },
+                        ]);
+                    });
+                    drawTable(doc, cursor, inspRows, [cw3, cw3, cw3]);
+                }
+            }
+            cursor.y += 1;
 
-                    const srcY = (yOffset / imgHeight) * canvas.height;
-                    const srcH = (sliceH / imgHeight) * canvas.height;
+            // ── 7. Orientation / Data Plate Photos (skip for 570) ────────
+            const orientData = (sections.orientation_photos || {}).section_data || {};
+            const orientPhoto = orientData.orientation_photo;
+            const dataplatePhoto = orientData.dataplate_photo;
+            if ((orientPhoto || dataplatePhoto) && type !== 'ext570') {
+                drawNavyBar(doc, cursor, 'ORIENTATION / DATA PLATE');
+                const photoW = USABLE_W / 2 - 3;
+                const maxPhotoH = 55;
 
-                    const pageCanvas = document.createElement('canvas');
-                    pageCanvas.width = canvas.width;
-                    pageCanvas.height = Math.ceil(srcH);
-                    const ctx = pageCanvas.getContext('2d');
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-                    ctx.drawImage(canvas, 0, Math.floor(srcY), canvas.width, Math.ceil(srcH),
-                                  0, 0, pageCanvas.width, Math.ceil(srcH));
-
-                    const imgData = pageCanvas.toDataURL('image/jpeg', 0.95);
-                    pdf.addImage(imgData, 'JPEG', marginLeft, marginTop, usableW, sliceH);
-                    yOffset += sliceH;
-                    pageNum++;
+                async function drawOrientPhoto(dataUrl, label, xPos) {
+                    if (!dataUrl) return;
+                    checkPage(doc, cursor, maxPhotoH + 8);
+                    doc.setFont(FONT, 'bold');
+                    doc.setFontSize(8);
+                    doc.setTextColor(...DARK);
+                    doc.text(label, xPos + photoW / 2, cursor.y + 3, { align: 'center' });
+                    try {
+                        const dims = await getImageDims(dataUrl);
+                        const ratio = dims.h / dims.w;
+                        const imgH = Math.min(photoW * ratio, maxPhotoH);
+                        doc.addImage(dataUrl, 'JPEG', xPos, cursor.y + 5, photoW, imgH);
+                        return imgH + 7;
+                    } catch (e) { return 5; }
                 }
 
-                addHeaderFooter(pdf, equipNum, reportTitle);
-                pdf.save(filename);
-            } catch (err) {
-                console.error('PDF generation error:', err);
-                window.print();
-            } finally {
-                cleanup();
+                const h1 = await drawOrientPhoto(orientPhoto, 'ORIENTATION', MARGIN);
+                const savedY = cursor.y;
+                const h2 = await drawOrientPhoto(dataplatePhoto, 'DATA PLATE', MARGIN + USABLE_W / 2 + 1);
+                cursor.y = savedY + Math.max(h1 || 0, h2 || 0) + 2;
             }
-            return true;
-        } else {
-            cleanup();
+
+            // ── 8. Narrative Sections ────────────────────────────────────
+            for (const ns of (config.narrativeSections || [])) {
+                const secData = (sections[ns.key] || {}).section_data || {};
+                const content = stripHtml(secData.content);
+                drawNavyBar(doc, cursor, ns.title);
+                if (content) {
+                    drawWrappedText(doc, cursor, content, 9);
+                } else {
+                    drawWrappedText(doc, cursor, '(No content)', 8, { italic: true, color: [153, 153, 153] });
+                }
+                cursor.y += 2;
+            }
+
+            // ── 9. Checklist (ext510/ext570 only) — fills one page ──
+            if (config.checklistCategories) {
+                newPage(doc, cursor);
+                drawNavyBar(doc, cursor, 'CHECKLIST', 8);
+
+                const checklistData = (sections.checklist || {}).section_data || {};
+                const items = checklistData.items || {};
+
+                const cws = [
+                    USABLE_W * 0.04,  // #
+                    USABLE_W * 0.28,  // Item
+                    USABLE_W * 0.05,  // Yes
+                    USABLE_W * 0.05,  // No
+                    USABLE_W * 0.05,  // N/A
+                    USABLE_W * 0.14,  // Location
+                    USABLE_W * 0.39,  // Comments
+                ];
+                const hdr = (t) => ({ text: t, bold: true, bg: DARK, color: WHITE, align: 'center' });
+                const allRows = [
+                    [hdr('#'), hdr('Item'), hdr('Yes'), hdr('No'), hdr('N/A'), hdr('Location'), hdr('Comments')],
+                ];
+                const cats = config.checklistCategories;
+
+                for (const cat of cats) {
+                    allRows.push([
+                        { text: cat.title, bold: true, bg: LIGHT_GRAY, color: NAVY, colSpan: 7 },
+                    ]);
+
+                    cat.items.forEach(item => {
+                        const itemData = items[String(item.num)] || items['item_' + item.num] || {};
+                        const checked = itemData.value || itemData.checked;
+                        let yes = '[ ]', no = '[ ]', na = '[ ]';
+                        if (checked === true || checked === 'yes') yes = '[X]';
+                        else if (checked === false || checked === 'no') no = '[X]';
+                        else if (checked === 'na') na = '[X]';
+
+                        allRows.push([
+                            { text: String(item.num), align: 'center' },
+                            { text: item.label },
+                            { text: yes, align: 'center' },
+                            { text: no, align: 'center' },
+                            { text: na, align: 'center' },
+                            { text: itemData.location || '' },
+                            { text: itemData.comments || itemData.comment || '' },
+                        ]);
+                    });
+                }
+
+                // Try font sizes from 6.5 down to find one that fits the page
+                const availH = CONTENT_BOTTOM - cursor.y - 2;
+                const padX = 1.2;
+                const minPadY = 0.6;
+                let bestFontSize = 6.5;
+                let bestPadY = minPadY;
+
+                function measureHeight(fs) {
+                    const lh = fs * 0.45;
+                    let totalH = 0;
+                    doc.setFontSize(fs);
+                    for (const row of allRows) {
+                        let maxLines = 1;
+                        let ci = 0;
+                        for (const cell of row) {
+                            const span = cell.colSpan || 1;
+                            let cellW = 0;
+                            for (let s = 0; s < span; s++) cellW += cws[ci + s];
+                            const tw = cellW - padX * 2;
+                            doc.setFont(FONT, cell.bold ? 'bold' : 'normal');
+                            const lines = doc.splitTextToSize(String(cell.text || ''), tw);
+                            if (lines.length > maxLines) maxLines = lines.length;
+                            ci += span;
+                        }
+                        totalH += maxLines * lh + minPadY * 2;
+                    }
+                    return totalH;
+                }
+
+                for (let fs = 6.5; fs >= 4.5; fs -= 0.5) {
+                    const totalH = measureHeight(fs);
+                    if (totalH <= availH) {
+                        bestFontSize = fs;
+                        const extraPerRow = (availH - totalH) / allRows.length;
+                        bestPadY = minPadY + extraPerRow / 2;
+                        break;
+                    }
+                }
+
+                drawTable(doc, cursor, allRows, cws, { fontSize: bestFontSize, padX: padX, padY: bestPadY, noPageBreak: true });
+            }
+
+            // ── 10. Inspection Photos — always starts on new page ──────
+            const photos = reportData.photos || [];
+            newPage(doc, cursor);
+            drawNavyBar(doc, cursor, 'INSPECTION PHOTOS', 12);
+
+            if (photos.length > 0) {
+                const photoW = USABLE_W / 2 - 3;
+                const PHOTO_H = 69; // 260px height
+
+                for (let i = 0; i < photos.length; i += 2) {
+                    checkPage(doc, cursor, PHOTO_H + 12);
+                    const rowStartY = cursor.y;
+                    let rowMaxH = 0;
+
+                    for (let j = i; j < Math.min(i + 2, photos.length); j++) {
+                        const photo = photos[j];
+                        const dataUrl = photo.dataUrl || photo.data_url;
+                        if (!dataUrl) continue;
+                        const xPos = j === i ? MARGIN : MARGIN + USABLE_W / 2 + 1;
+
+                        try {
+                            doc.addImage(dataUrl, 'JPEG', xPos, rowStartY, photoW, PHOTO_H);
+                            // Caption
+                            doc.setFont(FONT, 'italic');
+                            doc.setFontSize(7);
+                            doc.setTextColor(...MED_GRAY);
+                            doc.text(photo.caption || `Photo ${j + 1}`, xPos + photoW / 2, rowStartY + PHOTO_H + 3, { align: 'center' });
+                            if (PHOTO_H + 5 > rowMaxH) rowMaxH = PHOTO_H + 5;
+                        } catch (e) { /* skip bad photo */ }
+                    }
+                    cursor.y = rowStartY + rowMaxH + 4;
+                }
+            } else {
+                drawWrappedText(doc, cursor, 'No inspection photos uploaded.', 9, { italic: true, color: MED_GRAY });
+            }
+
+            // ── 11. Signature Section (non-ext reports only) ────────────
+            if (!isExt) {
+                checkPage(doc, cursor, 55);
+                cursor.y += 5;
+
+                doc.setDrawColor(...NAVY);
+                doc.setLineWidth(0.5);
+                doc.line(MARGIN, cursor.y, PAGE_W - MARGIN, cursor.y);
+                cursor.y += 4;
+
+                drawNavyBar(doc, cursor, 'SIGNATURES');
+
+                const sigBlockW = USABLE_W / 2 - 5;
+                const lineStartL = MARGIN + 35;
+                const lineEndL = MARGIN + sigBlockW;
+                const lineStartR = MARGIN + USABLE_W / 2 + 30;
+                const lineEndR = PAGE_W - MARGIN;
+
+                const inspTypeData = (sections.inspection_type || {}).section_data || {};
+                const inspectors = inspTypeData.inspectors || [];
+                const inspName = inspectors[0] ? inspectors[0].name || '' : '';
+                const inspDate = inspectors[0] ? inspectors[0].date || '' : '';
+
+                doc.setFont(FONT, 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(...DARK);
+                doc.setDrawColor(...BORDER_GRAY);
+                doc.setLineWidth(0.3);
+
+                doc.text('Inspector Name:', MARGIN, cursor.y + 4);
+                doc.text(inspName, lineStartL, cursor.y + 4);
+                doc.line(lineStartL, cursor.y + 5, lineEndL, cursor.y + 5);
+                doc.text('Date:', MARGIN + USABLE_W / 2 + 2, cursor.y + 4);
+                doc.text(inspDate, lineStartR, cursor.y + 4);
+                doc.line(lineStartR, cursor.y + 5, lineEndR, cursor.y + 5);
+                cursor.y += 12;
+
+                doc.text('Inspector Signature:', MARGIN, cursor.y + 4);
+                doc.line(lineStartL, cursor.y + 5, lineEndL, cursor.y + 5);
+                cursor.y += 15;
+
+                doc.text('Reviewer Name:', MARGIN, cursor.y + 4);
+                doc.line(lineStartL, cursor.y + 5, lineEndL, cursor.y + 5);
+                doc.text('Date:', MARGIN + USABLE_W / 2 + 2, cursor.y + 4);
+                doc.line(lineStartR, cursor.y + 5, lineEndR, cursor.y + 5);
+                cursor.y += 12;
+
+                doc.text('Reviewer Signature:', MARGIN, cursor.y + 4);
+                doc.line(lineStartL, cursor.y + 5, lineEndL, cursor.y + 5);
+                cursor.y += 10;
+            }
+
+            // ── Header / Footer ──────────────────────────────────────────
+            addHeaderFooter(doc, equipNum, reportTitle);
+
+            // ── Save ─────────────────────────────────────────────────────
+            const filename = `${equipNum}_Final_Report_${now}.pdf`;
+            doc.save(filename);
+
+            if (typeof App !== 'undefined' && App.toast) {
+                App.toast('PDF generated successfully!', 'success');
+            }
+        } catch (err) {
+            console.error('PDF generation error:', err);
+            if (typeof App !== 'undefined' && App.toast) {
+                App.toast('PDF generation failed: ' + err.message, 'error');
+            }
             window.print();
-            setTimeout(() => {
-                content.classList.remove('pdf-mode');
-                document.body.classList.remove('printing');
-                App.toast('Use "Save as PDF" in the print dialog.', 'info');
-            }, 500);
-            return true;
         }
+        return true;
+    }
 
-        function cleanup() {
-            restoreInlineColors(originals);
-            content.classList.remove('pdf-mode');
-            document.body.classList.remove('printing');
-            // Remove caption spans added for PDF
-            content.querySelectorAll('.photo-caption-pdf').forEach(s => s.remove());
-            content.querySelectorAll('.caption-input').forEach(inp => inp.style.display = '');
-            // Restore all inline style overrides
-            styleTracker.forEach(({ el, prop, prev }) => { el.style[prop] = prev; });
-            // Restore hidden UI elements
-            hiddenEls.forEach(({ el, prev }) => { el.style.display = prev; });
-            // Remove page break markers
-            content.querySelectorAll('.pdf-page-break').forEach(el => el.classList.remove('pdf-page-break'));
-            // Restore photo grid from page groups back to flat list
-            content.querySelectorAll('.photo-grid').forEach(grid => {
-                const groups = grid.querySelectorAll('.photo-page-group');
-                if (groups.length > 0) {
-                    const cards = Array.from(grid.querySelectorAll('.photo-card'));
-                    groups.forEach(g => g.remove());
-                    cards.forEach(c => grid.appendChild(c));
-                }
-            });
-        }
+    function getCanvasSignature() {
+        try {
+            const canvas = document.getElementById('sig-canvas');
+            if (canvas) return canvas.toDataURL('image/png');
+        } catch (e) {}
+        return null;
     }
 
     return { generate };
