@@ -302,4 +302,21 @@ router.delete('/api/tir/equipment/:id', authRequired, asyncHandler(async (req, r
   res.json(result);
 }));
 
+// ── Word Document Generation ─────────────────────────────────────────────────
+const { generateDocx } = require('./docx-generator');
+
+router.get('/api/tir/reports/:id/docx', authRequired, asyncHandler(async (req, res) => {
+  const report = await db.getTirReport(parseInt(req.params.id, 10));
+  if (!report) return res.status(404).json({ error: 'Report not found' });
+
+  const buffer = await generateDocx(report);
+  const eqNum = report.equipment_number || 'Report';
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const filename = `${eqNum}_Report_${dateStr}.docx`;
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
+}));
+
 module.exports = router;

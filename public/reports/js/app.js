@@ -1094,6 +1094,7 @@ const App = (() => {
     async function updateLockUI() {
         const lockStatus = $('#lock-status');
         const btnLock = $('#btn-lock'), btnUnlock = $('#btn-unlock'), btnPdf = $('#btn-pdf');
+        const btnDocx = $('#btn-docx');
         const saveBar = $('#save-bar');
         const btnSubmit = $('#btn-submit-review');
         const btnApprove = $('#btn-approve-report');
@@ -1103,11 +1104,13 @@ const App = (() => {
         if (!currentReport) {
             lockStatus.textContent = ''; lockStatus.className = 'lock-status';
             btnLock.classList.add('hidden'); btnUnlock.classList.add('hidden');
-            btnPdf.classList.add('hidden'); if (saveBar) saveBar.classList.add('hidden');
+            btnPdf.classList.add('hidden'); btnDocx.classList.add('hidden');
+            if (saveBar) saveBar.classList.add('hidden');
             return;
         }
 
         btnPdf.classList.remove('hidden');
+        btnDocx.classList.remove('hidden');
         const report = await API.getReport(currentReport.id);
         if (report) currentReport = report;
         const isLocked = !!currentReport.lock;
@@ -1957,6 +1960,36 @@ const App = (() => {
             if (!currentReport) return;
             if (dirty) await saveAll();
             await PDF.generate(currentReport, { autoDownload: true });
+        });
+
+        // Word Document
+        $('#btn-docx').addEventListener('click', async () => {
+            if (!currentReport) return;
+            if (dirty) await saveAll();
+            const btn = $('#btn-docx');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+            try {
+                const res = await Auth.authFetch(`/reports/api/tir/reports/${currentReport.id}/docx`);
+                if (!res.ok) throw new Error('Failed to generate Word document');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const eqNum = currentReport.equipment_number || 'Report';
+                const dateStr = new Date().toISOString().slice(0, 10);
+                a.download = `${eqNum}_Report_${dateStr}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error('Word generation error:', err);
+                alert('Error generating Word document: ' + err.message);
+            } finally {
+                btn.textContent = 'Generate Word';
+                btn.disabled = false;
+            }
         });
 
         // Admin
