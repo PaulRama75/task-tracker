@@ -613,7 +613,7 @@ const App = (() => {
         html += '<table class="checklist-table"><thead><tr>';
         html += '<th class="cl-cat-col">Category</th><th class="cl-item-col">Item</th>';
         html += '<th class="cl-check-col">Yes</th><th class="cl-check-col">No</th><th class="cl-check-col">N/A</th>';
-        html += '<th class="cl-loc-col">Location = (V#)</th>';
+        html += '<th class="cl-loc-col">Location = (V#)</th><th class="cl-comment-col">Comments</th>';
         html += '</tr></thead><tbody>';
         config.checklistCategories.forEach(cat => {
             cat.items.forEach((item, idx) => {
@@ -626,6 +626,7 @@ const App = (() => {
                 html += `<td class="cl-check-cell"><span class="cl-checkbox" data-cl-num="${item.num}" data-cl-val="no"></span></td>`;
                 html += `<td class="cl-check-cell"><span class="cl-checkbox" data-cl-num="${item.num}" data-cl-val="na"></span></td>`;
                 html += `<td class="cl-loc-cell"><span class="cl-text" data-cl-num="${item.num}" data-cl-field="location"></span></td>`;
+                html += `<td class="cl-comment-cell"><div class="cl-comment-wrap" data-cl-num="${item.num}"><input type="text" class="cl-comment-input hidden" data-cl-num="${item.num}" placeholder="Type or select comment..."><div class="cl-comment-opts hidden" data-cl-num="${item.num}"></div><span class="cl-comment-display" data-cl-num="${item.num}"></span></div></td>`;
                 html += '</tr>';
             });
         });
