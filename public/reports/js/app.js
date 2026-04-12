@@ -217,7 +217,9 @@ const App = (() => {
         $('#library-container').classList.add('hidden');
 
         // Auto-claim edit lock (before rendering so all sections get editors)
-        if (!skipAutoLock && !Auth.hasLock(currentReport)) {
+        // Skip auto-lock for finalized reports — admin must click "Edit Final Report"
+        const isFinal = (currentReport.status || 'draft') === 'final';
+        if (!skipAutoLock && !Auth.hasLock(currentReport) && !isFinal) {
             try {
                 await Auth.acquireLock(currentReport.id);
                 currentReport = await API.getReport(currentReport.id);
@@ -1197,7 +1199,10 @@ const App = (() => {
             const statusLabels = { draft: 'Draft - Available', in_review: 'Pending Review', approved: 'Approved', final: 'Finalized' };
             lockStatus.textContent = statusLabels[status] || 'Available';
             lockStatus.className = 'lock-status ' + (status === 'final' ? 'locked' : 'unlocked');
-            btnLock.classList.toggle('hidden', status === 'final');
+            // Admin can edit finalized reports
+            const canEditFinal = status === 'final' && user && user.is_admin;
+            btnLock.classList.toggle('hidden', status === 'final' && !canEditFinal);
+            btnLock.textContent = canEditFinal ? 'Edit Final Report' : 'Claim Edit Lock';
             btnUnlock.classList.add('hidden');
             if (saveBar) saveBar.classList.add('hidden');
         }
@@ -1410,6 +1415,12 @@ const App = (() => {
         $('#btn-lock').addEventListener('click', async () => {
             if (!currentReport) return;
             try {
+                // If finalized, admin must confirm and revert to draft
+                if (currentReport.status === 'final') {
+                    if (!confirm('This report is finalized. Reopen for editing? It will revert to Draft status.')) return;
+                    const user = Auth.getUser();
+                    await API.updateReportStatus(currentReport.id, 'draft', user.id, {});
+                }
                 await Auth.acquireLock(currentReport.id);
                 currentReport = await API.getReport(currentReport.id);
                 await loadReport(currentReport.id);
