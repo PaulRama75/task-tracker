@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FER Site Visitor Safety Audit</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #000; background: #f0f0f0; }
+  .page-container { max-width: 1000px; margin: 10px auto; background: #fff; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+
+  .print-wrap { width: 100%; border-collapse: collapse; }
+  .print-wrap td, .print-wrap th { border: none; padding: 0; }
+  thead.print-header { display: none; }
+  thead.print-header td { text-align: center; padding: 4px 0 6px; }
+
+  .toolbar { max-width: 1000px; margin: 10px auto 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 16px; background: #1a3a5c; border-radius: 6px; }
+  .toolbar button, .toolbar a { padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; text-decoration: none; display: inline-block; }
+  .btn-download { background: #2e7d32; }
+  .btn-download:hover { background: #1b5e20; }
+  .btn-print { background: #1565c0; }
+  .btn-print:hover { background: #0d47a1; }
+  .toolbar .spacer { flex: 1; }
+
+  .logo-header { text-align: center; margin-bottom: 6px; }
+  .logo-header img { height: 70px; }
+  .report-title { text-align: center; font-size: 18px; font-weight: bold; color: #1a3a5c; margin-bottom: 2px; text-transform: uppercase; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  td, th { border: 1px solid #1a3a5c; padding: 4px 6px; vertical-align: top; }
+  th { background: #1a3a5c; color: #fff; font-size: 14px; text-align: center; }
+
+  .header-table { border: 2px solid #1a3a5c; }
+  .header-table td { background: #f5f8fb; }
+  .header-table td strong { color: #1a3a5c; }
+
+  .field-input { border: none; border-bottom: 1px solid #1a3a5c; width: 100%; font-size: 14px; font-family: inherit; padding: 2px 4px; background: transparent; }
+  .field-input:focus { outline: none; border-bottom: 2px solid #e57373; background: #e8f0fe; }
+  textarea.field-input { border: 1px solid #1a3a5c; resize: vertical; min-height: 80px; background: #fafcff; }
+
+  .section-box { border: 2px solid #1a3a5c; border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
+  .section-header-blue { background: #1a3a5c; color: #fff; font-weight: bold; text-align: center; padding: 6px; font-size: 12px; border-bottom: 2px solid #0d2137; }
+  .section-header-dark { background: #263238; color: #fff; font-weight: bold; text-align: center; padding: 6px; font-size: 12px; border-bottom: 2px solid #000; }
+
+  .checklist-table { border: 2px solid #1a3a5c; }
+  .checklist-table td { background: #fafcff; font-size: 14px; }
+  .checklist-table tr:nth-child(even) td { background: #f5f8fb; }
+  .checklist-table input[type="radio"] { width: 16px; height: 16px; cursor: pointer; accent-color: #1a3a5c; }
+  .checklist-table .comment-input { border: none; border-bottom: 1px solid #ccc; width: 100%; font-size: 14px; font-family: inherit; padding: 2px 4px; background: transparent; }
+  .checklist-table .comment-input:focus { outline: none; border-bottom: 2px solid #1a3a5c; background: #e8f0fe; }
+
+  .quarter-bar { padding: 8px 12px; font-size: 14px; background: #f5f8fb; border-top: 1px dashed #1a3a5c; text-align: center; }
+  .qchip { display: inline-block; padding: 2px 8px; border-radius: 3px; font-weight: bold; margin: 0 4px; color: #000; }
+  .qchip.red { background: #ef5350; color: #fff; }
+  .qchip.yellow { background: #fdd835; }
+  .qchip.blue { background: #1e88e5; color: #fff; }
+  .qchip.green { background: #43a047; color: #fff; }
+
+  .sig-wrapper { display: inline-block; position: relative; }
+  .sig-canvas { border: 1px solid #999; border-radius: 3px; cursor: crosshair; background: #fff; touch-action: none; }
+  .sig-clear { position: absolute; top: 2px; right: 4px; font-size: 10px; background: #e53935; color: #fff; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; }
+
+  .overview-text { padding: 12px 16px; font-size: 14px; line-height: 1.6; color: #333; }
+  .overview-text strong { color: #1a3a5c; }
+
+  @media (max-width: 768px) {
+    .page-container { margin: 0; padding: 10px 8px; }
+    .toolbar { flex-direction: column; gap: 6px; padding: 8px; border-radius: 0; }
+    .toolbar button, .toolbar a { width: 100%; text-align: center; padding: 10px; font-size: 14px; }
+    .report-title { font-size: 15px; }
+    .header-table td { display: block; width: 100% !important; border-bottom: none; }
+    .header-table tr { display: flex; flex-wrap: wrap; }
+    .header-table td:nth-child(odd) { width: 30% !important; flex: 0 0 30%; }
+    .header-table td:nth-child(even) { width: 70% !important; flex: 0 0 70%; border-bottom: 1px solid #1a3a5c; }
+    .checklist-table { font-size: 10px; }
+    .checklist-table td, .checklist-table th { padding: 3px 4px; }
+    .sig-canvas { width: 100% !important; max-width: 320px; }
+    .sig-wrapper { width: 100%; }
+  }
+
+  @media print {
+    .toolbar { display: none !important; }
+    body { background: #fff; }
+    .page-container { box-shadow: none; margin: 0; padding: 10px; }
+    thead.print-header { display: table-header-group; }
+    .sig-clear { display: none; }
+    .logo-header { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <a href="/safety/" style="background:#546e7a;">&#8592; Forms Library</a>
+  <button class="btn-download" onclick="downloadPDF()">&#128229; Download PDF</button>
+  <button class="btn-print" onclick="printForm()">&#128424; Print</button>
+  <a href="/safety/records?type=audit" style="background:#ef6c00;">&#128196; Saved Records</a>
+  <div class="spacer"></div>
+</div>
+
+<div class="page-container" id="reportForm">
+  <table class="print-wrap">
+    <thead class="print-header"><tr><td><img src="/images/fer-logo.jpg" alt="FER Logo" style="height:55px;"></td></tr></thead>
+    <tbody><tr><td>
+
+  <div class="logo-header"><img src="/images/fer-logo.jpg" alt="FER Logo" style="height:70px;"></div>
+  <div class="report-title" style="margin-bottom:10px;">Site Visitor Safety Audit</div>
+
+  <!-- HEADER FIELDS -->
+  <table class="header-table">
+    <tr>
+      <td style="width:15%;"><strong>Project:</strong></td>
+      <td style="width:35%;"><input type="text" class="field-input" id="project" placeholder="Enter project"></td>
+      <td style="width:15%;"><strong>Location:</strong></td>
+      <td style="width:35%;"><input type="text" class="field-input" id="location" placeholder="Enter location"></td>
+    </tr>
+    <tr>
+      <td><strong>Auditor Name:</strong></td>
+      <td><input type="text" class="field-input" id="auditorName" placeholder="Enter auditor name"></td>
+      <td><strong>Date:</strong></td>
+      <td><input type="date" class="field-input" id="auditDate"></td>
+    </tr>
+  </table>
+
+  <!-- OVERVIEW -->
+  <div class="overview-text" style="background:#f5f8fb; border:1px solid #1a3a5c; border-radius:4px; margin-bottom:10px;">
+    <p>This checklist is designed to ensure all essential site safety requirements are met and documented. It serves as a quick reference for supervisors or designated personnel to verify that jobsite safety standards, equipment inspections, training documentation, and compliance items are in place and up to date. Use of this checklist promotes a safe work environment, supports regulatory compliance, and helps identify issues before they become hazards.</p>
+  </div>
+
+  <!-- AUDIT CHECKLIST -->
+  <div class="section-box">
+    <div class="section-header-blue">SAFETY AUDIT CHECKLIST</div>
+    <table class="checklist-table" style="margin-bottom:0;">
+      <thead>
+        <tr>
+          <th style="width:55%;">Safety Item</th>
+          <th style="width:8%;">&#10004;</th>
+          <th style="width:8%;">&#10006;</th>
+          <th style="width:29%;">Notes / Comments</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>JSA's completed for all active tasks</td>
+          <td style="text-align:center;"><input type="radio" name="item_1" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_1" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>Uniforms in good condition</td>
+          <td style="text-align:center;"><input type="radio" name="item_2" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_2" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>Steel toe footwear in good condition</td>
+          <td style="text-align:center;"><input type="radio" name="item_3" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_3" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>PPE in good condition (e.g. hard hats, safety glasses, ear plugs, gloves)</td>
+          <td style="text-align:center;"><input type="radio" name="item_4" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_4" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>Harness inspection completed and correct quarter color</td>
+          <td style="text-align:center;"><input type="radio" name="item_5" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_5" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td colspan="4" class="quarter-bar">
+            <strong>Quarter Color Reference:</strong>
+            1st Quarter <span class="qchip red">Red</span>
+            2nd Quarter <span class="qchip yellow">Yellow</span>
+            3rd Quarter <span class="qchip blue">Blue</span>
+            4th Quarter <span class="qchip green">Green</span>
+          </td>
+        </tr>
+        <tr>
+          <td>PPE stock in good standing</td>
+          <td style="text-align:center;"><input type="radio" name="item_6" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_6" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>First aid kits available and identified</td>
+          <td style="text-align:center;"><input type="radio" name="item_7" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_7" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>Available ladders in safe condition</td>
+          <td style="text-align:center;"><input type="radio" name="item_8" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_8" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>Available vehicles in clean presentable condition</td>
+          <td style="text-align:center;"><input type="radio" name="item_9" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_9" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>Pre-shift meetings documented</td>
+          <td style="text-align:center;"><input type="radio" name="item_10" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_10" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>Weekly site inspections completed (Supervisor or designated member)</td>
+          <td style="text-align:center;"><input type="radio" name="item_11" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_11" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>Work areas in clean presentable condition</td>
+          <td style="text-align:center;"><input type="radio" name="item_12" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_12" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+        <tr>
+          <td>Other Equipment stored in orderly condition</td>
+          <td style="text-align:center;"><input type="radio" name="item_13" value="Y"></td>
+          <td style="text-align:center;"><input type="radio" name="item_13" value="N"></td>
+          <td><input type="text" class="comment-input" placeholder="Notes..."></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- OTHER COMMENTS -->
+  <div class="section-box">
+    <div class="section-header-blue">OTHER COMMENTS</div>
+    <div style="padding:8px;">
+      <textarea class="field-input" id="comments" placeholder="Enter any additional comments, notes, or observations..."></textarea>
+    </div>
+  </div>
+
+  <!-- FOOTER NOTE -->
+  <div class="overview-text" style="background:#fce4ec; border:1px solid #e57373; border-radius:4px; margin-bottom:10px;">
+    <p><strong>All items must be filled out.</strong></p>
+  </div>
+
+  <!-- AUDITOR SIGNATURE -->
+  <div class="section-box" style="border-color:#263238;">
+    <div class="section-header-dark">Auditor Signature</div>
+    <div style="padding:10px; background:#f5f8fb;">
+      <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+        <div style="flex:1; min-width:180px;">
+          <strong>Auditor Name:</strong><br>
+          <input type="text" class="field-input" id="sigName" placeholder="Print full name" style="margin-top:4px;">
+        </div>
+        <div>
+          <strong>Signature (draw below):</strong>
+          <div class="sig-wrapper">
+            <canvas class="sig-canvas" width="320" height="80" id="auditorSig"></canvas>
+            <button class="sig-clear" onclick="clearSig(this)">Clear</button>
+          </div>
+        </div>
+        <div style="min-width:120px;">
+          <strong>Date:</strong><br>
+          <input type="date" class="field-input" id="sigDate" style="margin-top:4px;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORM ID -->
+  <div style="text-align:right; font-size:9px; color:#999; margin-top:6px;">FER-CORP-HSE-FORM-34</div>
+
+    </td></tr></tbody>
+  </table>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  function initSignaturePad(canvas) {
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let lastX, lastY;
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      if (e.touches) {
+        return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY };
+      }
+      return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      drawing = true;
+      const pos = getPos(e);
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function draw(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function stopDraw() { drawing = false; }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseleave', stopDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDraw);
+  }
+
+  document.querySelectorAll('.sig-canvas').forEach(initSignaturePad);
+
+  function clearSig(btn) {
+    const canvas = btn.parentElement.querySelector('.sig-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function getSiteName() {
+    const project = document.getElementById('project').value.trim();
+    const location = document.getElementById('location').value.trim();
+    const combined = [project, location].filter(Boolean).join(' - ');
+    return combined || 'Unknown_Site';
+  }
+
+  function getDescriptionOfWork() {
+    const auditor = document.getElementById('auditorName').value.trim();
+    return auditor || '';
+  }
+
+  async function generatePDF() {
+    const form = document.getElementById('reportForm');
+    const btns = form.querySelectorAll('.sig-clear');
+    btns.forEach(b => b.style.display = 'none');
+
+    const canvases = form.querySelectorAll('.sig-canvas');
+    const swaps = [];
+    canvases.forEach(canvas => {
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      img.style.width = canvas.width + 'px';
+      img.style.height = canvas.height + 'px';
+      img.style.border = '1px solid #999';
+      canvas.style.display = 'none';
+      canvas.parentElement.insertBefore(img, canvas);
+      swaps.push({ img, canvas });
+    });
+
+    try {
+      const canvas = await html2canvas(form, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'letter');
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 6;
+      const maxW = pageW - margin * 2;
+      const maxH = pageH - margin * 2;
+
+      const imgRatio = canvas.width / canvas.height;
+      const pageRatio = maxW / maxH;
+
+      let drawW, drawH;
+      if (imgRatio > pageRatio) {
+        drawW = maxW;
+        drawH = drawW / imgRatio;
+      } else {
+        drawH = maxH;
+        drawW = drawH * imgRatio;
+      }
+      const x = (pageW - drawW) / 2;
+      const y = (pageH - drawH) / 2;
+      pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
+
+      return pdf;
+    } finally {
+      swaps.forEach(({ img, canvas }) => {
+        canvas.style.display = '';
+        img.remove();
+      });
+      btns.forEach(b => b.style.display = '');
+    }
+  }
+
+  function getToken() {
+    try { if (window.parent && window.parent.authToken) return window.parent.authToken; } catch(e) {}
+    try { var t = localStorage.getItem('authToken'); if (t) return t; } catch(e) {}
+    try { var t = window.parent.sessionStorage.getItem('authToken'); if (t) return t; } catch(e) {}
+    try { return sessionStorage.getItem('authToken') || ''; } catch(e) {}
+    return '';
+  }
+
+  async function saveToDB(pdf) {
+    const pdfBase64 = pdf.output('datauristring').split(',')[1];
+    const siteName = getSiteName();
+    const descriptionOfWork = getDescriptionOfWork();
+
+    const res = await fetch('/safety/api/forms/audit/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+      body: JSON.stringify({ siteName, descriptionOfWork, pdfBase64 })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Save failed');
+    return data.record;
+  }
+
+  async function downloadPDF() {
+    const btn = document.querySelector('.btn-download');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '&#9203; Generating PDF...';
+    btn.disabled = true;
+
+    try {
+      const pdf = await generatePDF();
+      btn.innerHTML = '&#9203; Saving to database...';
+      const record = await saveToDB(pdf);
+
+      const siteName = getSiteName().replace(/[^a-zA-Z0-9]/g, '_');
+      const dateStr = new Date(record.savedAt).toISOString().slice(0, 10);
+      pdf.save(`Site_Visitor_Safety_Audit_${siteName}_${dateStr}.pdf`);
+
+      btn.innerHTML = '&#10004; Saved! (ID: ' + record.id + ')';
+      setTimeout(() => { btn.innerHTML = origText; }, 3000);
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Error: ' + err.message);
+      btn.innerHTML = origText;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function printForm() {
+    const btn = document.querySelector('.btn-print');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '&#9203; Saving...';
+    btn.disabled = true;
+
+    try {
+      const pdf = await generatePDF();
+      const record = await saveToDB(pdf);
+
+      const blobUrl = pdf.output('bloburl');
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = blobUrl;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        setTimeout(() => {
+          try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) { console.error(e); }
+        }, 400);
+      };
+
+      btn.innerHTML = '&#10004; Saved & Printed (ID: ' + record.id + ')';
+      setTimeout(() => { btn.innerHTML = origText; }, 3000);
+    } catch (err) {
+      console.error('Print error:', err);
+      alert('Print error: ' + err.message);
+      btn.innerHTML = origText;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('auditDate').valueAsDate = new Date();
+  document.getElementById('sigDate').valueAsDate = new Date();
+</script>
+</body>
+</html>

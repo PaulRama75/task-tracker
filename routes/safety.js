@@ -18,7 +18,7 @@ router.get('/records', (req, res) => {
 });
 
 // Serve individual form pages
-const FORM_PAGES = ['harness', 'vehicle', 'observation', 'trailer', 'witness', 'ladder', 'incident', 'workplace', 'meeting'];
+const FORM_PAGES = ['harness', 'vehicle', 'observation', 'trailer', 'witness', 'ladder', 'incident', 'workplace', 'meeting', 'audit'];
 FORM_PAGES.forEach(page => {
   router.get('/' + page, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'safety', page + '.html'));

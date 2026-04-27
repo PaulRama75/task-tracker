@@ -74,7 +74,7 @@
   .photo-box label { display: block; font-weight: bold; color: #1a3a5c; margin-bottom: 4px; font-size: 10.5px; }
   .photo-box .required-star { color: #e57373; font-weight: bold; }
   .photo-box input[type="file"] { font-size: 10px; margin-bottom: 4px; width: 100%; }
-  .photo-preview { max-width: 100%; max-height: 150px; display: none; border: 1px solid #ccc; border-radius: 3px; margin-top: 4px; }
+  .photo-preview { width: 100%; height: 260px; object-fit: cover; display: none; border: 1px solid #ccc; border-radius: 3px; margin-top: 4px; }
 
   /* Signature canvas */
   .sig-wrapper { display: inline-block; position: relative; }
@@ -120,6 +120,25 @@
     thead.print-header td { border: none !important; text-align: center; padding: 4px 0 6px; }
     thead.print-header img { height: 55px; }
   }
+
+  /* Camera capture */
+  .btn-camera { display: inline-block; padding: 4px 10px; font-size: 11px; background: #1a3a5c; color: #fff; border: none; border-radius: 3px; cursor: pointer; margin: 4px 0 2px; font-weight: 600; }
+  .btn-camera:hover { background: #0d2840; }
+  .camera-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center; padding: 16px; }
+  .camera-modal.open { display: flex; }
+  .camera-modal-inner { background: #fff; border-radius: 8px; padding: 14px; max-width: 700px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+  .camera-modal-title { font-weight: bold; font-size: 14px; color: #1a3a5c; margin-bottom: 8px; text-align: center; }
+  .camera-video, .camera-canvas { width: 100%; max-height: 60vh; background: #000; border-radius: 4px; display: block; }
+  .camera-canvas { display: none; }
+  .camera-controls { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+  .camera-controls button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; }
+  .camera-btn-capture { background: #2e7d32; }
+  .camera-btn-retake { background: #ef6c00; }
+  .camera-btn-use { background: #1565c0; }
+  .camera-btn-cancel { background: #c62828; }
+  .camera-error { color: #c62828; font-size: 12px; text-align: center; padding: 12px; }
+  @media print { .camera-modal { display: none !important; } .btn-camera, .photo-box input[type="file"] { display: none !important; } }
+  body.pdf-capturing .btn-camera, body.pdf-capturing .photo-box input[type="file"] { display: none !important; }
 </style>
 </head>
 <body>
@@ -678,6 +697,7 @@
     form.style.minWidth = '1000px';
     form.style.maxWidth = '1000px';
 
+    document.body.classList.add('pdf-capturing');
     try {
       const canvas = await html2canvas(form, { scale: 2, useCORS: true, logging: false, width: 1000, windowWidth: 1060 });
       const imgData = canvas.toDataURL('image/jpeg', 0.85);
@@ -700,6 +720,7 @@
 
       return pdf;
     } finally {
+      document.body.classList.remove('pdf-capturing');
       // Restore form width
       form.style.width = origWidth;
       form.style.minWidth = origMinWidth;
@@ -819,6 +840,122 @@
       btn.disabled = false;
     }
   }
+
+  // ===== CAMERA CAPTURE =====
+  (function() {
+    let stream = null;
+    let targetPhotoBox = null;
+
+    function injectCameraButtons() {
+      document.querySelectorAll('.photo-box, .photo-cell').forEach(box => {
+        const fileInput = box.querySelector('input[type="file"]');
+        if (!fileInput || box.querySelector('.btn-camera')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-camera';
+        btn.innerHTML = '📷 Use Camera';
+        btn.onclick = () => openCamera(box);
+        fileInput.insertAdjacentElement('afterend', btn);
+      });
+    }
+
+    async function openCamera(box) {
+      targetPhotoBox = box;
+      const label = box.querySelector('label')?.textContent.replace(/\*/g,'').trim() || 'Photo';
+      document.getElementById('cameraTitle').textContent = 'Take Photo: ' + label;
+      document.getElementById('cameraError').style.display = 'none';
+      document.getElementById('cameraVideo').style.display = 'block';
+      document.getElementById('cameraCanvas').style.display = 'none';
+      document.getElementById('cameraCaptureBtn').style.display = '';
+      document.getElementById('cameraRetakeBtn').style.display = 'none';
+      document.getElementById('cameraUseBtn').style.display = 'none';
+      document.getElementById('cameraModal').classList.add('open');
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Camera API not supported in this browser');
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        });
+        document.getElementById('cameraVideo').srcObject = stream;
+      } catch (err) {
+        const errEl = document.getElementById('cameraError');
+        errEl.textContent = 'Camera access denied or unavailable: ' + err.message;
+        errEl.style.display = 'block';
+        document.getElementById('cameraVideo').style.display = 'none';
+        document.getElementById('cameraCaptureBtn').style.display = 'none';
+      }
+    }
+
+    function cameraCapture() {
+      const video = document.getElementById('cameraVideo');
+      const canvas = document.getElementById('cameraCanvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      video.style.display = 'none';
+      canvas.style.display = 'block';
+      document.getElementById('cameraCaptureBtn').style.display = 'none';
+      document.getElementById('cameraRetakeBtn').style.display = '';
+      document.getElementById('cameraUseBtn').style.display = '';
+    }
+
+    function cameraRetake() {
+      document.getElementById('cameraVideo').style.display = 'block';
+      document.getElementById('cameraCanvas').style.display = 'none';
+      document.getElementById('cameraCaptureBtn').style.display = '';
+      document.getElementById('cameraRetakeBtn').style.display = 'none';
+      document.getElementById('cameraUseBtn').style.display = 'none';
+    }
+
+    function cameraUse() {
+      if (!targetPhotoBox) { cameraClose(); return; }
+      const dataUrl = document.getElementById('cameraCanvas').toDataURL('image/jpeg', 0.85);
+      const preview = targetPhotoBox.querySelector('.photo-preview');
+      if (preview) {
+        preview.src = dataUrl;
+        preview.style.display = 'block';
+      }
+      cameraClose();
+    }
+
+    function cameraClose() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      document.getElementById('cameraModal').classList.remove('open');
+      targetPhotoBox = null;
+    }
+
+    window.cameraCapture = cameraCapture;
+    window.cameraRetake = cameraRetake;
+    window.cameraUse = cameraUse;
+    window.cameraClose = cameraClose;
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', injectCameraButtons);
+    } else {
+      injectCameraButtons();
+    }
+  })();
 </script>
+
+<!-- Camera Capture Modal -->
+<div class="camera-modal" id="cameraModal">
+  <div class="camera-modal-inner">
+    <div class="camera-modal-title" id="cameraTitle">Take Photo</div>
+    <video class="camera-video" id="cameraVideo" autoplay playsinline></video>
+    <canvas class="camera-canvas" id="cameraCanvas"></canvas>
+    <div id="cameraError" class="camera-error" style="display:none;"></div>
+    <div class="camera-controls">
+      <button type="button" class="camera-btn-capture" id="cameraCaptureBtn" onclick="cameraCapture()">📸 Capture</button>
+      <button type="button" class="camera-btn-retake" id="cameraRetakeBtn" onclick="cameraRetake()" style="display:none;">↻ Retake</button>
+      <button type="button" class="camera-btn-use" id="cameraUseBtn" onclick="cameraUse()" style="display:none;">✓ Use Photo</button>
+      <button type="button" class="camera-btn-cancel" onclick="cameraClose()">Cancel</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
