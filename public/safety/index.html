@@ -40,6 +40,7 @@
   .form-card-header.indigo { background: #283593; }
   .form-card-header.pink { background: #ad1457; }
   .form-card-header.cyan { background: #00838f; }
+  .form-card-header.slate { background: #455a64; }
 
   .form-card-icon { font-size: 32px; margin-bottom: 6px; }
   .form-card-title { font-size: 14px; font-weight: bold; letter-spacing: 0.3px; }
@@ -84,7 +85,7 @@
 
 <div class="stats-bar">
   <div class="stat-card">
-    <div class="value">10</div>
+    <div class="value">11</div>
     <div class="label">Form Types</div>
   </div>
   <div class="stat-card">
@@ -261,6 +262,21 @@
       </div>
     </a>
 
+    <a href="/safety/audit" class="form-card">
+      <div class="form-card-header slate">
+        <div class="form-card-icon">&#128203;</div>
+        <div class="form-card-title">Site Visitor Safety Audit</div>
+        <div class="form-card-id">FER-CORP-HSE-FORM-34</div>
+      </div>
+      <div class="form-card-body">
+        <p>Visitor safety audit checklist covering JSA, PPE, harness inspection, first aid, ladders, vehicles, pre-shift meetings, and housekeeping.</p>
+      </div>
+      <div class="form-card-footer">
+        <span class="count" id="auditCount">--</span>
+        <span class="action">Open &rarr;</span>
+      </div>
+    </a>
+
   </div>
 </div>
 
@@ -283,7 +299,7 @@
     return fetch(url, opts);
   }
 
-  var ALL_TYPES = ['jsa','harness','incident','ladder','trailer','vehicle','observation','meeting','witness','workplace'];
+  var ALL_TYPES = ['jsa','harness','incident','ladder','trailer','vehicle','observation','meeting','witness','workplace','audit'];
 
   async function loadStats() {
     try {

@@ -245,7 +245,7 @@ async function initDB() {
     const SAFETY_FORM_TABLES = [
       'jsa_records', 'harness_records', 'vehicle_records', 'observation_records',
       'trailer_records', 'witness_records', 'ladder_records', 'incident_records',
-      'workplace_records', 'meeting_records'
+      'workplace_records', 'meeting_records', 'audit_records'
     ];
     for (const tbl of SAFETY_FORM_TABLES) {
       await client.query(`
@@ -823,7 +823,8 @@ const SAFETY_FORM_TYPES = {
   ladder: { table: 'ladder_records', label: 'Ladder Inspection', prefix: 'LADDER' },
   incident: { table: 'incident_records', label: 'Incident Report', prefix: 'INCIDENT' },
   workplace: { table: 'workplace_records', label: 'Workplace Inspection', prefix: 'WORKPLACE' },
-  meeting: { table: 'meeting_records', label: 'Safety Meeting Sign-In', prefix: 'MEETING' }
+  meeting: { table: 'meeting_records', label: 'Safety Meeting Sign-In', prefix: 'MEETING' },
+  audit: { table: 'audit_records', label: 'Site Visitor Safety Audit', prefix: 'AUDIT' }
 };
 
 function getFormType(key) {
