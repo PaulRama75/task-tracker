@@ -549,7 +549,16 @@ var PDF = (() => {
             addHeaderFooter(doc, equipNum, reportTitle);
 
             // ── Save ─────────────────────────────────────────────────────
-            const filename = `${equipNum}_Final_Report_${now}.pdf`;
+            let filename;
+            if (isExt) {
+                const inspData = (sections.ext510_inspector || {}).section_data || {};
+                const dateStr = (inspData.ext510_inspector_date || '').trim();
+                filename = dateStr
+                    ? `${equipNum}_INSP_EVT_${dateStr}.pdf`
+                    : `${equipNum}_INSP_EVT.pdf`;
+            } else {
+                filename = `${equipNum}_Final_Report_${now}.pdf`;
+            }
             doc.save(filename);
 
             if (typeof App !== 'undefined' && App.toast) {

@@ -970,6 +970,13 @@ async function getAuditLogPaginated(offset, limit, filters = {}) {
   };
 }
 
+async function addAuditLog(action, username, ipAddress, details) {
+  await pool.query(
+    'INSERT INTO audit_log (action, username, ip_address, details) VALUES ($1, $2, $3, $4)',
+    [action, username || null, ipAddress || null, details ? JSON.stringify(details) : '{}']
+  );
+}
+
 async function getJsaRecordsPaginated(offset, limit) {
   const countRes = await pool.query('SELECT COUNT(*) FROM jsa_records');
   const total = parseInt(countRes.rows[0].count, 10);
@@ -1045,10 +1052,8 @@ async function tirLogin(name, role, api_cert) {
   // Find or create
   const existing = await pool.query('SELECT * FROM tir_users WHERE name=$1', [name]);
   if (existing.rows.length > 0) {
-    const u = existing.rows[0];
-    // Update role/cert on login
-    await pool.query('UPDATE tir_users SET role=$1, api_cert=$2 WHERE id=$3', [role, api_cert, u.id]);
-    return { ...u, role, api_cert };
+    // Return existing user — don't overwrite admin-set role/cert
+    return existing.rows[0];
   }
 
   const { rows } = await pool.query(
@@ -1176,8 +1181,17 @@ function nestLock(row) {
 async function getTirReports() {
   // Clean expired locks
   await pool.query('DELETE FROM tir_locks WHERE expires_at < NOW()');
+  // PERFORMANCE: exclude the heavy 'sections' column from list queries —
+  // it contains base64 photos/signatures (avg 168KB/report) and is only needed
+  // when viewing a single report. Return empty sections placeholder instead.
   const { rows } = await pool.query(`
-    SELECT r.*, l.user_id AS lock_user_id, l.user_name AS lock_user_name, l.locked_at, l.expires_at AS lock_expires_at
+    SELECT
+      r.id, r.unit_number, r.equipment_number, r.nb_serial_number, r.project_name,
+      r.report_type, r.site_id, r.status, r.created_by, r.created_at, r.updated_at,
+      r.approved_by, r.approved_at, r.rejection,
+      '{}'::jsonb AS sections,
+      '[]'::jsonb AS photos,
+      l.user_id AS lock_user_id, l.user_name AS lock_user_name, l.locked_at, l.expires_at AS lock_expires_at
     FROM tir_reports r
     LEFT JOIN tir_locks l ON r.id = l.report_id
     ORDER BY r.updated_at DESC
@@ -1444,8 +1458,20 @@ async function tirFinalizeReport(reportId, userId, pdfDataUrl) {
 }
 
 async function getTirFinalReports() {
-  const { rows } = await pool.query('SELECT * FROM tir_final_reports ORDER BY finalized_at DESC');
+  // PERFORMANCE: exclude pdf_data and sections_snapshot from list —
+  // both can be MB in size per report. Use getTirFinalReport(id) for full data.
+  const { rows } = await pool.query(`
+    SELECT id, report_id, equipment_number, project_name, unit_number, report_type,
+           site_id, finalized_by, finalized_by_name, finalized_at
+    FROM tir_final_reports
+    ORDER BY finalized_at DESC
+  `);
   return rows;
+}
+
+async function getTirFinalReport(id) {
+  const { rows } = await pool.query('SELECT * FROM tir_final_reports WHERE id=$1', [id]);
+  return rows[0] || null;
 }
 
 async function deleteTirFinalReport(finalId) {
@@ -1526,7 +1552,7 @@ module.exports = {
   getApps, createApp, updateApp, deleteApp,
   saveJsaRecord, getJsaRecords, getJsaRecordPdf, deleteJsaRecord,
   SAFETY_FORM_TYPES, getFormType, saveFormRecord, getFormRecords, getFormRecordPdf, deleteFormRecord, bulkDeleteFormRecords, getFormStats,
-  getTrackerRowsPaginated, getAuditLogPaginated, getJsaRecordsPaginated,
+  getTrackerRowsPaginated, getAuditLogPaginated, addAuditLog, getJsaRecordsPaginated,
   migrateFromJSON,
   // TIR Users
   tirLogin, getTirUsers, createTirUser, updateTirUser, deleteTirUser,
@@ -1545,7 +1571,7 @@ module.exports = {
   // TIR Versions
   tirCreateVersion, getTirVersions,
   // TIR Final Reports
-  tirFinalizeReport, getTirFinalReports, deleteTirFinalReport,
+  tirFinalizeReport, getTirFinalReports, getTirFinalReport, deleteTirFinalReport,
   // TIR Equipment
   tirImportEquipment, getTirEquipment, getTirEquipmentById, deleteTirEquipment, getAllTirEquipment, bulkDeleteTirEquipment
 };

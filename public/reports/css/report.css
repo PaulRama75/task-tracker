@@ -230,6 +230,50 @@ body {
 .btn-lg { padding: 10px 40px; font-size: 15px; font-weight: 700; }
 .save-status { font-size: 13px; color: var(--gray-500); }
 
+/* ─── Floating Save Button ─────────────────────────────────────────────── */
+#floating-save-btn {
+    position: fixed;
+    top: 54px;
+    right: 10px;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    background: #2196F3;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+    animation: floatPulse 2s ease-in-out infinite;
+}
+#floating-save-btn:hover {
+    background: #1976D2;
+    transform: scale(1.05);
+    box-shadow: 0 6px 24px rgba(33,150,243,0.5);
+}
+#floating-save-btn.saving {
+    background: #ff9800;
+    animation: none;
+    pointer-events: none;
+}
+#floating-save-btn.saved {
+    background: #27ae60;
+    animation: none;
+}
+.floating-save-label { font-size: 13px; }
+@keyframes floatPulse {
+    0%, 100% { box-shadow: 0 4px 16px rgba(33,150,243,0.4); }
+    50% { box-shadow: 0 4px 24px rgba(33,150,243,0.6); }
+}
+
+/* Hide floating save in PDF mode */
+.pdf-mode #floating-save-btn { display: none !important; }
+
 /* ─── Photo Caption Input ───────────────────────────────────────────────── */
 .photo-caption-area {
     padding: 4px 6px; background: var(--gray-50);
@@ -1246,10 +1290,11 @@ body {
 .cl-comment-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15); }
 .cl-comment-input::placeholder { color: var(--gray-400); font-size: 10px; }
 .cl-comment-opts {
-    position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
-    max-height: 150px; overflow-y: auto; background: var(--white);
-    border: 1px solid var(--gray-300); border-radius: 0 0 4px 4px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    position: fixed; z-index: 9999;
+    max-height: 220px; overflow-y: auto; background: var(--white);
+    border: 1px solid var(--gray-400); border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    min-width: 300px;
 }
 .cl-opt-item {
     padding: 4px 6px; font-size: 10px; cursor: pointer;

@@ -5,6 +5,13 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const { authRequired } = require('./auth');
 const appState = require('../shared/appState');
 
+// Audit log helper
+function logAction(req, action, details) {
+  const username = req.user ? req.user.username : 'unknown';
+  const ip = req.ip || req.connection.remoteAddress;
+  db.addAuditLog(action, username, ip, details).catch(() => {});
+}
+
 // Serve reports pages
 router.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'reports', 'index.html'));
@@ -43,6 +50,7 @@ router.get('/api/sites', authRequired, asyncHandler(async (req, res) => {
 router.post('/api/tir/login', authRequired, asyncHandler(async (req, res) => {
   const { name, role, api_cert } = req.body;
   const user = await db.tirLogin(name, role, api_cert);
+  logAction(req, 'tir_login', { tirUser: name, role });
   res.json(user);
 }));
 
@@ -136,6 +144,7 @@ router.post('/api/tir/reports', authRequired, asyncHandler(async (req, res) => {
     }
   }
   const report = await db.createTirReport(req.body);
+  logAction(req, 'report_create', { reportId: report.id, equipment: equipment_number, type: report_type });
   res.json(report);
 }));
 
@@ -150,11 +159,13 @@ router.put('/api/tir/reports/:id/status', authRequired, asyncHandler(async (req,
   const id = parseInt(req.params.id, 10);
   const { status, userId, extra } = req.body;
   const result = await db.updateTirReportStatus(id, status, userId, extra);
+  logAction(req, 'report_status', { reportId: id, status });
   res.json(result);
 }));
 
 router.delete('/api/tir/reports/:id', authRequired, asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
+  logAction(req, 'report_delete', { reportId: id });
   const result = await db.deleteTirReport(id);
   res.json(result);
 }));
@@ -166,6 +177,7 @@ router.put('/api/tir/reports/:id/sections/:key', authRequired, asyncHandler(asyn
   const key = req.params.key;
   const { sectionData, userId } = req.body;
   const result = await db.tirSaveSection(id, key, sectionData, userId);
+  logAction(req, 'report_save_section', { reportId: id, section: key });
   res.json(result);
 }));
 
@@ -176,6 +188,7 @@ router.post('/api/tir/reports/:id/lock', authRequired, asyncHandler(async (req, 
   const { userId } = req.body;
   try {
     const result = await db.tirAcquireLock(id, userId);
+    logAction(req, 'report_lock', { reportId: id });
     res.json(result);
   } catch (err) {
     res.status(409).json({ error: err.message });
@@ -281,12 +294,21 @@ router.post('/api/tir/reports/:id/finalize', authRequired, asyncHandler(async (r
   const id = parseInt(req.params.id, 10);
   const { userId, pdfDataUrl } = req.body;
   const result = await db.tirFinalizeReport(id, userId, pdfDataUrl);
+  logAction(req, 'report_finalize', { reportId: id });
   res.json(result);
 }));
 
 router.get('/api/tir/final-reports', authRequired, asyncHandler(async (req, res) => {
   const reports = await db.getTirFinalReports();
   res.json(reports);
+}));
+
+// Load the FULL final report (with pdf_data and sections_snapshot) on demand
+router.get('/api/tir/final-reports/:id', authRequired, asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const report = await db.getTirFinalReport(id);
+  if (!report) return res.status(404).json({ error: 'Final report not found' });
+  res.json(report);
 }));
 
 router.delete('/api/tir/final-reports/:id', authRequired, asyncHandler(async (req, res) => {
@@ -341,12 +363,36 @@ router.get('/api/tir/reports/:id/docx', authRequired, asyncHandler(async (req, r
 
   const buffer = await generateDocx(report);
   const eqNum = report.equipment_number || 'Report';
-  const dateStr = new Date().toISOString().slice(0, 10);
-  const filename = `${eqNum}_Report_${dateStr}.docx`;
+  const isExt = report.report_type === 'ext510' || report.report_type === 'ext570';
+  let filename;
+  if (isExt) {
+    const inspData = ((report.sections || {}).ext510_inspector || {}).section_data || {};
+    const dateStr = (inspData.ext510_inspector_date || '').trim();
+    filename = dateStr
+      ? `${eqNum}_INSP_EVT_${dateStr}.docx`
+      : `${eqNum}_INSP_EVT.docx`;
+  } else {
+    const dateStr = new Date().toISOString().slice(0, 10);
+    filename = `${eqNum}_Report_${dateStr}.docx`;
+  }
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(buffer);
+}));
+
+// ── Activity Log ────────────────────────────────────────────────────────────
+router.get('/api/tir/activity-log', authRequired, asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 50;
+  const offset = (page - 1) * limit;
+  const filters = {};
+  if (req.query.action) filters.action = req.query.action;
+  if (req.query.username) filters.username = req.query.username;
+  if (req.query.startDate) filters.startDate = req.query.startDate;
+  if (req.query.endDate) filters.endDate = req.query.endDate;
+  const result = await db.getAuditLogPaginated(offset, limit, filters);
+  res.json(result);
 }));
 
 module.exports = router;

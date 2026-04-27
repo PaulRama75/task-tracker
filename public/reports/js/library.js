@@ -2,6 +2,15 @@
 
 const Library = (() => {
     let activeTab = 'progress';
+    // Track downloaded final report IDs in localStorage
+    const DOWNLOADED_KEY = 'finalReportsDownloaded';
+    function getDownloaded() {
+        try { return JSON.parse(localStorage.getItem(DOWNLOADED_KEY) || '[]'); } catch { return []; }
+    }
+    function markDownloaded(id) {
+        const dl = getDownloaded();
+        if (!dl.includes(id)) { dl.push(id); localStorage.setItem(DOWNLOADED_KEY, JSON.stringify(dl)); }
+    }
 
     function show() {
         document.getElementById('report-container').classList.add('hidden');
@@ -17,7 +26,7 @@ const Library = (() => {
         switchTab(activeTab);
     }
 
-    function hide() { document.getElementById('library-container').classList.add('hidden'); }
+    function hide() { document.getElementById('library-container').classList.add('hidden'); invalidateReportsCache(); }
 
     function switchTab(tab) {
         activeTab = tab;
@@ -30,8 +39,21 @@ const Library = (() => {
         else renderFinal().catch(console.error);
     }
 
-    async function updateReviewBadge() {
-        const reports = await API.getReports();
+    // Cache the reports list briefly so tab switches / multiple renders don't re-fetch
+    let _cachedReports = null;
+    let _cacheTime = 0;
+    const CACHE_MS = 2000;
+    async function getReportsCached() {
+        const now = Date.now();
+        if (_cachedReports && (now - _cacheTime) < CACHE_MS) return _cachedReports;
+        _cachedReports = await API.getReports();
+        _cacheTime = now;
+        return _cachedReports;
+    }
+    function invalidateReportsCache() { _cachedReports = null; _cacheTime = 0; }
+
+    async function updateReviewBadge(reports) {
+        if (!reports) reports = await getReportsCached();
         const count = reports.filter(r => r.status === 'in_review').length;
         const badge = document.getElementById('review-count');
         if (badge) badge.textContent = count > 0 ? count : '';
@@ -39,10 +61,11 @@ const Library = (() => {
 
     // ─── Progress Reports ─────────────────────────────────────────────────
     async function renderProgress(filterStatus, searchText) {
-        await updateReviewBadge();
         const tbody = document.getElementById('lib-tbody');
-        const users = await API.getUsers();
-        let reports = (await API.getReports()).filter(r => r.status !== 'final' && r.status !== 'in_review');
+        // Fetch users and reports in parallel
+        const [users, allReports] = await Promise.all([API.getUsers(), getReportsCached()]);
+        updateReviewBadge(allReports);
+        let reports = allReports.filter(r => r.status !== 'final' && r.status !== 'in_review');
         // Filter by selected site
         const siteId = document.getElementById('site-selector') ? parseInt(document.getElementById('site-selector').value) : null;
         if (siteId) reports = reports.filter(r => r.site_id === siteId);
@@ -82,11 +105,11 @@ const Library = (() => {
 
     // ─── Review Queue ─────────────────────────────────────────────────────
     async function renderReview() {
-        await updateReviewBadge();
         const tbody = document.getElementById('review-tbody');
         const emptyMsg = document.getElementById('review-empty');
-        const users = await API.getUsers();
-        const reports = (await API.getReports()).filter(r => r.status === 'in_review');
+        const [users, allReports] = await Promise.all([API.getUsers(), getReportsCached()]);
+        updateReviewBadge(allReports);
+        const reports = allReports.filter(r => r.status === 'in_review');
 
         if (reports.length === 0) {
             tbody.innerHTML = ''; emptyMsg.classList.remove('hidden'); return;
@@ -112,30 +135,64 @@ const Library = (() => {
     }
 
     // ─── Final Reports ────────────────────────────────────────────────────
-    async function renderFinal(searchText) {
+    async function renderFinal() {
         const tbody = document.getElementById('final-tbody');
         const emptyMsg = document.getElementById('final-empty');
         let finals = await API.getFinalReports();
 
+        // Search filter
+        const searchEl = document.getElementById('final-search');
+        const searchText = searchEl ? searchEl.value.trim() : '';
         if (searchText) {
             const s = searchText.toLowerCase();
             finals = finals.filter(f => (f.equipment_number || '').toLowerCase().includes(s) || (f.project_name || '').toLowerCase().includes(s));
         }
+
+        // Date range filter
+        const fromEl = document.getElementById('final-date-from');
+        const toEl = document.getElementById('final-date-to');
+        if (fromEl && fromEl.value) {
+            const from = new Date(fromEl.value + 'T00:00:00');
+            finals = finals.filter(f => new Date(f.finalized_at) >= from);
+        }
+        if (toEl && toEl.value) {
+            const to = new Date(toEl.value + 'T23:59:59');
+            finals = finals.filter(f => new Date(f.finalized_at) <= to);
+        }
+
+        // Hide downloaded
+        const hideEl = document.getElementById('final-hide-downloaded');
+        const downloaded = getDownloaded();
+        if (hideEl && hideEl.checked) {
+            finals = finals.filter(f => !downloaded.includes(f.id));
+        }
+
+        // Sort
+        const sortEl = document.getElementById('final-sort');
+        const sortVal = sortEl ? sortEl.value : 'newest';
+        if (sortVal === 'newest') finals.sort((a, b) => new Date(b.finalized_at) - new Date(a.finalized_at));
+        else if (sortVal === 'oldest') finals.sort((a, b) => new Date(a.finalized_at) - new Date(b.finalized_at));
+        else if (sortVal === 'equip-az') finals.sort((a, b) => (a.equipment_number || '').localeCompare(b.equipment_number || ''));
+        else if (sortVal === 'equip-za') finals.sort((a, b) => (b.equipment_number || '').localeCompare(a.equipment_number || ''));
+
         if (finals.length === 0) { tbody.innerHTML = ''; emptyMsg.classList.remove('hidden'); return; }
         emptyMsg.classList.add('hidden');
 
         const isAdmin = Auth.isAdmin();
-        tbody.innerHTML = finals.slice().reverse().map(f => `
-            <tr data-final-id="${f.id}">
+        tbody.innerHTML = finals.map(f => {
+            const isDl = downloaded.includes(f.id);
+            return `<tr data-final-id="${f.id}" style="${isDl ? 'opacity:0.6;' : ''}">
                 <td><input type="checkbox" class="final-check" data-fid="${f.id}"></td>
                 <td>${esc(f.equipment_number || '-')}</td><td>${esc(f.project_name || '-')}</td>
                 <td>${esc(f.finalized_by_name)}</td><td>${new Date(f.finalized_at).toLocaleDateString()}</td>
+                <td style="text-align:center;">${isDl ? '<span style="color:#27ae60;font-weight:700;font-size:11px;">Downloaded</span>' : '<span style="color:#e67e22;font-size:11px;">Pending</span>'}</td>
                 <td>
                     <button class="btn btn-sm" onclick="Library.viewFinalReport(${f.id})">View</button>
-                    <button class="btn btn-sm btn-primary" onclick="Library.downloadFinal(${f.id})">Download PDF</button>
+                    <button class="btn btn-sm btn-primary" onclick="Library.downloadFinal(${f.id})">${isDl ? 'Re-download' : 'Download PDF'}</button>
                     ${isAdmin ? `<button class="btn btn-sm btn-danger" onclick="Library.deleteFinalReport(${f.id})">Delete</button>` : ''}
                 </td>
-            </tr>`).join('');
+            </tr>`;
+        }).join('');
         updateDownloadBtn();
     }
 
@@ -146,35 +203,75 @@ const Library = (() => {
     }
 
     async function downloadFinal(finalId) {
-        const finals = await API.getFinalReports();
-        const f = finals.find(r => r.id === finalId);
+        // Fetch full final report data (pdf_data + sections_snapshot) on demand
+        const f = await API.getFinalReport(finalId);
         if (!f) return;
         hide();
-        const select = document.getElementById('report-selector');
-        select.value = f.report_id;
-        select.dispatchEvent(new Event('change'));
-        setTimeout(() => PDF.generate({ equipment_number: f.equipment_number }, { autoDownload: true }), 500);
+        // Try to load source report; if deleted, use snapshot
+        let report = null;
+        try {
+            document.getElementById('report-selector').value = f.report_id;
+            await App.loadReport(f.report_id, { skipAutoLock: true });
+            report = App.getReport();
+        } catch (e) { report = null; }
+        // Fallback: build report object from the final snapshot
+        if (!report && f.sections_snapshot) {
+            report = {
+                id: f.report_id || null,
+                equipment_number: f.equipment_number,
+                project_name: f.project_name,
+                unit_number: f.unit_number,
+                report_type: f.report_type,
+                site_id: f.site_id,
+                status: 'final',
+                sections: f.sections_snapshot
+            };
+        }
+        if (report) {
+            await PDF.generate(report, { autoDownload: true });
+            markDownloaded(finalId);
+        } else {
+            App.toast('Cannot download — source report and snapshot both missing.', 'error');
+        }
     }
 
-    function downloadSelected() {
+    async function downloadSelected() {
         const checked = document.querySelectorAll('.final-check:checked');
         if (checked.length === 0) return;
         const ids = Array.from(checked).map(c => parseInt(c.dataset.fid));
-        let i = 0;
-        function next() { if (i >= ids.length) { App.toast(`${ids.length} PDF(s) queued.`, 'success'); return; } downloadFinal(ids[i]); i++; if (i < ids.length) setTimeout(next, 2000); }
-        next();
+        for (const id of ids) {
+            await downloadFinal(id);
+        }
+        App.toast(`${ids.length} PDF(s) downloaded.`, 'success');
     }
 
     async function viewFinalReport(finalId) {
-        const finals = await API.getFinalReports();
-        const f = finals.find(r => r.id === finalId);
+        // Fetch full final report data (sections_snapshot) on demand
+        const f = await API.getFinalReport(finalId);
         if (!f) return;
         hide();
-        const select = document.getElementById('report-selector');
-        select.value = f.report_id;
-        select.dispatchEvent(new Event('change'));
-        if (f.sections_snapshot) {
-            setTimeout(() => App.viewVersion({ version_id: 'Final', timestamp: f.finalized_at, user_name: f.finalized_by_name, section_snapshots: f.sections_snapshot }), 300);
+        // Try to load source report first
+        let sourceLoaded = false;
+        try {
+            document.getElementById('report-selector').value = f.report_id;
+            await App.loadReport(f.report_id, { skipAutoLock: true });
+            sourceLoaded = !!App.getReport();
+        } catch (e) { sourceLoaded = false; }
+
+        if (sourceLoaded && f.sections_snapshot) {
+            App.viewVersion({
+                version_id: 'Final',
+                timestamp: f.finalized_at,
+                user_name: f.finalized_by_name,
+                section_snapshots: f.sections_snapshot
+            });
+        } else if (f.sections_snapshot) {
+            // Source report deleted — offer to download instead
+            if (confirm(`Source report for "${f.equipment_number}" was deleted.\n\nWould you like to download the finalized PDF instead?`)) {
+                await downloadFinal(finalId);
+            }
+        } else {
+            App.toast('No snapshot available for this report.', 'error');
         }
     }
 
@@ -184,6 +281,7 @@ const Library = (() => {
         if (!Auth.isAdmin()) return;
         if (!confirm('Permanently delete this report and all its data? This cannot be undone.')) return;
         await API.deleteReport(id);
+        invalidateReportsCache();
         App.toast('Report deleted.', 'info');
         await renderProgress();
     }
@@ -192,6 +290,7 @@ const Library = (() => {
         if (!Auth.isAdmin()) return;
         if (!confirm('Force release the lock on this report?')) return;
         await API.forceUnlock(id);
+        invalidateReportsCache();
         App.toast('Lock released.', 'info');
         await renderProgress();
     }
@@ -231,7 +330,15 @@ const Library = (() => {
         if (search) search.addEventListener('input', () => renderProgress(filter.value, search.value).catch(console.error));
         if (filter) filter.addEventListener('change', () => renderProgress(filter.value, search.value).catch(console.error));
         const finalSearch = document.getElementById('final-search');
-        if (finalSearch) finalSearch.addEventListener('input', () => renderFinal(finalSearch.value).catch(console.error));
+        if (finalSearch) finalSearch.addEventListener('input', () => renderFinal().catch(console.error));
+        const finalSort = document.getElementById('final-sort');
+        if (finalSort) finalSort.addEventListener('change', () => renderFinal().catch(console.error));
+        const finalDateFrom = document.getElementById('final-date-from');
+        const finalDateTo = document.getElementById('final-date-to');
+        if (finalDateFrom) finalDateFrom.addEventListener('change', () => renderFinal().catch(console.error));
+        if (finalDateTo) finalDateTo.addEventListener('change', () => renderFinal().catch(console.error));
+        const hideDownloaded = document.getElementById('final-hide-downloaded');
+        if (hideDownloaded) hideDownloaded.addEventListener('change', () => renderFinal().catch(console.error));
         document.querySelectorAll('.lib-tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.libtab)));
         const selectAllHead = document.getElementById('final-select-all-head');
         const selectAll = document.getElementById('final-select-all');

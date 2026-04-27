@@ -307,8 +307,8 @@ Harden the Task Tracker application by addressing 16 QA issues in dependency ord
     - Test login → token → protected route → logout using supertest
     - _Requirements: 12.6_
 
-- [ ] 18. Configuration environment variable property test
-  - [ ]* 18.1 Write property test: config env var resolution
+- [x] 18. Configuration environment variable property test
+  - [x]* 18.1 Write property test: config env var resolution
     - **Property 13: Configuration environment variable resolution**
     - For any value of `TRACKER_DIR`, Config_Loader returns that value; when unset, returns null
     - **Validates: Requirement 1.1**

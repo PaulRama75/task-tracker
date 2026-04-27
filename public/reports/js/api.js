@@ -465,6 +465,11 @@ const API = (() => {
             return handleRes(res);
         },
 
+        async getFinalReport(finalId) {
+            const res = await af(`${BASE}/final-reports/${finalId}`);
+            return handleRes(res);
+        },
+
         async deleteFinalReport(finalId) {
             const res = await jsonDelete(`${BASE}/final-reports/${finalId}`);
             return handleRes(res);
@@ -552,6 +557,19 @@ const API = (() => {
 
         async getAllEquipment() {
             const res = await af(`${BASE}/equipment/all`);
+            return handleRes(res);
+        },
+
+        // ─── Activity Log ────────────────────────────────────────────────
+        async getActivityLog(page, limit, filters) {
+            const params = new URLSearchParams({ page: page || 1, limit: limit || 50 });
+            if (filters) {
+                if (filters.action) params.set('action', filters.action);
+                if (filters.username) params.set('username', filters.username);
+                if (filters.startDate) params.set('startDate', filters.startDate);
+                if (filters.endDate) params.set('endDate', filters.endDate);
+            }
+            const res = await af(`${BASE}/activity-log?${params}`);
             return handleRes(res);
         },
     };

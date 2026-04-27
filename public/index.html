@@ -1905,15 +1905,14 @@ function renderWeeklyKpi(sectionsToProcess, multiSection, fromD, toD) {
   const wrap = document.getElementById('weeklyKpiTableWrap');
   if (!wrap) return;
 
-  // Build unified task columns list with weights
+  // Build unified task columns list with weights (deduplicate by task name across sections)
   const taskColList = [];
   Object.entries(sectionsToProcess).forEach(([secName, secData]) => {
     if (!secData) return;
     (secData.taskCols || []).forEach(tc => {
-      const displayName = multiSection ? secName + ': ' + tc.task : tc.task;
       const w = getWeightFor(tc.task, secData.weights || []);
-      if (!taskColList.find(t => t.displayName === displayName)) {
-        taskColList.push({ displayName, task: tc.task, secName, weight: w ? w.weight : 0 });
+      if (!taskColList.find(t => t.task === tc.task)) {
+        taskColList.push({ displayName: tc.task, task: tc.task, secName, weight: w ? w.weight : 0 });
       }
     });
   });
@@ -1924,17 +1923,13 @@ function renderWeeklyKpi(sectionsToProcess, multiSection, fromD, toD) {
   const personMap = {};
   state.initials.forEach(p => {
     personMap[p.initial] = { name: p.name, counts: {} };
-    taskColList.forEach(tc => { personMap[p.initial].counts[tc.displayName] = 0; });
+    taskColList.forEach(tc => { personMap[p.initial].counts[tc.task] = 0; });
   });
-
-  const totals = {};
-  taskColList.forEach(tc => { totals[tc.displayName] = 0; });
 
   Object.entries(sectionsToProcess).forEach(([secName, secData]) => {
     if (!secData) return;
     (secData.rows || []).forEach(r => {
       (secData.taskCols || []).forEach(tc => {
-        const displayName = multiSection ? secName + ': ' + tc.task : tc.task;
         const t = r._tasks[tc.task];
         if (t && t.date) {
           const d = parseDate(t.date);
@@ -1942,12 +1937,17 @@ function renderWeeklyKpi(sectionsToProcess, multiSection, fromD, toD) {
           if (toD && d && d > toD) return;
           const ini = (t.initial || '').toUpperCase();
           if (ini && personMap[ini]) {
-            personMap[ini].counts[displayName]++;
+            personMap[ini].counts[tc.task]++;
           }
-          totals[displayName]++;
         }
       });
     });
+  });
+
+  // Compute totals from person counts so they match visible rows
+  const totals = {};
+  taskColList.forEach(tc => {
+    totals[tc.task] = Object.values(personMap).reduce((s, pm) => s + (pm.counts[tc.task] || 0), 0);
   });
 
   // Determine section title
@@ -1979,9 +1979,7 @@ function renderWeeklyKpi(sectionsToProcess, multiSection, fromD, toD) {
   // Column header row
   html += '<tr class="kpi-header-row"><th class="kpi-col-name">Name</th>';
   taskColList.forEach(tc => {
-    // Shorten: remove section prefix (e.g. "PIPE: ") for display
-    const shortName = tc.displayName.replace(/^[^:]+:\s*/i, '');
-    html += '<th class="kpi-col-task">' + esc(shortName) + '</th>';
+    html += '<th class="kpi-col-task">' + esc(tc.task) + '</th>';
   });
   html += '<th class="kpi-col-summary">SUMMARY</th></tr>';
   html += '</thead><tbody>';
@@ -1991,11 +1989,11 @@ function renderWeeklyKpi(sectionsToProcess, multiSection, fromD, toD) {
   const persons = state.initials.filter(p => personMap[p.initial] && !skipNames.includes(p.initial.toLowerCase()) && !skipNames.includes(p.name.toLowerCase()));
   persons.forEach(p => {
     const pm = personMap[p.initial];
-    const rowTotal = taskColList.reduce((s, tc) => s + (pm.counts[tc.displayName] || 0), 0);
+    const rowTotal = taskColList.reduce((s, tc) => s + (pm.counts[tc.task] || 0), 0);
     html += '<tr>';
     html += '<td class="kpi-name">' + esc(p.name) + '</td>';
     taskColList.forEach(tc => {
-      const val = pm.counts[tc.displayName] || 0;
+      const val = pm.counts[tc.task] || 0;
       if (val > 0) {
         html += '<td class="kpi-has-data">' + val + '</td>';
       } else {
@@ -2011,11 +2009,11 @@ function renderWeeklyKpi(sectionsToProcess, multiSection, fromD, toD) {
   });
 
   // Totals row
-  const grandTotal = taskColList.reduce((s, tc) => s + totals[tc.displayName], 0);
+  const grandTotal = taskColList.reduce((s, tc) => s + totals[tc.task], 0);
   html += '<tr class="kpi-totals">';
   html += '<td><strong>Totals</strong></td>';
   taskColList.forEach(tc => {
-    const val = totals[tc.displayName];
+    const val = totals[tc.task];
     if (val > 0) {
       html += '<td class="kpi-has-data">' + val + '</td>';
     } else {

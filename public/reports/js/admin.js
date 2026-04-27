@@ -27,18 +27,50 @@ const Admin = (() => {
         const users = await API.getUsers();
         const sites = await API.getSites();
         const me = Auth.getUser();
+        const roles = ['Inspector', 'Lead Inspector', 'Engineer', 'Supervisor'];
         tbody.innerHTML = users.map(u => {
             const userSites = sites.filter(s => (u.site_ids || []).includes(s.id));
             const siteNames = userSites.map(s => s.plant_name).join(', ') || '<em style="color:#aaa">None</em>';
-            return `<tr>
-                <td>${esc(u.name)}</td>
-                <td>${esc(u.role)}</td>
-                <td>${esc(u.api_cert || '')}</td>
-                <td>${u.is_admin ? '<span class="status-badge approved">Admin</span>' : ''}</td>
+            const roleOpts = roles.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${r}</option>`).join('');
+            return `<tr data-uid="${u.id}">
+                <td><input type="text" class="admin-edit-name" value="${esc(u.name)}" style="border:1px solid #ddd;padding:2px 4px;width:100%;font-size:inherit;"></td>
+                <td><select class="admin-edit-role" style="border:1px solid #ddd;padding:2px;font-size:inherit;">${roleOpts}</select></td>
+                <td><input type="text" class="admin-edit-cert" value="${esc(u.api_cert || '')}" style="border:1px solid #ddd;padding:2px 4px;width:100%;font-size:inherit;"></td>
+                <td><label style="cursor:pointer;"><input type="checkbox" class="admin-edit-admin" ${u.is_admin ? 'checked' : ''}> Admin</label></td>
                 <td style="font-size:11px;">${siteNames}</td>
-                <td>${u.id !== me.id ? `<button class="btn btn-sm btn-danger" onclick="Admin.deleteUser(${u.id})">Delete</button>` : '<em>You</em>'}</td>
+                <td style="white-space:nowrap;">
+                    <button class="btn btn-sm btn-primary admin-save-user" style="margin-right:4px;">Save</button>
+                    ${u.id !== me.id ? `<button class="btn btn-sm btn-danger" onclick="Admin.deleteUser(${u.id})">Delete</button>` : '<em>You</em>'}
+                </td>
             </tr>`;
         }).join('');
+
+        // Bind save buttons
+        tbody.querySelectorAll('.admin-save-user').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const row = btn.closest('tr');
+                const uid = parseInt(row.dataset.uid);
+                const name = row.querySelector('.admin-edit-name').value.trim();
+                const role = row.querySelector('.admin-edit-role').value;
+                const cert = row.querySelector('.admin-edit-cert').value.trim();
+                const isAdmin = row.querySelector('.admin-edit-admin').checked;
+                if (!name) { App.toast('Name cannot be empty', 'error'); return; }
+                try {
+                    btn.textContent = 'Saving...';
+                    btn.disabled = true;
+                    await API.updateUser(uid, { name, role, api_cert: cert, is_admin: isAdmin });
+                    btn.textContent = '✓ Saved!';
+                    btn.style.background = '#27ae60';
+                    btn.style.color = '#fff';
+                    await new Promise(r => setTimeout(r, 1000));
+                    await renderUsers();
+                } catch (e) {
+                    btn.textContent = 'Save';
+                    btn.disabled = false;
+                    App.toast('Save failed: ' + e.message, 'error');
+                }
+            });
+        });
     }
 
     // ─── Sites ────────────────────────────────────────────────────────────
@@ -194,6 +226,77 @@ const Admin = (() => {
         catch (e) { App.toast(e.message, 'error'); }
     }
 
+    // ─── Activity Log ────────────────────────────────────────────────────
+    let activityPage = 1;
+    const activityLimit = 50;
+    let activityTotal = 0;
+
+    async function loadActivityLog(page, clearFilters) {
+        if (page) activityPage = page;
+        if (clearFilters) {
+            const af = document.getElementById('activity-filter-action');
+            const uf = document.getElementById('activity-filter-user');
+            if (af) af.value = '';
+            if (uf) uf.value = '';
+        }
+        const filters = {};
+        const actionEl = document.getElementById('activity-filter-action');
+        const userEl = document.getElementById('activity-filter-user');
+        if (actionEl && actionEl.value) filters.action = actionEl.value;
+        if (userEl && userEl.value.trim()) filters.username = userEl.value.trim();
+
+        const result = await API.getActivityLog(activityPage, activityLimit, filters);
+        activityTotal = result.total;
+        const tbody = document.getElementById('activity-tbody');
+
+        const actionLabels = {
+            tir_login: 'Login',
+            report_create: 'Create Report',
+            report_save_section: 'Save Section',
+            report_status: 'Status Change',
+            report_lock: 'Lock Report',
+            report_finalize: 'Finalize',
+            report_delete: 'Delete Report'
+        };
+
+        tbody.innerHTML = result.rows.length === 0
+            ? '<tr><td colspan="4" style="text-align:center;color:#aaa;">No activity logged yet.</td></tr>'
+            : result.rows.map(r => {
+                const time = new Date(r.createdAt).toLocaleString();
+                const label = actionLabels[r.action] || r.action;
+                let details = '';
+                if (r.details) {
+                    const d = r.details;
+                    const parts = [];
+                    if (d.equipment) parts.push('Equipment: ' + d.equipment);
+                    if (d.reportId) parts.push('Report #' + d.reportId);
+                    if (d.section) parts.push('Section: ' + d.section);
+                    if (d.status) parts.push('Status: ' + d.status);
+                    if (d.tirUser) parts.push('TIR User: ' + d.tirUser);
+                    if (d.role) parts.push('Role: ' + d.role);
+                    if (d.type) parts.push('Type: ' + d.type);
+                    details = parts.join(', ');
+                }
+                return `<tr>
+                    <td style="font-size:11px;white-space:nowrap;">${esc(time)}</td>
+                    <td>${esc(r.username || '-')}</td>
+                    <td><span class="status-badge ${r.action.includes('delete') ? 'rejected' : r.action.includes('finalize') ? 'approved' : 'draft'}">${esc(label)}</span></td>
+                    <td style="font-size:11px;">${esc(details)}</td>
+                </tr>`;
+            }).join('');
+
+        const totalPages = Math.ceil(activityTotal / activityLimit);
+        const info = document.getElementById('activity-page-info');
+        if (info) info.textContent = `Page ${activityPage} of ${totalPages || 1} (${activityTotal} entries)`;
+        const prev = document.getElementById('activity-prev');
+        const next = document.getElementById('activity-next');
+        if (prev) prev.disabled = activityPage <= 1;
+        if (next) next.disabled = activityPage >= totalPages;
+    }
+
+    function activityPrev() { if (activityPage > 1) loadActivityLog(activityPage - 1); }
+    function activityNext() { loadActivityLog(activityPage + 1); }
+
     function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
     // Bind events
@@ -233,9 +336,10 @@ const Admin = (() => {
                 document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.add('hidden'));
                 tab.classList.add('active');
                 document.getElementById('admin-tab-' + tab.dataset.tab).classList.remove('hidden');
+                if (tab.dataset.tab === 'activity') loadActivityLog(1).catch(console.error);
             });
         });
     });
 
-    return { open, close, deleteUser, deleteSite, renderSites, saveAllSites };
+    return { open, close, deleteUser, deleteSite, renderSites, saveAllSites, loadActivityLog, activityPrev, activityNext };
 })();

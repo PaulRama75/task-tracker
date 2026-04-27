@@ -29,6 +29,11 @@ const App = (() => {
     let dirty = false;
     const quillEditors = new Map();
     let viewingVersion = null;
+    let autosaveInterval = null;
+    let isSaving = false;
+    let idleSaveTimer = null;
+    const AUTOSAVE_DELAY = 30000; // 30 seconds — periodic safety net
+    const IDLE_SAVE_DELAY = 5000; // 5 seconds after last edit
 
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
@@ -43,6 +48,107 @@ const App = (() => {
     function markDirty() {
         dirty = true;
         const s = $('#save-status'); if (s) s.textContent = 'Unsaved changes';
+        updateFloatingSave();
+        scheduleIdleSave();
+    }
+
+    // ─── Idle Save (debounced) ───────────────────────────────────────────
+    function scheduleIdleSave() {
+        if (idleSaveTimer) clearTimeout(idleSaveTimer);
+        idleSaveTimer = setTimeout(async () => {
+            idleSaveTimer = null;
+            if (!dirty || !currentReport || !Auth.hasLock(currentReport) || isSaving) return;
+            const btn = $('#floating-save-btn');
+            const lbl = btn ? btn.querySelector('.floating-save-label') : null;
+            if (btn) {
+                btn.classList.remove('saved');
+                btn.classList.add('saving');
+                if (lbl) lbl.textContent = 'Auto-saving...';
+            }
+            const ok = await saveAll({ silent: true });
+            if (btn) {
+                btn.classList.remove('saving');
+                if (ok) {
+                    btn.classList.add('saved');
+                    if (lbl) lbl.textContent = 'Auto-saved!';
+                    setTimeout(() => {
+                        btn.classList.remove('saved');
+                        updateFloatingSave();
+                    }, 1500);
+                } else {
+                    if (lbl) lbl.textContent = 'Save';
+                }
+            }
+        }, IDLE_SAVE_DELAY);
+    }
+
+    // ─── Floating Save Button ─────────────────────────────────────────────
+    function createFloatingSave() {
+        if ($('#floating-save-btn')) return;
+        const btn = document.createElement('button');
+        btn.id = 'floating-save-btn';
+        btn.innerHTML = '💾<span class="floating-save-label">Save</span>';
+        btn.title = 'Save Draft (Ctrl+S)';
+        btn.style.display = 'none';
+        btn.addEventListener('click', async () => {
+            btn.classList.add('saving');
+            btn.querySelector('.floating-save-label').textContent = 'Saving...';
+            await saveAll();
+            btn.classList.remove('saving');
+            btn.classList.add('saved');
+            btn.querySelector('.floating-save-label').textContent = 'Saved!';
+            setTimeout(() => {
+                btn.classList.remove('saved');
+                updateFloatingSave();
+            }, 1500);
+        });
+        document.body.appendChild(btn);
+    }
+
+    function updateFloatingSave() {
+        const btn = $('#floating-save-btn');
+        if (!btn) return;
+        const show = dirty && currentReport && Auth.hasLock(currentReport);
+        btn.style.display = show ? 'flex' : 'none';
+        if (show) {
+            btn.querySelector('.floating-save-label').textContent = 'Save';
+            btn.classList.remove('saved', 'saving');
+        }
+    }
+
+    // ─── Autosave ─────────────────────────────────────────────────────────
+    function startAutosave() {
+        stopAutosave();
+        autosaveInterval = setInterval(async () => {
+            if (!dirty || !currentReport || !Auth.hasLock(currentReport)) return;
+            if (isSaving) return; // skip if a manual save is in progress
+            const btn = $('#floating-save-btn');
+            const lbl = btn ? btn.querySelector('.floating-save-label') : null;
+            if (btn) {
+                btn.classList.remove('saved');
+                btn.classList.add('saving');
+                if (lbl) lbl.textContent = 'Auto-saving...';
+            }
+            const ok = await saveAll({ silent: true });
+            if (btn) {
+                btn.classList.remove('saving');
+                if (ok) {
+                    btn.classList.add('saved');
+                    if (lbl) lbl.textContent = 'Auto-saved!';
+                    setTimeout(() => {
+                        btn.classList.remove('saved');
+                        updateFloatingSave();
+                    }, 2000);
+                } else {
+                    if (lbl) lbl.textContent = 'Save';
+                }
+            }
+        }, AUTOSAVE_DELAY);
+    }
+
+    function stopAutosave() {
+        if (autosaveInterval) { clearInterval(autosaveInterval); autosaveInterval = null; }
+        if (idleSaveTimer) { clearTimeout(idleSaveTimer); idleSaveTimer = null; }
     }
 
     // Migrate plain text content to HTML
@@ -332,6 +438,11 @@ const App = (() => {
 
     // ─── Version Viewing ──────────────────────────────────────────────────
     async function viewVersion(version) {
+        // If no currentReport (source deleted) we can't render in-place — caller should download instead
+        if (!currentReport) {
+            toast('Source report was deleted. Use "Download PDF" to get the finalized snapshot.', 'error');
+            return;
+        }
         viewingVersion = version;
         destroyQuills();
 
@@ -701,6 +812,14 @@ const App = (() => {
             if (optRes.ok) savedCommentOpts = await optRes.json();
         } catch (e) { console.warn('Could not load checklist options', e); }
 
+        // Build a SHARED pool of all comment suggestions across every checklist item
+        // (scoped to this report type). Using a Set to dedupe, case-sensitively preserved.
+        const sharedPoolSet = new Set();
+        Object.values(savedCommentOpts).forEach(arr => {
+            (arr || []).forEach(o => { if (o && o.trim()) sharedPoolSet.add(o); });
+        });
+        const sharedPool = Array.from(sharedPoolSet).sort((a, b) => a.localeCompare(b));
+
         // Render comment inputs with dropdown
         $$('.cl-comment-wrap').forEach(wrap => {
             const num = wrap.dataset.clNum;
@@ -715,14 +834,21 @@ const App = (() => {
             if (hasLock) {
                 input.classList.remove('hidden');
                 input.value = content;
-                const itemOpts = savedCommentOpts[num] || [];
 
+                function positionOpts() {
+                    const r = input.getBoundingClientRect();
+                    optsDiv.style.top = (r.bottom + 2) + 'px';
+                    optsDiv.style.left = r.left + 'px';
+                    optsDiv.style.width = Math.max(r.width, 300) + 'px';
+                }
                 function showOpts(filter) {
                     const filtered = filter
-                        ? itemOpts.filter(o => o.toLowerCase().includes(filter.toLowerCase()))
-                        : itemOpts;
+                        ? sharedPool.filter(o => o.toLowerCase().includes(filter.toLowerCase()))
+                        : sharedPool;
                     if (filtered.length === 0) { optsDiv.classList.add('hidden'); return; }
-                    optsDiv.innerHTML = filtered.map(o => `<div class="cl-opt-item">${esc(o)}</div>`).join('');
+                    // Limit to 30 suggestions to keep dropdown manageable
+                    optsDiv.innerHTML = filtered.slice(0, 30).map(o => `<div class="cl-opt-item">${esc(o)}</div>`).join('');
+                    positionOpts();
                     optsDiv.classList.remove('hidden');
                     optsDiv.querySelectorAll('.cl-opt-item').forEach(el => {
                         el.onmousedown = (e) => {
@@ -739,10 +865,12 @@ const App = (() => {
                 input.oninput = () => { display.textContent = input.value; showOpts(input.value); markDirty(); };
                 input.onblur = () => {
                     setTimeout(() => optsDiv.classList.add('hidden'), 200);
-                    // Auto-save new option if it has text and is not already saved
+                    // Auto-save new option if it has text and is not already in the shared pool
                     const val = input.value.trim();
-                    if (val && !itemOpts.includes(val)) {
-                        itemOpts.push(val);
+                    if (val && !sharedPoolSet.has(val)) {
+                        sharedPoolSet.add(val);
+                        sharedPool.push(val);
+                        sharedPool.sort((a, b) => a.localeCompare(b));
                         Auth.authFetch('/reports/api/tir/checklist-options', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1176,6 +1304,8 @@ const App = (() => {
             btnLock.classList.add('hidden'); btnUnlock.classList.add('hidden');
             btnPdf.classList.add('hidden'); btnDocx.classList.add('hidden');
             if (saveBar) saveBar.classList.add('hidden');
+            stopAutosave();
+            updateFloatingSave();
             return;
         }
 
@@ -1196,20 +1326,23 @@ const App = (() => {
             if (saveBar) saveBar.classList.remove('hidden');
 
             // Workflow buttons by status + role:
-            // Draft: "Save Draft" + "Submit for Review"
-            // In Review + Lead/Admin: "Approve & Finalize" + "Reject"
-            // In Review + Inspector: "Save Draft" only (read the review)
             btnSubmit.style.display = (status === 'draft') ? '' : 'none';
             btnApprove.style.display = (status === 'in_review' && isLeadOrAdmin) ? '' : 'none';
             btnReject.style.display = (status === 'in_review' && isLeadOrAdmin) ? '' : 'none';
-            btnFinal.style.display = 'none'; // hidden — Approve now does final save
+            btnFinal.style.display = 'none';
+
+            // Start autosave & show floating save
+            createFloatingSave();
+            startAutosave();
+            updateFloatingSave();
         } else if (isLocked) {
             lockStatus.textContent = `Locked by ${currentReport.lock.user_name || '?'}`; lockStatus.className = 'lock-status locked';
             btnLock.classList.add('hidden');
-            // Admin can force-unlock other users' locks
             btnUnlock.classList.toggle('hidden', !isLeadOrAdmin);
             if (isLeadOrAdmin) btnUnlock.textContent = 'Force Unlock';
             if (saveBar) saveBar.classList.add('hidden');
+            stopAutosave();
+            updateFloatingSave();
         } else {
             // Show status in lock area
             const statusLabels = { draft: 'Draft - Available', in_review: 'Pending Review', approved: 'Approved', final: 'Finalized' };
@@ -1221,6 +1354,8 @@ const App = (() => {
             btnLock.textContent = canEditFinal ? 'Edit Final Report' : 'Claim Edit Lock';
             btnUnlock.classList.add('hidden');
             if (saveBar) saveBar.classList.add('hidden');
+            stopAutosave();
+            updateFloatingSave();
         }
 
         // Update review badge
@@ -1228,11 +1363,17 @@ const App = (() => {
     }
 
     // ─── Save All ─────────────────────────────────────────────────────────
-    async function saveAll() {
+    async function saveAll(options = {}) {
+        const silent = options.silent === true;
         const user = Auth.getUser();
         if (!user || !currentReport || !Auth.hasLock(currentReport)) {
-            toast('You need the edit lock to save.', 'error'); return;
+            if (!silent) toast('You need the edit lock to save.', 'error');
+            return false;
         }
+        // Prevent concurrent saves
+        if (isSaving) return false;
+        isSaving = true;
+        if (idleSaveTimer) { clearTimeout(idleSaveTimer); idleSaveTimer = null; }
         try {
             // Create version snapshot BEFORE saving new data
             await API.createVersion(currentReport.id, user.id);
@@ -1253,12 +1394,10 @@ const App = (() => {
             // 510 EXT: Inspector info + Checklist
             const config = API.getReportTypeConfig(currentReport.report_type || 'tower');
             if (config.checklistCategories) {
-                // Inspector info
                 const inspData = {};
                 $$('.inline-input[data-skey="ext510_inspector"]').forEach(inp => inspData[inp.dataset.fkey] = inp.value);
                 inspData.ext510_inspector_signature = getSignatureData();
                 if (Object.keys(inspData).length) await API.saveSection(currentReport.id, 'ext510_inspector', inspData, user.id);
-                // Checklist
                 await API.saveSection(currentReport.id, 'checklist', collectChecklistData(), user.id);
             }
 
@@ -1279,9 +1418,23 @@ const App = (() => {
 
             dirty = false;
             const s = $('#save-status'); if (s) { s.textContent = 'Saved!'; setTimeout(() => s.textContent = '', 2000); }
+            updateFloatingSave();
             currentReport = await API.getReport(currentReport.id);
-            toast('Report saved!', 'success');
-        } catch (err) { toast('Save failed: ' + err.message, 'error'); }
+            if (!silent) toast('Report saved!', 'success');
+            return true;
+        } catch (err) {
+            toast((silent ? 'Autosave failed: ' : 'Save failed: ') + err.message, 'error');
+            // Reset button state on failure
+            const btn = $('#floating-save-btn');
+            if (btn) {
+                btn.classList.remove('saving', 'saved');
+                const lbl = btn.querySelector('.floating-save-label');
+                if (lbl) lbl.textContent = 'Save';
+            }
+            return false;
+        } finally {
+            isSaving = false;
+        }
     }
 
     function getSectionData(key) {
@@ -2094,9 +2247,17 @@ const App = (() => {
         });
 
         window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+        // Ctrl+S to save
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (dirty && currentReport && Auth.hasLock(currentReport)) saveAll();
+            }
+        });
     }
 
-    return { init, toast, viewVersion, loadSiteSelector };
+    return { init, toast, viewVersion, loadSiteSelector, loadReport, getReport: () => currentReport };
 })();
 
 document.addEventListener('DOMContentLoaded', App.init);

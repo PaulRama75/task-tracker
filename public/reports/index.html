@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tower Inspection Report</title>
-    <link rel="stylesheet" href="css/report.css?v=20260412s">
+    <link rel="stylesheet" href="css/report.css?v=20260420b">
     <link href="css/quill.snow.css" rel="stylesheet">
     <script src="js/quill.min.js"></script>
     <script src="js/html2pdf.bundle.min.js"></script>
@@ -296,14 +296,25 @@
 
         <!-- Final Reports Tab -->
         <div id="lib-tab-final" class="hidden">
-            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
-                <input type="text" id="final-search" placeholder="Search final reports..." class="lib-search">
+            <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="final-search" placeholder="Search equipment..." class="lib-search" style="width:150px;">
+                <select id="final-sort" style="padding:4px;font-size:12px;">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="equip-az">Equipment A-Z</option>
+                    <option value="equip-za">Equipment Z-A</option>
+                </select>
+                <label style="font-size:11px;color:#888;">From</label>
+                <input type="date" id="final-date-from" style="padding:3px;font-size:12px;">
+                <label style="font-size:11px;color:#888;">To</label>
+                <input type="date" id="final-date-to" style="padding:3px;font-size:12px;">
+                <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="final-hide-downloaded"> Hide Downloaded</label>
                 <button id="btn-download-selected" class="btn btn-sm btn-primary" disabled>Download Selected</button>
                 <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="final-select-all"> Select All</label>
             </div>
             <div class="library-table-wrap">
             <table class="library-table">
-                <thead><tr><th style="width:30px;"><input type="checkbox" id="final-select-all-head"></th><th>Equipment #</th><th>Project</th><th>Finalized By</th><th>Finalized Date</th><th>Actions</th></tr></thead>
+                <thead><tr><th style="width:30px;"><input type="checkbox" id="final-select-all-head"></th><th>Equipment #</th><th>Project</th><th>Finalized By</th><th>Finalized Date</th><th style="width:60px;">Status</th><th>Actions</th></tr></thead>
                 <tbody id="final-tbody"></tbody>
             </table>
             </div>
@@ -322,6 +333,7 @@
                 <button class="admin-tab active" data-tab="users">Users</button>
                 <button class="admin-tab" data-tab="sites">Sites</button>
                 <button class="admin-tab" data-tab="reports">Reports</button>
+                <button class="admin-tab" data-tab="activity">Activity Log</button>
             </div>
             <div class="admin-tab-content" id="admin-tab-users">
                 <h3>Create User</h3>
@@ -349,6 +361,27 @@
             </div>
             <div class="admin-tab-content hidden" id="admin-tab-reports">
                 <table class="admin-table"><thead><tr><th>Equipment #</th><th>Project</th><th>Status</th><th>Action</th></tr></thead><tbody id="admin-reports-tbody"></tbody></table>
+            </div>
+            <div class="admin-tab-content hidden" id="admin-tab-activity">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+                    <select id="activity-filter-action" style="padding:4px;font-size:12px;">
+                        <option value="">All Actions</option>
+                        <option value="tir_login">Login</option>
+                        <option value="report_create">Create Report</option>
+                        <option value="report_save_section">Save Section</option>
+                        <option value="report_status">Status Change</option>
+                        <option value="report_lock">Lock Report</option>
+                        <option value="report_finalize">Finalize</option>
+                        <option value="report_delete">Delete Report</option>
+                    </select>
+                    <input type="text" id="activity-filter-user" placeholder="Username" style="padding:4px;font-size:12px;width:120px;">
+                    <button class="btn btn-sm btn-primary" onclick="Admin.loadActivityLog()">Filter</button>
+                    <button class="btn btn-sm btn-outline" onclick="Admin.loadActivityLog(1, true)">Refresh</button>
+                    <span id="activity-page-info" style="font-size:11px;color:#888;margin-left:auto;"></span>
+                    <button class="btn btn-sm btn-outline" id="activity-prev" onclick="Admin.activityPrev()" disabled>&lt; Prev</button>
+                    <button class="btn btn-sm btn-outline" id="activity-next" onclick="Admin.activityNext()">Next &gt;</button>
+                </div>
+                <table class="admin-table"><thead><tr><th style="width:150px;">Time</th><th style="width:100px;">User</th><th style="width:140px;">Action</th><th>Details</th></tr></thead><tbody id="activity-tbody"></tbody></table>
             </div>
         </div>
     </div>
@@ -437,12 +470,12 @@
         <button id="btn-back-current" class="btn btn-sm">Back to Current</button>
     </div>
 
-    <script src="js/api.js?v=20260412s"></script>
-    <script src="js/auth.js?v=20260412s"></script>
-    <script src="js/sections.js?v=20260412s"></script>
-    <script src="js/admin.js?v=20260412s"></script>
-    <script src="js/library.js?v=20260412s"></script>
-    <script src="js/pdf.js?v=20260412s"></script>
-    <script src="js/app.js?v=20260412s"></script>
+    <script src="js/api.js?v=20260420b"></script>
+    <script src="js/auth.js?v=20260420b"></script>
+    <script src="js/sections.js?v=20260420b"></script>
+    <script src="js/admin.js?v=20260420b"></script>
+    <script src="js/library.js?v=20260420b"></script>
+    <script src="js/pdf.js?v=20260420b"></script>
+    <script src="js/app.js?v=20260420b"></script>
 </body>
 </html>
