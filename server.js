@@ -50,6 +50,7 @@ app.use('/api', require('./routes/state'));
 app.use('/safety', require('./routes/safety'));
 app.use('/users', require('./routes/usersApp'));
 app.use('/reports', require('./routes/reports'));
+app.use('/readiness', require('./routes/taReadiness'));
 
 // ========== GLOBAL ERROR HANDLER (must be last middleware) ==========
 app.use(globalErrorHandler);
@@ -105,6 +106,7 @@ async function startServer() {
   try {
     console.log('Initializing PostgreSQL database...');
     await db.initDB();
+    await require('./taReadinessDb').init();
 
     let users = await db.getUsers();
     if (!users.length) {
