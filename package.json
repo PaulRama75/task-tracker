@@ -9,6 +9,8 @@
     "test": "jest --forceExit --detectOpenHandles"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@napi-rs/canvas": "^1.0.9",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "docx": "^9.6.1",
@@ -16,7 +18,9 @@
     "express": "^4.21.0",
     "express-rate-limit": "^8.3.2",
     "helmet": "^8.1.0",
+    "mammoth": "^1.12.3",
     "multer": "^1.4.5-lts.1",
+    "pdfjs-dist": "^6.3.289",
     "pg": "^8.20.0",
     "xlsx": "^0.18.5"
   },

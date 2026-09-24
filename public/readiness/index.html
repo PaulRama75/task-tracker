@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TA Readiness AI</title>
+<link rel="stylesheet" href="/readiness/readiness.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div>
+      <div class="eyebrow">&#10022; AI · Turnaround Readiness</div>
+      <h1>TA Readiness AI</h1>
+    </div>
+    <div class="head-actions">
+      <span class="conn" id="conn"><i class="dot"></i><span>Connecting…</span></span>
+      <button class="btn btn-outline" data-action="agent-toggle">&#128172; Ask Readiness Agent</button>
+      <button class="btn btn-primary" data-action="new">+ New package</button>
+    </div>
+  </header>
+
+  <div id="banners"></div>
+  <ol class="flow" id="flow"></ol>
+  <section class="kpis" id="kpis"></section>
+  <section id="list"></section>
+</div>
+
+<div id="overlay"></div>
+
+<aside class="drawer agent" id="agent">
+  <div class="dr-head">
+    <div><div class="eyebrow">&#10022; Readiness Agent</div><h3>Ask about readiness</h3></div>
+    <button class="x" data-action="agent-close" aria-label="Close">&#10005;</button>
+  </div>
+  <div class="chat" id="chat"></div>
+  <form class="composer" id="composer">
+    <input id="question" placeholder="e.g. Why isn't Unit 4 ready?" autocomplete="off">
+    <button type="submit" aria-label="Send">&#8593;</button>
+  </form>
+</aside>
+
+<input type="file" id="newFiles" multiple hidden>
+<input type="file" id="newFolder" multiple hidden webkitdirectory>
+<input type="file" id="addFiles" multiple hidden>
+
+<div class="toast hidden" id="toast"></div>
+<script src="/readiness/readiness.js"></script>
+</body>
+</html>
